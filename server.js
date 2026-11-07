@@ -140,14 +140,66 @@ setInterval(async () => {
   }
 }, 15000);
 
+// --- ROTAS EM FALTA QUE CAUSAVAM ERRO 502 NO PAINEL ADM ---
+
+// Rota para listar o efetivo / membros no painel administrativo
+app.get('/api/admin/membros', async (req, res) => {
+    try {
+        const membros = await User.find({});
+        res.json(membros);
+    } catch (error) {
+        console.error('Erro ao buscar membros ADM:', error);
+        res.status(500).json({ success: false, message: 'Erro ao carregar efetivo.' });
+    }
+});
+
+// Rota alternativa de efetivo caso o frontend use /api/admin/efetivo
+app.get('/api/admin/efetivo', async (req, res) => {
+    try {
+        const membros = await User.find({});
+        res.json({ success: true, efetivo: membros });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao carregar efetivo.' });
+    }
+});
+
+// Rota de Ranking da Tropa
+app.get('/api/ranking', async (req, res) => {
+    try {
+        const membros = await User.find({});
+        const ranking = membros.map(m => {
+            const totalSegundos = (m.historicoTurnos || []).reduce((acc, t) => {
+                if (!t.duracao) return acc;
+                const partes = t.duracao.split(':');
+                if (partes.length !== 3) return acc;
+                return acc + (parseInt(partes[0]) * 3600) + (parseInt(partes[1]) * 60) + parseInt(partes[2]);
+            }, 0);
+            return {
+                nickname: m.nickname,
+                cargo: m.cargo || 'Soldado',
+                totalHorasSegundos: totalSegundos,
+                totalHorasFormatado: `${Math.floor(totalSegundos / 3600)}h ${Math.floor((totalSegundos % 3600) / 60)}m`
+            };
+        }).sort((a, b) => b.totalHorasSegundos - a.totalHorasSegundos);
+
+        res.json({ success: true, ranking });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao carregar ranking.' });
+    }
+});
+
+// ----------------------------------------------------------
+
 app.post('/api/membro/turno', async (req, res) => {
     try {
         const { nickname, duracao, fotoComprovante } = req.body;
-        const user = await User.findOne({ nickname });
+        const user = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
         
         if (!user) {
             return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
         }
+
+        if (!user.historicoTurnos) user.historicoTurnos = [];
 
         user.historicoTurnos.push({
             data: new Date(),
@@ -165,7 +217,7 @@ app.post('/api/membro/turno', async (req, res) => {
 
 app.get('/api/membro/historico/:nickname', async (req, res) => {
     try {
-        const user = await User.findOne({ nickname: req.params.nickname });
+        const user = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') });
         
         if (!user) {
             return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
