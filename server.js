@@ -27,6 +27,7 @@ app.use(express.static('public'));
 
 // Rotas da API
 app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/ponto', require('./routes/pontoRoutes'));
 
 // Gerenciamento de Conexão em Tempo Real (Socket.io - Chat e Call)
 io.on('connection', (socket) => {
