@@ -25,8 +25,8 @@ app.use(express.json());
 app.use(cors());
 app.use(express.static('public'));
 
-// Rotas da API (vamos programar os endpoints em breve)
-// app.use('/api/auth', require('./routes/authRoutes'));
+// Rotas da API
+app.use('/api/auth', require('./routes/authRoutes'));
 
 // Gerenciamento de Conexão em Tempo Real (Socket.io - Chat e Call)
 io.on('connection', (socket) => {
