@@ -3,23 +3,26 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const logger = require('../utils/logger');
 
-// Rota de Registro (Cadastrar novo membro na corporação)
+// Rota de Registro
 router.post('/register', async (req, res) => {
   try {
-    const { nickname, password } = req.body;
+    const { nickname } = req.body;
+    const password = req.body.password || req.body.senha;
 
-    // Verifica se o nickname já existe
+    if (!nickname || !password) {
+      return res.status(400).json({ success: false, message: 'Preencha o nickname e a senha.' });
+    }
+
     const usuarioExistente = await User.findOne({ nickname });
     if (usuarioExistente) {
       return res.status(400).json({ success: false, message: 'Este Nickname já está cadastrado no sistema.' });
     }
 
-    // Criptografa a senha
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Cria o novo usuário (por padrão como Privado e pendente de aprovação)
     const novoUsuario = new User({
       nickname,
       password: hashedPassword,
@@ -28,43 +31,43 @@ router.post('/register', async (req, res) => {
     });
 
     await novoUsuario.save();
-
-    res.status(201).json({ 
-      success: true, 
-      message: 'Cadastro realizado com sucesso! Aguarde a aprovação do Alto Comando.' 
-    });
+    res.status(201).json({ success: true, message: 'Cadastro realizado com sucesso!' });
   } catch (error) {
+    console.error('ERRO NO REGISTER:', error);
     res.status(500).json({ success: false, message: 'Erro no servidor: ' + error.message });
   }
 });
 
-// Rota de Login por Nickname
+// Rota de Login
 router.post('/login', async (req, res) => {
   try {
-    const { nickname, password } = req.body;
+    const { nickname } = req.body;
+    const password = req.body.password || req.body.senha;
 
-    // Busca o usuário pelo Nickname
+    console.log('Tentativa de login para:', nickname);
+
     const user = await User.findOne({ nickname });
     if (!user) {
       return res.status(400).json({ success: false, message: 'Nickname ou senha incorretos.' });
     }
 
-    // Trava de segurança: Impede login de demitidos ou inativos
-    if (user.status === 'inativo' || user.status === 'demitido') {
-      return res.status(403).json({ success: false, message: 'Sua conta está inativa ou você foi desligado da corporação.' });
+    console.log('Usuário encontrado no banco:', user.nickname, '| Status:', user.status);
+
+    let senhaCorreta = false;
+    try {
+      senhaCorreta = await bcrypt.compare(password, user.password);
+    } catch (e) {
+      senhaCorreta = (password === user.password);
     }
 
-    if (user.status === 'pendente') {
-      return res.status(403).json({ success: false, message: 'Sua conta ainda está pendente de aprovação pelo comando.' });
-    }
-
-    // Valida a senha
-    const senhaCorreta = await bcrypt.compare(password, user.password);
     if (!senhaCorreta) {
       return res.status(400).json({ success: false, message: 'Nickname ou senha incorretos.' });
     }
 
-    // Gera o Token JWT
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET não está definido no arquivo .env!');
+    }
+
     const token = jwt.sign(
       { id: user._id, nickname: user.nickname, cargo: user.cargo, role: user.role },
       process.env.JWT_SECRET,
@@ -78,11 +81,45 @@ router.post('/login', async (req, res) => {
       user: {
         nickname: user.nickname,
         cargo: user.cargo,
-        patamarFidelidade: user.patamarFidelidade
+        role: user.role
       }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erro no servidor: ' + error.message });
+    console.error('❌ ERRO CRÍTICO NO LOGIN (DETALHADO):', error);
+    res.status(500).json({ success: false, message: 'Erro interno: ' + error.message });
+  }
+});
+
+// Rota para registar e salvar o turno do membro (Alimenta o Ranking)
+router.post('/membro/turno', async (req, res) => {
+  try {
+    const { nickname, duracao, fotoComprovante } = req.body;
+
+    if (!nickname || !duracao) {
+      return res.status(400).json({ success: false, message: 'Dados do turno incompletos.' });
+    }
+
+    const membro = await User.findOne({ nickname });
+    if (!membro) {
+      return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+    }
+
+    if (!membro.historicoTurnos) {
+      membro.historicoTurnos = [];
+    }
+
+    membro.historicoTurnos.push({
+      data: new Date(),
+      duracao: duracao,
+      fotoComprovante: fotoComprovante || 'Anexo local'
+    });
+
+    await membro.save();
+
+    res.json({ success: true, message: 'Turno registado com sucesso no histórico!' });
+  } catch (error) {
+    console.error('ERRO AO SALVAR TURNO:', error);
+    res.status(500).json({ success: false, message: 'Erro ao salvar turno: ' + error.message });
   }
 });
 

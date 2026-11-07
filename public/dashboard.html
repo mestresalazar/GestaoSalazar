@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão Salazar - Painel do Membro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-image: linear-gradient(rgba(11, 19, 30, 0.2), rgba(11, 19, 30, 0.2)), url('/background.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-color: #0b131e;
+            color: #ffffff;
+            padding: 20px;
+        }
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: rgba(18, 31, 51, 0.35);
+            backdrop-filter: blur(8px);
+            padding: 15px 25px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
+        .nav-brand {
+            color: #38bdf8;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+        .nav-links {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        .nav-links a {
+            color: #e2e8f0;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: background 0.2s, color 0.2s;
+        }
+        .nav-links a:hover, .nav-links a.active {
+            background-color: rgba(30, 41, 59, 0.6);
+            color: #38bdf8;
+        }
+        .logout-btn {
+            background-color: rgba(239, 68, 68, 0.85);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+        .logout-btn:hover {
+            background-color: #dc2626;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media(max-width: 768px) {
+            .grid-container {
+                grid-template-columns: 1fr;
+            }
+        }
+        .card {
+            background-color: rgba(18, 31, 51, 0.4);
+            backdrop-filter: blur(8px);
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+            border: 1px solid rgba(56, 189, 248, 0.25);
+        }
+        .card h3 {
+            color: #38bdf8;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+            padding-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid rgba(56, 189, 248, 0.15);
+            font-size: 13px;
+        }
+        th {
+            background-color: rgba(15, 23, 42, 0.7);
+            color: #38bdf8;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        }
+        .btn-action {
+            width: 100%;
+            padding: 12px;
+            background-color: rgba(2, 132, 199, 0.9);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: background 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .btn-action:hover {
+            background-color: #0284c7;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status-pendente { background-color: #eab308; color: #000; }
+        .status-ativo { background-color: #22c55e; color: #fff; }
+        .timer-display {
+            font-size: 28px;
+            font-weight: bold;
+            color: #38bdf8;
+            text-align: center;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            letter-spacing: 2px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+
+        .chat-container-wrapper {
+            display: flex;
+            gap: 12px;
+        }
+        .chat-main-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-sidebar-online {
+            width: 130px;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: 6px;
+            padding: 8px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        .chat-sidebar-online h5 {
+            color: #38bdf8;
+            font-size: 11px;
+            margin-bottom: 6px;
+            border-bottom: 1px solid rgba(56, 189, 248, 0.15);
+            padding-bottom: 4px;
+            text-transform: uppercase;
+        }
+        .online-user-item {
+            font-size: 11px;
+            color: #cbd5e1;
+            padding: 3px 0;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .online-dot {
+            width: 7px;
+            height: 7px;
+            background-color: #22c55e;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 5px #22c55e;
+        }
+
+        #chatBox {
+            height: 250px;
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            border-radius: 6px;
+            padding: 12px;
+            overflow-y: auto;
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.6);
+        }
+        .chat-msg {
+            font-size: 13px;
+            background: rgba(30, 41, 59, 0.65);
+            padding: 8px 12px;
+            border-radius: 6px;
+            border-left: 3px solid #38bdf8;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            word-break: break-word;
+        }
+        .chat-msg .chat-header-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            font-size: 11px;
+        }
+        .chat-msg span.autor {
+            font-weight: bold;
+            color: #38bdf8;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        }
+        .chat-msg span.hora {
+            color: #94a3b8;
+            font-size: 10px;
+        }
+        .chat-msg .texto-msg {
+            color: #e2e8f0;
+            font-size: 13px;
+        }
+
+        #modalHistorico {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: rgba(18, 31, 51, 0.95);
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            border-radius: 8px;
+            padding: 25px;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+            border: 1px solid #38bdf8;
+        }
+        .close-modal {
+            float: right;
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+    <div class="navbar">
+        <div class="nav-brand">Gestão Salazar</div>
+        <div class="nav-links">
+            <a href="dashboard.html" class="active">Painel de Turnos</a>
+            <a href="admin.html" id="navAdminLink" style="display: none; background: rgba(3, 105, 161, 0.8); color: #fff;">Painel ADM</a>
+            <button class="btn-action" style="margin-top:0; padding: 6px 12px; font-size: 13px; background: rgba(51, 65, 85, 0.8); width: auto;" onclick="abrirHistorico()">Meu Histórico 📜</button>
+            <span id="userBadgeInfo" style="font-size: 13px; color: #e2e8f0; margin-left: 10px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);"></span>
+            <button class="logout-btn" onclick="logout()">Sair</button>
+        </div>
+    </div>
+
+    <div class="grid-container">
+        <!-- COLUNA ESQUERDA -->
+        <div>
+            <div class="card">
+                <h3>🪖 Módulo Bate-Ponto & Turnos</h3>
+                <p id="etapaAtual" style="color: #e2e8f0; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Detectando etapa atual...</p>
+                
+                <div class="timer-display" id="timerDisplay">00:00:00</div>
+
+                <div style="margin-top: 15px;">
+                    <label style="font-size: 13px; color: #e2e8f0; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Anexar Foto do Turno / Print do Jogo (Obrigatório)</label>
+                    <input type="file" id="fotoComprovante" accept="image/*" style="width: 100%; padding: 8px; margin-top: 5px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; color: white; font-size: 13px;" onchange="converterFotoLocal(this)">
+                    <div id="statusAnexo" style="font-size: 12px; color: #22c55e; margin-top: 5px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);"></div>
+                </div>
+                
+                <button class="btn-action" id="btnCheckin" onclick="fazerCheckin()">Iniciar Turno (Check-in)</button>
+                <button class="btn-action" id="btnPausar" style="background-color: rgba(234, 179, 8, 0.9); color: #000; display: none;" onclick="alternarPausa()">Pausar Turno</button>
+                <button class="btn-action" id="btnCheckout" style="background-color: rgba(71, 85, 105, 0.9);" onclick="fazerCheckout()">Finalizar Turno (Check-out)</button>
+            </div>
+
+            <div class="card">
+                <h3>🎁 Status do Sorteio Diário</h3>
+                <p style="color: #e2e8f0; margin-bottom: 15px; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Para estar elegível, cumpre pelo menos 2h acumuladas de plantão no dia.</p>
+                <div id="statusSorteio" style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); padding: 12px; border-radius: 6px; text-align: center; font-weight: bold; color: #eab308; font-size: 14px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">
+                    Elegível ao atingir 2h de plantão.
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUNA DIREITA -->
+        <div>
+            <!-- CAIXA DE ENTRADA & NOTIFICAÇÕES -->
+            <div class="card">
+                <h3>📥 Caixa de Entrada & Notificações</h3>
+                <div id="caixaEntradaContainer" style="max-height: 140px; overflow-y: auto; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; padding: 10px; font-size: 13px; color: #e2e8f0;">
+                    A carregar notificações...
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>💬 Rádio Tático da Tropa</h3>
+                <div class="chat-container-wrapper">
+                    <div class="chat-main-panel">
+                        <div id="chatBox"></div>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="chatInput" placeholder="Digite sua mensagem no rádio..." style="flex: 1; padding: 10px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; font-size: 13px; outline: none;">
+                            <button class="btn-action" style="margin-top: 0; padding: 10px 18px; width: auto;" onclick="enviarMensagem()">Transmitir</button>
+                        </div>
+                    </div>
+                    <div class="chat-sidebar-online">
+                        <h5>🟢 Em Operação</h5>
+                        <div id="listaOnline">
+                            <span style="font-size: 11px; color: #94a3b8;">A carregar...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🏆 Ranking da Tropa (17h às 02h)</h3>
+                <p style="color: #e2e8f0; margin-bottom: 12px; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Membros com mais horas acumuladas no horário regulamentar.</p>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Posição</th>
+                                <th>Nickname</th>
+                                <th>Total de Horas</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaRanking">
+                            <tr>
+                                <td colspan="3" style="text-align: center; color: #94a3b8;">A carregar ranking...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalHistorico">
+        <div class="modal-content">
+            <button class="close-modal" onclick="fecharHistorico()">X</button>
+            <h3 style="color: #38bdf8; margin-bottom: 15px;">📜 Histórico Operacional Completo</h3>
+            <div id="conteudoHistorico" style="font-size: 13px; color: #e2e8f0; display: flex; flex-direction: column; gap: 15px;">
+                <p>A carregar histórico...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="customModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(4px);">
+        <div style="background: rgba(18, 31, 51, 0.95); width: 90%; max-width: 400px; border-radius: 8px; padding: 25px; box-shadow: 0 4px 25px rgba(0,0,0,0.9); border: 1px solid #38bdf8; text-align: center;">
+            <h3 id="modalCustomTitle" style="color: #38bdf8; margin-bottom: 12px; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">Gestão Salazar</h3>
+            <p id="modalCustomMessage" style="color: #e2e8f0; font-size: 14px; margin-bottom: 20px; line-height: 1.4; text-shadow: 0 1px 2px rgba(0,0,0,0.8);"></p>
+            <div id="modalCustomButtons" style="display: flex; gap: 10px; justify-content: center;"></div>
+        </div>
+    </div>
+
+    <script>
+        const userStr = localStorage.getItem('user');
+        if (!userStr) { window.location.href = 'index.html'; }
+
+        const user = JSON.parse(userStr);
+        document.getElementById('userBadgeInfo').innerHTML = `${user.nickname} (${user.cargo || 'Privado'}) <span class="status-badge status-${user.status || 'ativo'}">${(user.status || 'ativo').toUpperCase()}</span>`;
+
+        if (user.role === 'admin' || user.cargo === 'General' || user.cargo === 'Coronel') {
+            document.getElementById('navAdminLink').style.display = 'inline-block';
+        }
+
+        async function carregarCaixaEntrada() {
+            try {
+                const res = await fetch(`/api/membro/historico/${encodeURIComponent(user.nickname)}`);
+                const data = await res.json();
+                const container = document.getElementById('caixaEntradaContainer');
+                container.innerHTML = '';
+
+                if (data.success && data.caixaEntrada && data.caixaEntrada.length > 0) {
+                    data.caixaEntrada.reverse().forEach(notif => {
+                        const div = document.createElement('div');
+                        div.style.background = 'rgba(30, 41, 59, 0.6)';
+                        div.style.padding = '8px';
+                        div.style.borderRadius = '4px';
+                        div.style.marginBottom = '6px';
+                        div.style.borderLeft = '3px solid #38bdf8';
+                        div.innerHTML = `
+                            <p style="font-weight: bold; color: #38bdf8; margin-bottom: 2px;">${notif.titulo} <span style="font-size: 10px; color: #94a3b8; float: right;">${new Date(notif.data).toLocaleDateString()}</span></p>
+                            <p style="font-size: 12px; color: #cbd5e1;">${notif.mensagem}</p>
+                        `;
+                        container.appendChild(div);
+                    });
+                } else {
+                    container.innerHTML = '<span style="color: #94a3b8;">Nenhuma nova notificação na caixa de entrada.</span>';
+                }
+            } catch (e) {
+                console.error('Erro ao carregar caixa de entrada:', e);
+            }
+        }
+        carregarCaixaEntrada();
+        setInterval(carregarCaixaEntrada, 6000);
+
+        const socket = io();
+        socket.emit('entrar_sala', { salaId: 'sala_geral_salazar', nickname: user.nickname, cargo: user.cargo || 'Soldado' });
+
+        function carregarHistoricoChatLocal() {
+            const chatBox = document.getElementById('chatBox');
+            const mensagensSalvas = JSON.parse(localStorage.getItem('chat_historico_salazar')) || [];
+            
+            if (mensagensSalvas.length === 0) {
+                adicionarMsgNoChat({
+                    nickname: 'Sistema',
+                    cargo: 'Rádio',
+                    mensagem: 'Canal de rádio tático conectado.',
+                    hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                }, false);
+            } else {
+                mensagensSalvas.forEach(msg => adicionarMsgNoChat(msg, false));
+            }
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function adicionarMsgNoChat(data, salvar = true) {
+            const chatBox = document.getElementById('chatBox');
+            const div = document.createElement('div');
+            div.className = 'chat-msg';
+            div.innerHTML = `
+                <div class="chat-header-info">
+                    <span class="autor">${data.nickname} (${data.cargo})</span>
+                    <span class="hora">${data.hora || new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                </div>
+                <div class="texto-msg">${data.mensagem}</div>
+            `;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            if (salvar) {
+                const mensagensSalvas = JSON.parse(localStorage.getItem('chat_historico_salazar')) || [];
+                mensagensSalvas.push(data);
+                if (mensagensSalvas.length > 50) mensagensSalvas.shift();
+                localStorage.setItem('chat_historico_salazar', JSON.stringify(mensagensSalvas));
+            }
+        }
+
+        socket.on('receber_mensagem', (data) => {
+            adicionarMsgNoChat(data, true);
+        });
+
+        socket.on('atualizar_usuarios_online', (usuarios) => {
+            const listaOnline = document.getElementById('listaOnline');
+            listaOnline.innerHTML = '';
+            if (usuarios && usuarios.length > 0) {
+                usuarios.forEach(u => {
+                    const item = document.createElement('div');
+                    item.className = 'online-user-item';
+                    item.innerHTML = `<span class="online-dot"></span> <b>${u.nickname}</b>`;
+                    listaOnline.appendChild(item);
+                });
+            } else {
+                listaOnline.innerHTML = `<span style="font-size: 11px; color: #94a3b8;">Nenhum online</span>`;
+            }
+        });
+
+        function enviarMensagem() {
+            const input = document.getElementById('chatInput');
+            const mensagem = input.value.trim();
+            if (!mensagem) return;
+
+            const dadosMsg = {
+                salaId: 'sala_geral_salazar',
+                nickname: user.nickname,
+                cargo: user.cargo || 'Soldado',
+                mensagem: mensagem,
+                hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+            };
+
+            socket.emit('chat_mensagem', dadosMsg);
+            input.value = '';
+        }
+
+        document.getElementById('chatInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') enviarMensagem();
+        });
+
+        carregarHistoricoChatLocal();
+
+        function mostrarModalCustomizado(titulo, mensagem, tipo = 'alerta', callbackConfirmar = null) {
+            const modal = document.getElementById('customModal');
+            document.getElementById('modalCustomTitle').innerText = titulo;
+            document.getElementById('modalCustomMessage').innerHTML = mensagem;
+            const btnContainer = document.getElementById('modalCustomButtons');
+            btnContainer.innerHTML = '';
+
+            if (tipo === 'alerta') {
+                const btnOk = document.createElement('button');
+                btnOk.innerText = 'OK';
+                btnOk.className = 'btn-action';
+                btnOk.style.width = 'auto';
+                btnOk.style.marginTop = '0';
+                btnOk.style.padding = '8px 25px';
+                btnOk.style.fontSize = '14px';
+                btnOk.onclick = () => { 
+                    modal.style.display = 'none'; 
+                    if (callbackConfirmar) callbackConfirmar();
+                };
+                btnContainer.appendChild(btnOk);
+            }
+            modal.style.display = 'flex';
+        }
+
+        function verificarEtapa() {
+            const hora = new Date().getHours();
+            let textoEtapa = "Fora do horário de etapas";
+            if (hora >= 17 && hora < 20) textoEtapa = "Etapa 1 ativa (17h – 20h)";
+            else if (hora >= 20 && hora < 23) textoEtapa = "Etapa 2 ativa (20h – 23h)";
+            else if (hora >= 23 || hora < 2) textoEtapa = "Etapa 3 ativa (23h – 02h)";
+            document.getElementById('etapaAtual').innerText = `Horário Local: ${hora}h - ${textoEtapa}`;
+        }
+        verificarEtapa();
+
+        async function carregarRanking() {
+            try {
+                const res = await fetch('/api/admin/ranking/turnos');
+                const data = await res.json();
+                const tbody = document.getElementById('tabelaRanking');
+                tbody.innerHTML = '';
+
+                if (data.success && data.ranking.length > 0) {
+                    data.ranking.forEach((item, index) => {
+                        let medalha = `${index + 1}º`;
+                        if (index === 0) medalha = '🥇 1º';
+                        if (index === 1) medalha = '🥈 2º';
+                        if (index === 2) medalha = '🥉 3º';
+
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><b>${medalha}</b></td>
+                            <td>${item.nickname}</td>
+                            <td style="color: #38bdf8; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">${item.totalFormatado}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8;">Nenhum registo no horário correto ainda.</td></tr>`;
+                }
+            } catch (e) {
+                console.error('Erro ao carregar ranking:', e);
+            }
+        }
+        carregarRanking();
+
+        let timerInterval = null;
+        let segundosTotais = parseInt(localStorage.getItem(`turno_segundos_${user.nickname}`)) || 0;
+        let estadoTurno = localStorage.getItem(`turno_estado_${user.nickname}`) || 'parado';
+
+        function atualizarDisplayTimer() {
+            const horas = String(Math.floor(segundosTotais / 3600)).padStart(2, '0');
+            const minutos = String(Math.floor((segundosTotais % 3600) / 60)).padStart(2, '0');
+            const segundos = String(segundosTotais % 60).padStart(2, '0');
+            document.getElementById('timerDisplay').innerText = `${horas}:${minutos}:${segundos}`;
+        }
+
+        function restaurarEstadoTurno() {
+            atualizarDisplayTimer();
+            const btnPausar = document.getElementById('btnPausar');
+            const statusAnexo = document.getElementById('statusAnexo');
+            const fotoSalva = localStorage.getItem(`turno_foto_${user.nickname}`);
+
+            if (fotoSalva) {
+                statusAnexo.innerText = '✅ Print protegido e pronto na memória!';
+            }
+
+            if (estadoTurno === 'ativo') {
+                btnPausar.style.display = 'block';
+                btnPausar.innerText = 'Pausar Turno';
+                btnPausar.style.backgroundColor = 'rgba(234, 179, 8, 0.9)';
+                btnPausar.style.color = '#000';
+                
+                timerInterval = setInterval(() => {
+                    segundosTotais++;
+                    localStorage.setItem(`turno_segundos_${user.nickname}`, segundosTotais);
+                    atualizarDisplayTimer();
+                }, 1000);
+            } else if (estadoTurno === 'pausado') {
+                btnPausar.style.display = 'block';
+                btnPausar.innerText = 'Retomar Turno';
+                btnPausar.style.backgroundColor = 'rgba(34, 197, 94, 0.9)';
+            }
+        }
+        restaurarEstadoTurno();
+
+        function converterFotoLocal(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    localStorage.setItem(`turno_foto_${user.nickname}`, e.target.result);
+                    document.getElementById('statusAnexo').innerText = '✅ Print carregado e blindado com sucesso!';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function fazerCheckin() {
+            if (estadoTurno === 'ativo') {
+                mostrarModalCustomizado('Aviso', 'Turno já em andamento!');
+                return;
+            }
+
+            const fotoSalva = localStorage.getItem(`turno_foto_${user.nickname}`);
+            const fileInput = document.getElementById('fotoComprovante');
+
+            if (!fotoSalva && fileInput.files.length === 0) {
+                mostrarModalCustomizado('Atenção', 'É obrigatório anexar a foto ou print do seu turno antes de iniciar!');
+                return;
+            }
+
+            if (!fotoSalva && fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    localStorage.setItem(`turno_foto_${user.nickname}`, e.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+
+            if (estadoTurno === 'parado') {
+                segundosTotais = 0;
+            }
+
+            estadoTurno = 'ativo';
+            localStorage.setItem(`turno_estado_${user.nickname}`, 'ativo');
+
+            const btnPausar = document.getElementById('btnPausar');
+            btnPausar.style.display = 'block';
+            btnPausar.innerText = 'Pausar Turno';
+            btnPausar.style.backgroundColor = 'rgba(234, 179, 8, 0.9)';
+            btnPausar.style.color = '#000';
+
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                segundosTotais++;
+                localStorage.setItem(`turno_segundos_${user.nickname}`, segundosTotais);
+                atualizarDisplayTimer();
+            }, 1000);
+            
+            mostrarModalCustomizado('Sucesso', 'Check-in registado com sucesso! Turno iniciado e protegido contra F5.');
+        }
+
+        function alternarPausa() {
+            if (estadoTurno === 'parado') return;
+
+            const btnPausar = document.getElementById('btnPausar');
+            if (estadoTurno === 'ativo') {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                estadoTurno = 'pausado';
+                localStorage.setItem(`turno_estado_${user.nickname}`, 'pausado');
+
+                btnPausar.innerText = 'Retomar Turno';
+                btnPausar.style.backgroundColor = 'rgba(34, 197, 94, 0.9)';
+                mostrarModalCustomizado('Turno Pausado', 'O cronômetro foi congelado.');
+            } else {
+                estadoTurno = 'ativo';
+                localStorage.setItem(`turno_estado_${user.nickname}`, 'ativo');
+
+                btnPausar.innerText = 'Pausar Turno';
+                btnPausar.style.backgroundColor = 'rgba(234, 179, 8, 0.9)';
+                btnPausar.style.color = '#000';
+                
+                timerInterval = setInterval(() => {
+                    segundosTotais++;
+                    localStorage.setItem(`turno_segundos_${user.nickname}`, segundosTotais);
+                    atualizarDisplayTimer();
+                }, 1000);
+                mostrarModalCustomizado('Turno Retomado', 'O cronômetro voltou a contar.');
+            }
+        }
+
+        async function fazerCheckout() {
+            if (estadoTurno === 'parado' && segundosTotais === 0) {
+                mostrarModalCustomizado('Aviso', 'Nenhum turno ativo.');
+                return;
+            }
+
+            const imagemBase64 = localStorage.getItem(`turno_foto_${user.nickname}`);
+
+            if (!imagemBase64 || !imagemBase64.startsWith('data:image')) {
+                mostrarModalCustomizado('Atenção', 'Nenhum comprovante válido encontrado. Anexe o print novamente.');
+                return;
+            }
+            
+            clearInterval(timerInterval);
+            timerInterval = null;
+            document.getElementById('btnPausar').style.display = 'none';
+
+            const tempoFinal = document.getElementById('timerDisplay').innerText;
+
+            try {
+                const response = await fetch('/api/membro/turno', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nickname: user.nickname,
+                        duracao: tempoFinal,
+                        fotoComprovante: imagemBase64
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    mostrarModalCustomizado('Sucesso', `Turno finalizado e gravado no histórico com sucesso! Duração: ${tempoFinal}`);
+                    carregarRanking();
+                    
+                    localStorage.removeItem(`turno_segundos_${user.nickname}`);
+                    localStorage.removeItem(`turno_estado_${user.nickname}`);
+                    localStorage.removeItem(`turno_foto_${user.nickname}`);
+                    
+                    segundosTotais = 0;
+                    estadoTurno = 'parado';
+                    document.getElementById('fotoComprovante').value = '';
+                    document.getElementById('statusAnexo').innerText = '';
+                    atualizarDisplayTimer();
+                } else {
+                    mostrarModalCustomizado('Erro', 'Erro ao gravar no histórico: ' + data.message);
+                }
+            } catch (e) {
+                console.error(e);
+                mostrarModalCustomizado('Erro', 'Erro de conexão ao salvar o turno.');
+            }
+        }
+
+        async function abrirHistorico() {
+            document.getElementById('modalHistorico').style.display = 'flex';
+            const container = document.getElementById('conteudoHistorico');
+            container.innerHTML = '<p>A carregar registos da base de dados...</p>';
+
+            try {
+                const res = await fetch(`/api/membro/historico/${encodeURIComponent(user.nickname)}`);
+                const data = await res.json();
+                
+                if (data.success) {
+                    container.innerHTML = `
+                        <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2);">
+                            <h4 style="color: #38bdf8; margin-bottom: 8px;">🛡️ Turnos Cumpridos</h4>
+                            ${data.historicoTurnos.length > 0 ? data.historicoTurnos.map(t => `<p style="margin-bottom: 4px;">• Duração: <b>${t.duracao}</b> | Comprovante: <i>Anexo gravado</i> (${new Date(t.data).toLocaleDateString()})</p>`).join('') : '<p style="color: #94a3b8;">Nenhum turno registado ainda.</p>'}
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2);">
+                            <h4 style="color: #38bdf8; margin-bottom: 8px;">⭐ Histórico de Promoções</h4>
+                            ${data.historicoPromocoes.length > 0 ? data.historicoPromocoes.map(p => `<p style="margin-bottom: 4px;">• Promovido para <b>${p.novoCargo}</b> em ${new Date(p.data).toLocaleDateString()}</p>`).join('') : '<p style="color: #94a3b8;">Nenhuma promoção registada.</p>'}
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2);">
+                            <h4 style="color: #38bdf8; margin-bottom: 8px;">🎁 Histórico de Sorteios</h4>
+                            ${data.historicoSorteios.length > 0 ? data.historicoSorteios.map(s => `<p style="margin-bottom: 4px;">• ${s.descricaoPremio} - Status: <b>${s.status}</b></p>`).join('') : '<p style="color: #94a3b8;">Sem participações em sorteios registadas.</p>'}
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = '<p style="color: #ef4444;">Não foi possível carregar o histórico.</p>';
+                }
+            } catch (e) {
+                console.error(e);
+                container.innerHTML = '<p style="color: #ef4444;">Erro de conexão ao carregar o histórico.</p>';
+            }
+        }
+
+        function fecharHistorico() {
+            document.getElementById('modalHistorico').style.display = 'none';
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

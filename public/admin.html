@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão Salazar - Central de Comando (ADM)</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-image: linear-gradient(rgba(11, 19, 30, 0.2), rgba(11, 19, 30, 0.2)), url('/background.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-color: #0b131e;
+            color: #ffffff;
+            padding: 20px;
+        }
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: rgba(18, 31, 51, 0.35);
+            backdrop-filter: blur(8px);
+            padding: 15px 25px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
+        .nav-brand {
+            color: #38bdf8;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+        .nav-links {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        .nav-links a {
+            color: #e2e8f0;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: background 0.2s, color 0.2s;
+        }
+        .nav-links a:hover, .nav-links a.active {
+            background-color: rgba(30, 41, 59, 0.6);
+            color: #38bdf8;
+        }
+        .logout-btn {
+            background-color: rgba(239, 68, 68, 0.85);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+        .logout-btn:hover {
+            background-color: #dc2626;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+        @media(max-width: 1024px) {
+            .grid-container {
+                grid-template-columns: 1fr;
+            }
+        }
+        .card {
+            background-color: rgba(18, 31, 51, 0.4);
+            backdrop-filter: blur(8px);
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+            border: 1px solid rgba(56, 189, 248, 0.25);
+        }
+        .card h3 {
+            color: #38bdf8;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+            padding-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid rgba(56, 189, 248, 0.15);
+            font-size: 13px;
+        }
+        th {
+            background-color: rgba(15, 23, 42, 0.7);
+            color: #38bdf8;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        }
+        .btn-action {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+            margin-right: 4px;
+            transition: opacity 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .btn-action:hover { opacity: 0.85; }
+        .btn-aprovar { background-color: rgba(22, 163, 74, 0.9); }
+        .btn-promover { background-color: rgba(2, 132, 199, 0.9); }
+        .btn-historico { background-color: rgba(99, 102, 241, 0.9); }
+        .btn-reset { background-color: rgba(234, 179, 8, 0.9); color: #000; }
+        .btn-demitir { background-color: rgba(220, 38, 38, 0.9); }
+
+        #chatBox {
+            height: 250px;
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            border-radius: 6px;
+            padding: 10px;
+            overflow-y: auto;
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .chat-msg {
+            font-size: 13px;
+            background: rgba(30, 41, 59, 0.65);
+            padding: 8px;
+            border-radius: 6px;
+            border-left: 3px solid #38bdf8;
+        }
+        .chat-msg span.autor {
+            font-weight: bold;
+            color: #38bdf8;
+        }
+
+        #modalAdminHistorico {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: rgba(18, 31, 51, 0.95);
+            width: 90%;
+            max-width: 650px;
+            max-height: 85vh;
+            border-radius: 8px;
+            padding: 25px;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+            border: 1px solid #38bdf8;
+        }
+        .close-modal {
+            float: right;
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="navbar">
+        <div class="nav-brand">Gestão Salazar - Comando</div>
+        <div class="nav-links">
+            <a href="dashboard.html">Painel de Turnos</a>
+            <a href="admin.html" class="active" style="background: rgba(3, 105, 161, 0.8); color: #fff;">Painel ADM</a>
+            <span id="userBadgeInfo" style="font-size: 13px; color: #e2e8f0; margin-left: 10px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);"></span>
+            <button class="logout-btn" onclick="logout()">Sair</button>
+        </div>
+    </div>
+
+    <div class="grid-container">
+        <div>
+            <div class="card">
+                <h3>👥 Gerenciamento de Efetivo, Históricos e Promoções</h3>
+                <p style="color: #e2e8f0; margin-bottom: 15px; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Consulte os plantões recentes, histórico operacional completo e faça alterações hierárquicas.</p>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nickname</th>
+                                <th>Cargo</th>
+                                <th>Status</th>
+                                <th>Último Plantão</th>
+                                <th>Ações de Comando</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaEfetivo">
+                            <tr>
+                                <td colspan="5" style="text-align: center; color: #94a3b8;">A carregar efetivo...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- CENTRAL DE SORTEIOS AUTOMÁTICA E COMANDOS ADM -->
+            <div class="card">
+                <h3>🎁 Central de Sorteios Diários (Mínimo de 2h de Plantão)</h3>
+                <p style="color: #e2e8f0; margin-bottom: 15px; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Apenas operacionais com 2 horas ou mais acumuladas participam automaticamente.</p>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px;">
+                    <div>
+                        <label style="font-size: 12px; color: #38bdf8;">Horário Previsto:</label>
+                        <input type="time" id="sorteioHorario" value="20:00" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px;">
+                    </div>
+                    <div>
+                        <label style="font-size: 12px; color: #38bdf8;">Qtd. de Ganhadores:</label>
+                        <input type="number" id="sorteioQtd" value="1" min="1" max="10" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px;">
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="font-size: 12px; color: #38bdf8;">Prêmios (separados por vírgula):</label>
+                    <input type="text" id="sorteioPremios" value="R$ 100.000 no Jogo, Viatura Blindada" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px;">
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <h4 style="color: #38bdf8; font-size: 14px; margin-bottom: 8px;">🛡️ Operacionais Elegíveis (Com 2h+):</h4>
+                    <div id="listaElegiveisSorteio" style="max-height: 120px; overflow-y: auto; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; padding: 8px; font-size: 12px; color: #cbd5e1;">
+                        A carregar elegíveis...
+                    </div>
+                </div>
+
+                <!-- BOTÕES DE CONTROLO DO COMANDO -->
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <button class="btn-action" style="background-color: rgba(2, 132, 199, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="salvarConfiguracaoSorteio()">💾 Salvar Agendamento</button>
+                    <button class="btn-action" style="background-color: rgba(22, 163, 74, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="executarSorteioImediato()">🎲 Forçar Sorteio Imediato</button>
+                </div>
+
+                <div style="margin-top: 15px; border-top: 1px solid rgba(56, 189, 248, 0.2); padding-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn-action" style="background-color: rgba(99, 102, 241, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="enviarNotificacaoRanking()">📊 Enviar Notificação de Ranking</button>
+                    <button class="btn-action" style="background-color: rgba(220, 38, 38, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="resetarRankingSemanal()">🔄 Resetar Ranking da Semana</button>
+                </div>
+
+                <div id="statusConfigSorteio" style="margin-top: 10px; font-size: 12px; color: #38bdf8; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">⚠️ Configuração pendente de salvamento para agendamento automático.</div>
+                <div id="resultadoSorteio" style="margin-top: 15px; font-weight: bold; color: #eab308; text-shadow: 0 1px 2px rgba(0,0,0,0.8); font-size: 13px;"></div>
+            </div>
+        </div>
+
+        <div>
+            <div class="card">
+                <h3>💬 Rádio Tático da Tropa</h3>
+                <div id="chatBox">
+                    <div class="chat-msg"><span class="autor">Sistema (Rádio):</span> Canal de rádio seguro conectado.</div>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="chatInput" placeholder="Digite sua mensagem..." style="flex: 1; padding: 10px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; color: white; font-size: 13px;">
+                    <button class="btn-action btn-promover" style="margin-top: 0; width: auto; padding: 10px 15px;" onclick="enviarMensagem()">Transmitir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Histórico Operacional Completo -->
+    <div id="modalAdminHistorico">
+        <div class="modal-content">
+            <button class="close-modal" onclick="fecharHistoricoAdmin()">X</button>
+            <h3 id="tituloModalHistorico" style="color: #38bdf8; margin-bottom: 15px;">📜 Histórico de Membro</h3>
+            <div id="conteudoAdminHistorico" style="font-size: 13px; color: #e2e8f0; display: flex; flex-direction: column; gap: 15px;">
+                <p>A carregar dados...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Profissional -->
+    <div id="customModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(4px);">
+        <div style="background: rgba(18, 31, 51, 0.95); width: 90%; max-width: 400px; border-radius: 8px; padding: 25px; box-shadow: 0 4px 25px rgba(0,0,0,0.9); border: 1px solid #38bdf8; text-align: center;">
+            <h3 id="modalCustomTitle" style="color: #38bdf8; margin-bottom: 12px; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">Gestão Salazar</h3>
+            <p id="modalCustomMessage" style="color: #e2e8f0; font-size: 14px; margin-bottom: 20px; line-height: 1.4; text-shadow: 0 1px 2px rgba(0,0,0,0.8);"></p>
+            <div id="modalCustomButtons" style="display: flex; gap: 10px; justify-content: center;"></div>
+        </div>
+    </div>
+
+    <script>
+        const userStr = localStorage.getItem('user');
+        if (!userStr) { window.location.href = 'index.html'; }
+
+        const user = JSON.parse(userStr);
+        if (user.role !== 'admin' && user.cargo !== 'General' && user.cargo !== 'Coronel') {
+            mostrarModalCustomizado('Acesso Restrito', 'Acesso restrito a administradores.', 'alerta', () => { window.location.href = 'dashboard.html'; });
+        }
+
+        document.getElementById('userBadgeInfo').innerText = `${user.nickname} (${user.cargo || 'General'})`;
+
+        const socket = io();
+        socket.emit('entrar_sala', { salaId: 'sala_geral_salazar', nickname: user.nickname, cargo: user.cargo || 'Comando' });
+
+        socket.on('receber_mensagem', (data) => {
+            const chatBox = document.getElementById('chatBox');
+            const div = document.createElement('div');
+            div.className = 'chat-msg';
+            div.innerHTML = `<span class="autor">${data.nickname} (${data.cargo}):</span> ${data.mensagem}`;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        });
+
+        function enviarMensagem() {
+            const input = document.getElementById('chatInput');
+            const mensagem = input.value.trim();
+            if (!mensagem) return;
+
+            socket.emit('chat_mensagem', {
+                salaId: 'sala_geral_salazar',
+                nickname: user.nickname,
+                cargo: user.cargo || 'Comando',
+                mensagem: mensagem
+            });
+            input.value = '';
+        }
+
+        document.getElementById('chatInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') enviarMensagem();
+        });
+
+        function mostrarModalCustomizado(titulo, mensagem, tipo = 'alerta', callbackConfirmar = null) {
+            const modal = document.getElementById('customModal');
+            document.getElementById('modalCustomTitle').innerText = titulo;
+            document.getElementById('modalCustomMessage').innerHTML = mensagem;
+            const btnContainer = document.getElementById('modalCustomButtons');
+            btnContainer.innerHTML = '';
+
+            if (tipo === 'alerta') {
+                const btnOk = document.createElement('button');
+                btnOk.innerText = 'OK';
+                btnOk.className = 'btn-action btn-aprovar';
+                btnOk.style.padding = '8px 25px';
+                btnOk.onclick = () => { 
+                    modal.style.display = 'none'; 
+                    if (callbackConfirmar) callbackConfirmar();
+                };
+                btnContainer.appendChild(btnOk);
+            } else if (tipo === 'confirmacao') {
+                const btnCancelar = document.createElement('button');
+                btnCancelar.innerText = 'Cancelar';
+                btnCancelar.className = 'btn-action btn-demitir';
+                btnCancelar.style.padding = '8px 20px';
+                btnCancelar.onclick = () => { modal.style.display = 'none'; };
+
+                const btnConfirmar = document.createElement('button');
+                btnConfirmar.innerText = 'Confirmar';
+                btnConfirmar.className = 'btn-action btn-aprovar';
+                btnConfirmar.style.padding = '8px 20px';
+                btnConfirmar.onclick = () => {
+                    modal.style.display = 'none';
+                    if (callbackConfirmar) callbackConfirmar();
+                };
+
+                btnContainer.appendChild(btnCancelar);
+                btnContainer.appendChild(btnConfirmar);
+            }
+            modal.style.display = 'flex';
+        }
+
+        async function carregarEfetivo() {
+            try {
+                const response = await fetch('/api/admin/membros');
+                const data = await response.json();
+
+                const tabela = document.getElementById('tabelaEfetivo');
+                tabela.innerHTML = '';
+
+                if (data.success && data.membros.length > 0) {
+                    data.membros.forEach(membro => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><b>${membro.nickname}</b></td>
+                            <td>${membro.cargo || 'Privado'}</td>
+                            <td><span style="padding: 2px 6px; border-radius: 4px; font-size: 11px; background: ${membro.status === 'ativo' ? '#16a34a' : '#eab308'}; color: #fff;">${membro.status || 'pendente'}</span></td>
+                            <td style="color: #38bdf8; font-size: 12px;">${membro.ultimoPlantao || 'Nenhum plantão'}</td>
+                            <td>
+                                ${membro.status !== 'ativo' ? `<button class="btn-action btn-aprovar" style="width:auto;" onclick="atualizarMembro('${membro._id}', 'ativo', 'Soldado')">Aprovar</button>` : ''}
+                                <button class="btn-action btn-historico" style="width:auto;" onclick="verHistoricoMembro('${membro.nickname}', '${membro._id}')">Ver Histórico</button>
+                                <button class="btn-action btn-promover" style="width:auto;" onclick="promoverMembro('${membro._id}', '${membro.cargo}')">Promover</button>
+                                <button class="btn-action btn-demitir" style="width:auto;" onclick="demitirMembro('${membro._id}')">Demitir</button>
+                            </td>
+                        `;
+                        tabela.appendChild(tr);
+                    });
+                } else {
+                    tabela.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #94a3b8;">Nenhum membro encontrado.</td></tr>`;
+                }
+            } catch (error) {
+                console.error('Erro ao carregar efetivo:', error);
+            }
+        }
+
+        let membroIdAtualModal = null;
+
+        async function verHistoricoMembro(nickname, id) {
+            membroIdAtualModal = id;
+            document.getElementById('modalAdminHistorico').style.display = 'flex';
+            document.getElementById('tituloModalHistorico').innerText = `📜 Histórico Operacional: ${nickname}`;
+            const container = document.getElementById('conteudoAdminHistorico');
+            container.innerHTML = '<p>A carregar dados...</p>';
+
+            try {
+                const res = await fetch(`/api/admin/membro/historico/${encodeURIComponent(nickname)}`);
+                const data = await res.json();
+
+                if (data.success) {
+                    container.innerHTML = `
+                        <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2); display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <p><b>Status Atual:</b> ${data.membro.status.toUpperCase()} | <b>Cargo:</b> ${data.membro.cargo}</p>
+                                <p style="margin-top: 5px; color: #38bdf8;"><b>Último Plantão:</b> ${data.membro.ultimoPlantao}</p>
+                            </div>
+                            <button class="btn-action btn-reset" style="padding: 8px 12px;" onclick="resetarTurnosMembro('${membroIdAtualModal}')">🗑️ Resetar Turnos</button>
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2);">
+                            <h4 style="color: #38bdf8; margin-bottom: 8px;">🛡️ Turnos Cumpridos (${data.historicoTurnos.length})</h4>
+                            ${data.historicoTurnos.length > 0 ? data.historicoTurnos.map((t, index) => `
+                                <div style="background: rgba(30, 41, 59, 0.5); padding: 8px; border-radius: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <p style="margin-bottom: 2px;">• Duração: <b>${t.duracao}</b> (${new Date(t.data).toLocaleDateString()})</p>
+                                    </div>
+                                    <button class="btn-action btn-aprovar" style="padding: 4px 8px; font-size: 11px; width: auto; margin-top: 0;" onclick="preVisualizarFoto(${index})">Ver Print 🖼️</button>
+                                </div>
+                            `).join('') : '<p style="color: #94a3b8;">Nenhum turno registado.</p>'}
+                        </div>
+                    `;
+                    window.dadosHistoricoAtual = data.historicoTurnos;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function preVisualizarFoto(index) {
+            const turno = window.dadosHistoricoAtual && window.dadosHistoricoAtual[index];
+            if (!turno || !turno.fotoComprovante) return;
+            const win = window.open();
+            win.document.write(`<body style="margin:0; background:#0b131e; display:flex; justify-content:center; align-items:center; height:100vh;"><img src="${turno.fotoComprovante}" style="max-width:100%; max-height:100%; border:2px solid #38bdf8; border-radius:6px;" /></body>`);
+        }
+
+        function fecharHistoricoAdmin() {
+            document.getElementById('modalAdminHistorico').style.display = 'none';
+        }
+
+        async function carregarElegiveisSorteio() {
+            try {
+                const res = await fetch('/api/admin/sorteio/elegiveis');
+                const data = await res.json();
+                const container = document.getElementById('listaElegiveisSorteio');
+                container.innerHTML = '';
+
+                if (data.success && data.elegiveis.length > 0) {
+                    data.elegiveis.forEach(m => {
+                        const div = document.createElement('div');
+                        div.style.padding = '3px 0';
+                        div.style.borderBottom = '1px solid rgba(56, 189, 248, 0.1)';
+                        div.innerHTML = `• <b>${m.nickname}</b> (${m.cargo}) — <i>Elegível (2h+ cumpridas)</i>`;
+                        container.appendChild(div);
+                    });
+                } else {
+                    container.innerHTML = `<span style="color: #ef4444;">Nenhum operacional elegível com 2h+ de plantão.</span>`;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        carregarElegiveisSorteio();
+
+        async function verificarStatusSorteioServidor() {
+            try {
+                const res = await fetch('/api/admin/sorteio/status');
+                const data = await res.json();
+                if (data.success && data.agendamento) {
+                    const ag = data.agendamento;
+                    document.getElementById('sorteioHorario').value = ag.horarioAlvo;
+                    document.getElementById('sorteioQtd').value = ag.qtdGanhadores;
+                    document.getElementById('sorteioPremios').value = ag.premios;
+
+                    if (!ag.executado) {
+                        document.getElementById('statusConfigSorteio').innerHTML = `✅ Sorteio salvo na base de dados para o dia <b>${ag.dataAlvo}</b> às <b>${ag.horarioAlvo}</b>.`;
+                    } else {
+                        document.getElementById('statusConfigSorteio').innerHTML = `🏁 O último sorteio agendado para as ${ag.horarioAlvo} já foi executado.`;
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        verificarStatusSorteioServidor();
+
+        async function salvarConfiguracaoSorteio() {
+            const horarioAlvo = document.getElementById('sorteioHorario').value;
+            const qtdGanhadores = document.getElementById('sorteioQtd').value;
+            const premios = document.getElementById('sorteioPremios').value;
+
+            if (!horarioAlvo || !premios) {
+                mostrarModalCustomizado('Atenção', 'Preencha o horário e os prémios antes de salvar.');
+                return;
+            }
+
+            const hoje = new Date();
+            const ano = hoje.getFullYear();
+            const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+            const dia = String(hoje.getDate()).padStart(2, '0');
+            const dataAlvoStr = `${ano}-${mes}-${dia}`;
+
+            try {
+                const res = await fetch('/api/admin/sorteio/agendar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dataAlvo: dataAlvoStr, horarioAlvo, qtdGanhadores, premios })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    document.getElementById('statusConfigSorteio').innerHTML = `✅ Sorteio salvo na base de dados para o dia <b>${dataAlvoStr}</b> às <b>${horarioAlvo}</b>.`;
+                    mostrarModalCustomizado('Sucesso', `Sorteio salvo na base de dados para o dia ${dataAlvoStr} às ${horarioAlvo}.`);
+                }
+            } catch (e) {
+                console.error(e);
+                mostrarModalCustomizado('Erro', 'Erro ao salvar o agendamento.');
+            }
+        }
+
+        async function executarSorteioImediato() {
+            const qtdGanhadores = document.getElementById('sorteioQtd').value;
+            const premios = document.getElementById('sorteioPremios').value;
+
+            mostrarModalCustomizado(
+                'Confirmação de Sorteio Imediato',
+                `Deseja efetuar o sorteio imediato agora para ${qtdGanhadores} ganhador(es) com 2h+?`,
+                'confirmacao',
+                async () => {
+                    try {
+                        const res = await fetch('/api/admin/sorteio/realizar', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ qtdGanhadores, premios })
+                        });
+                        const data = await res.json();
+
+                        if (data.success) {
+                            let resultadoHtml = '🎉 <b>Ganhadores Sorteados (Imediato):</b><br>';
+                            data.ganhadores.forEach(g => {
+                                resultadoHtml += `• ${g.nickname} (${g.cargo}) levou: <b>${g.premio}</b><br>`;
+                                
+                                socket.emit('chat_mensagem', {
+                                    salaId: 'sala_geral_salazar',
+                                    nickname: 'SORTEIO OFICIAL',
+                                    cargo: 'Comando',
+                                    mensagem: `🏆 O operacional ${g.nickname} (${g.cargo}) foi contemplado no sorteio oficial e ganhou: ${g.premio}!`
+                                });
+                            });
+
+                            document.getElementById('resultadoSorteio').innerHTML = resultadoHtml;
+                            mostrarModalCustomizado('Sucesso', 'Sorteio imediato executado com sucesso!');
+                        } else {
+                            mostrarModalCustomizado('Aviso', data.message);
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        mostrarModalCustomizado('Erro', 'Erro ao processar o sorteio.');
+                    }
+                }
+            );
+        }
+
+        async function enviarNotificacaoRanking() {
+            mostrarModalCustomizado(
+                'Confirmação',
+                'Deseja enviar a notificação com a posição atual do ranking de horas para a caixa de entrada de todos os operacionais?',
+                'confirmacao',
+                async () => {
+                    try {
+                        const res = await fetch('/api/admin/notificar/ranking', { method: 'POST' });
+                        const data = await res.json();
+                        if (data.success) {
+                            mostrarModalCustomizado('Sucesso', 'Notificações de ranking enviadas com sucesso para a tropa!');
+                        } else {
+                            mostrarModalCustomizado('Erro', data.message);
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        mostrarModalCustomizado('Erro', 'Erro ao enviar notificações de ranking.');
+                    }
+                }
+            );
+        }
+
+        async function resetarRankingSemanal() {
+            mostrarModalCustomizado(
+                'Confirmação de Reset de Ranking',
+                'Tem a certeza absoluta que deseja resetar o ranking de horas da tropa para iniciar a nova semana? Todos os turnos acumulados anteriores serão limpos.',
+                'confirmacao',
+                async () => {
+                    try {
+                        const res = await fetch('/api/admin/ranking/resetar', { method: 'PUT' });
+                        const data = await res.json();
+                        if (data.success) {
+                            mostrarModalCustomizado('Sucesso', 'O ranking semanal foi resetado com sucesso e a tropa foi notificada!');
+                        } else {
+                            mostrarModalCustomizado('Erro', data.message);
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        mostrarModalCustomizado('Erro', 'Erro de conexão ao resetar o ranking.');
+                    }
+                }
+            );
+        }
+
+        async function atualizarMembro(id, status, cargo) {
+            const res = await fetch(`/api/admin/membro/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status, cargo })
+            });
+            const data = await res.json();
+            if (data.success) { carregarEfetivo(); carregarElegiveisSorteio(); }
+        }
+
+        function promoverMembro(id, cargoAtual) {
+            const modal = document.getElementById('customModal');
+            document.getElementById('modalCustomTitle').innerText = 'Promover Operacional';
+            
+            document.getElementById('modalCustomMessage').innerHTML = `
+                <p style="margin-bottom: 10px;">Digite o novo cargo hierárquico:</p>
+                <input type="text" id="inputNovoCargo" value="${cargoAtual || ''}" style="width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 6px; color: white; font-size: 14px; text-align: center; outline: none;">
+            `;
+
+            const btnContainer = document.getElementById('modalCustomButtons');
+            btnContainer.innerHTML = '';
+
+            const btnCancelar = document.createElement('button');
+            btnCancelar.innerText = 'Cancelar';
+            btnCancelar.className = 'btn-action btn-demitir';
+            btnCancelar.style.padding = '8px 20px';
+            btnCancelar.onclick = () => { modal.style.display = 'none'; };
+
+            const btnConfirmar = document.createElement('button');
+            btnConfirmar.innerText = 'Confirmar Promoção';
+            btnConfirmar.className = 'btn-action btn-aprovar';
+            btnConfirmar.style.padding = '8px 20px';
+            btnConfirmar.onclick = async () => {
+                const novoCargo = document.getElementById('inputNovoCargo').value.trim();
+                if (!novoCargo) return;
+
+                modal.style.display = 'none';
+
+                try {
+                    const res = await fetch(`/api/admin/membro/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ cargo: novoCargo })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        carregarEfetivo();
+                        carregarElegiveisSorteio();
+                        mostrarModalCustomizado('Sucesso', 'Cargo atualizado com sucesso e notificação enviada!');
+                    } else {
+                        mostrarModalCustomizado('Erro', 'Erro ao atualizar cargo.');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    mostrarModalCustomizado('Erro', 'Erro de conexão.');
+                }
+            };
+
+            btnContainer.appendChild(btnCancelar);
+            btnContainer.appendChild(btnConfirmar);
+            modal.style.display = 'flex';
+        }
+
+        function resetarTurnosMembro(id) {
+            mostrarModalCustomizado('Confirmação de Reset', 'Tem certeza que deseja apagar todo o histórico de turnos deste membro?', 'confirmacao', async () => {
+                const res = await fetch(`/api/admin/membro/resetar-turnos/${id}`, { method: 'PUT' });
+                const data = await res.json();
+                if (data.success) { fecharHistoricoAdmin(); carregarEfetivo(); carregarElegiveisSorteio(); }
+            });
+        }
+
+        function demitirMembro(id) {
+            mostrarModalCustomizado('Confirmação de Demissão', 'Tem certeza que deseja demitir/excluir este membro?', 'confirmacao', async () => {
+                const res = await fetch(`/api/admin/membro/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) { carregarEfetivo(); carregarElegiveisSorteio(); }
+            });
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        }
+
+        carregarEfetivo();
+    </script>
+</body>
+</html>
