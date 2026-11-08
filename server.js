@@ -38,7 +38,7 @@ function converterSegundosParaDuracao(segundosTotais) {
   return `${horas}:${minutos}:${segundos}`;
 }
 
-// --- AUTENTICAÇÃO ---
+// --- AUTENTICAÇÃO (LOGIN) ---
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { nickname, senha, password } = req.body;
@@ -47,6 +47,36 @@ app.post('/api/auth/login', async (req, res) => {
         res.json({ success: true, message: 'Login bem-sucedido', user: { nickname: user.nickname, cargo: user.cargo, role: user.role } });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro no servidor.' });
+    }
+});
+
+// --- AUTENTICAÇÃO (REGISTO) ---
+app.post('/api/auth/register', async (req, res) => {
+    try {
+        const { nickname, senha, password } = req.body;
+        const passFinal = senha || password;
+
+        if (!nickname || !passFinal) {
+            return res.status(400).json({ success: false, message: 'Preencha o nickname e a senha.' });
+        }
+
+        const userExiste = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
+        if (userExiste) {
+            return res.status(400).json({ success: false, message: 'Este nickname já está registado.' });
+        }
+
+        const novoUtilizador = new User({
+            nickname: nickname.trim(),
+            password: passFinal,
+            cargo: 'Soldado',
+            status: 'pendente'
+        });
+
+        await novoUtilizador.save();
+        res.json({ success: true, message: 'Conta registada com sucesso!' });
+    } catch (error) {
+        console.error('Erro no registo:', error);
+        res.status(500).json({ success: false, message: 'Erro ao registar conta.' });
     }
 });
 
@@ -80,7 +110,7 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
     }
 });
 
-// --- HISTÓRICO DO MEMBRO (Painel Admin - Compatibilidade Exata com admin.html) ---
+// --- HISTÓRICO DO MEMBRO (Painel Admin) ---
 app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
     try {
         const nickname = req.params.nickname;
@@ -190,7 +220,7 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
     }
 });
 
-// --- TURNOS (Blindada com updateOne) ---
+// --- TURNOS ---
 app.post('/api/membro/turno', async (req, res) => {
     try {
         const { nickname, duracao, fotoComprovante } = req.body;
