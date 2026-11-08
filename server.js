@@ -38,11 +38,10 @@ function converterSegundosParaDuracao(segundosTotais) {
   return `${horas}:${minutos}:${segundos}`;
 }
 
-// Função para verificar se a data/hora do turno está entre 17:00 e 02:00
+// Validação estricta do horário regulamentar (17:00 às 02:00)
 function turnoEstaNoHorarioPermitido(dataTurno) {
     const d = new Date(dataTurno);
     const hora = d.getHours();
-    // Permitido das 17:00 até às 23:59 OU das 00:00 até às 01:59 (02:00)
     return (hora >= 17 && hora <= 23) || (hora >= 0 && hora < 2);
 }
 
@@ -195,7 +194,7 @@ app.get('/api/admin/efetivo', async (req, res) => {
     }
 });
 
-// --- GESTÃO DE MEMBROS (PUT e DELETE) ---
+// --- GESTÃO DE MEMBROS ---
 app.put('/api/admin/membro/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -241,7 +240,7 @@ app.delete('/api/admin/membro/:id', async (req, res) => {
     }
 });
 
-// --- RANKINGS (Blindado estritamente para 17h às 02h) ---
+// --- RANKINGS (Filtrado estritamente das 17h às 02h) ---
 app.get('/api/ranking', async (req, res) => {
     try {
         const membros = await User.find({}, 'nickname cargo historicoTurnos').lean();
@@ -282,10 +281,11 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
     }
 });
 
+// Zera o histórico de turnos de todos para resetar o ranking no painel
 app.put('/api/admin/ranking/resetar', async (req, res) => {
     try {
         await User.updateMany({}, { $set: { historicoTurnos: [] } });
-        res.json({ success: true, message: 'Ranking resetado com sucesso!' });
+        res.json({ success: true, message: 'Ranking semanal resetado com sucesso!' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao resetar ranking.' });
     }
@@ -352,7 +352,7 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
       const turnosValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data));
       const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
-      return totalSegundos >= 7200; // 2 horas (7200 segundos)
+      return totalSegundos >= 7200; // 2 horas
     });
     const listaElegiveis = elegiveis.map(m => ({
       id: m._id,
@@ -380,7 +380,7 @@ app.post('/api/admin/sorteio/agendar', async (req, res) => {
   }
 });
 
-// Função interna para processar e disparar o sorteio no canal
+// Sorteio Automático Agendado com aviso caso não haja elegíveis
 async function executarSorteioAutomatico() {
     try {
         const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' });
@@ -389,7 +389,6 @@ async function executarSorteioAutomatico() {
         const agora = new Date();
         const horaAtualStr = String(agora.getHours()).padStart(2, '0') + ':' + String(agora.getMinutes()).padStart(2, '0');
         
-        // Se a hora atual bater com o horário alvo agendado
         if (horaAtualStr === config.horarioAlvo) {
             const membros = await User.find({}, '-password').lean();
             const elegiveis = membros.filter(m => {
@@ -411,7 +410,6 @@ async function executarSorteioAutomatico() {
                     $push: { historicoSorteios: { descricaoPremio: premioSorteado, status: 'Contemplado', data: new Date() } }
                   });
 
-                  // Dispara mensagem automática no WebSocket para o canal de rádio
                   io.to('sala_geral_salazar').emit('receber_mensagem', {
                       nickname: 'SORTEIO OFICIAL',
                       cargo: 'Comando',
@@ -419,6 +417,14 @@ async function executarSorteioAutomatico() {
                       hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
                   });
                 }
+            } else {
+                // Aviso automático no chat caso não exista nenhum elegível
+                io.to('sala_geral_salazar').emit('receber_mensagem', {
+                    nickname: 'SORTEIO OFICIAL',
+                    cargo: 'Comando',
+                    mensagem: `⚠️ O horário do sorteio agendado foi atingido, mas não há nenhum operacional elegível com 2h+ de plantão no horário regulamentar (17h-02h).`,
+                    hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                });
             }
 
             config.executado = true;
@@ -429,7 +435,6 @@ async function executarSorteioAutomatico() {
     }
 }
 
-// Verifica a cada 30 segundos se chegou a hora do sorteio agendado
 setInterval(executarSorteioAutomatico, 30000);
 
 app.post('/api/admin/sorteio/realizar', async (req, res) => {
