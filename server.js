@@ -140,9 +140,8 @@ setInterval(async () => {
   }
 }, 15000);
 
-// --- ROTAS EM FALTA QUE CAUSAVAM ERRO 502 NO PAINEL ADM ---
+// --- ROTAS DO PAINEL ADMINISTRATIVO E EFETIVO ---
 
-// Rota para listar o efetivo / membros no painel administrativo
 app.get('/api/admin/membros', async (req, res) => {
     try {
         const membros = await User.find({});
@@ -153,7 +152,6 @@ app.get('/api/admin/membros', async (req, res) => {
     }
 });
 
-// Rota alternativa de efetivo caso o frontend use /api/admin/efetivo
 app.get('/api/admin/efetivo', async (req, res) => {
     try {
         const membros = await User.find({});
@@ -163,7 +161,6 @@ app.get('/api/admin/efetivo', async (req, res) => {
     }
 });
 
-// Rota de Ranking da Tropa
 app.get('/api/ranking', async (req, res) => {
     try {
         const membros = await User.find({});
@@ -188,7 +185,7 @@ app.get('/api/ranking', async (req, res) => {
     }
 });
 
-// ----------------------------------------------------------
+// ------------------------------------------------
 
 app.post('/api/membro/turno', async (req, res) => {
     try {
@@ -278,7 +275,7 @@ function atualizarListaOnline(salaId) {
   io.to(salaId).emit('atualizar_usuarios_online', Object.values(unicosMap));
 }
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+const PORT = process.env.PORT || 10000;
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor rodando na porta ${PORT} 🚀`);
 });
