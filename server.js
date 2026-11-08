@@ -80,7 +80,49 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
     }
 });
 
-// --- EFETIVO E PAINEL ADM (Rotas exatas) ---
+// --- HISTÓRICO DO MEMBRO (Painel Admin - Compatibilidade Exata com admin.html) ---
+app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
+    try {
+        const nickname = req.params.nickname;
+        let query = { nickname: new RegExp('^' + decodeURIComponent(nickname) + '$', 'i') };
+        
+        if (nickname.match(/^[0-9a-fA-F]{24}$/)) {
+            query = { $or: [{ nickname: new RegExp('^' + nickname + '$', 'i') }, { _id: nickname }] };
+        }
+
+        let membro = await User.findOne(query, '-password').lean();
+        if (!membro) {
+            membro = await User.findOne({}, '-password').lean();
+        }
+
+        if (!membro) {
+            return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+        }
+
+        const ultimoTurno = membro.historicoTurnos && membro.historicoTurnos.length > 0 
+            ? membro.historicoTurnos[membro.historicoTurnos.length - 1] 
+            : null;
+
+        res.json({
+            success: true,
+            membro: {
+                nickname: membro.nickname,
+                cargo: membro.cargo || 'Soldado',
+                status: membro.status || 'Ativo',
+                ultimoPlantao: ultimoTurno ? `Duração: ${ultimoTurno.duracao} em ${new Date(ultimoTurno.data).toLocaleDateString()}` : 'Nenhum plantão registado'
+            },
+            historicoTurnos: membro.historicoTurnos || [],
+            historicoPromocoes: membro.historicoPromocoes || [],
+            historicoSorteios: membro.historicoSorteios || [],
+            caixaEntrada: membro.caixaEntrada || []
+        });
+    } catch (error) {
+        console.error('Erro ao carregar histórico admin:', error);
+        res.status(500).json({ success: false, message: 'Erro no servidor.' });
+    }
+});
+
+// --- EFETIVO E PAINEL ADM ---
 app.get('/api/admin/membros', async (req, res) => {
   try {
     const membros = await User.find({}, '-password').lean(); 
@@ -108,54 +150,6 @@ app.get('/api/admin/efetivo', async (req, res) => {
         res.status(500).json({ success: false, message: 'Erro ao carregar efetivo.' });
     }
 });
-
-// --- HISTÓRICO DO MEMBRO (Admin) ---
-const handlerHistoricoAdmin = async (req, res) => {
-    try {
-        const param = req.params.param || req.params.nickname || 'Mestre';
-        let query = { nickname: new RegExp('^' + decodeURIComponent(param) + '$', 'i') };
-        
-        if (param.match(/^[0-9a-fA-F]{24}$/)) {
-            query = { $or: [{ nickname: new RegExp('^' + param + '$', 'i') }, { _id: param }] };
-        }
-
-        let membro = await User.findOne(query, '-password').lean();
-        if (!membro) {
-            membro = await User.findOne({}, '-password').lean();
-        }
-
-        if (!membro) {
-            return res.json({
-                success: true,
-                membro: { nickname: 'Mestre', cargo: 'General', status: 'ativo' },
-                historicoTurnos: [],
-                historicoPromocoes: [],
-                historicoSorteios: [],
-                caixaEntrada: []
-            });
-        }
-
-        res.json({
-            success: true,
-            membro: {
-                nickname: membro.nickname,
-                cargo: membro.cargo || 'Soldado',
-                status: membro.status || 'Ativo'
-            },
-            historicoTurnos: membro.historicoTurnos || [],
-            historicoPromocoes: membro.historicoPromocoes || [],
-            historicoSorteios: membro.historicoSorteios || [],
-            caixaEntrada: membro.caixaEntrada || []
-        });
-    } catch (error) {
-        console.error('Erro ao carregar histórico admin:', error);
-        res.status(500).json({ success: false, message: 'Erro no servidor.' });
-    }
-};
-
-app.get('/api/admin/membro/:param', handlerHistoricoAdmin);
-app.get('/api/admin/membro', handlerHistoricoAdmin);
-app.get('/api/admin/membros/:param', handlerHistoricoAdmin);
 
 // --- RANKINGS ---
 app.get('/api/ranking', async (req, res) => {
