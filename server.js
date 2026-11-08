@@ -38,14 +38,12 @@ function converterSegundosParaDuracao(segundosTotais) {
   return `${horas}:${minutos}:${segundos}`;
 }
 
-// Horário regulamentar estrito para o ranking e elegibilidade (17:00 às 02:00)
 function turnoEstaNoHorarioPermitido(dataTurno) {
     const d = new Date(dataTurno);
     const hora = d.getHours();
     return (hora >= 17 && hora <= 23) || (hora >= 0 && hora < 2);
 }
 
-// Verifica se o turno foi realizado no mesmo dia civil (Hoje)
 function turnoEhDeHoje(dataTurno) {
     const d = new Date(dataTurno);
     const hoje = new Date();
@@ -73,7 +71,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// --- AUTENTICAÇÃO (REGISTO BLINDADO) ---
+// --- AUTENTICAÇÃO (REGISTO) ---
 app.post('/api/auth/register', async (req, res) => {
     try {
         const { nickname, senha, password } = req.body;
@@ -133,7 +131,7 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
     }
 });
 
-// --- HISTÓRICO DO MEMBRO (Painel Admin) ---
+// --- HISTÓRICO DO MEMBRO (Admin) ---
 app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
     try {
         const nickname = req.params.nickname;
@@ -161,7 +159,8 @@ app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
             membro: {
                 nickname: membro.nickname,
                 cargo: membro.cargo || 'Soldado',
-                status: membro.status || 'Ativo'
+                status: membro.status || 'Ativo',
+                ultimoPlantao: ultimoTurno ? `${ultimoTurno.duracao} (${new Date(ultimoTurno.data).toLocaleDateString()})` : 'Nenhum plantão'
             },
             historicoTurnos: membro.historicoTurnos || [],
             historicoPromocoes: membro.historicoPromocoes || [],
@@ -249,7 +248,7 @@ app.delete('/api/admin/membro/:id', async (req, res) => {
     }
 });
 
-// --- RANKINGS (Oculta quem tem 0 horas) ---
+// --- RANKINGS ---
 app.get('/api/ranking', async (req, res) => {
     try {
         const membros = await User.find({}, 'nickname cargo historicoTurnos').lean();
@@ -296,12 +295,12 @@ app.put('/api/admin/ranking/resetar', async (req, res) => {
 
         const notif = {
             titulo: '🔄 Ranking Semanal Resetado',
-            mensagem: 'O comando resetou o ranking de horas da tropa para iniciar a nova semana. A contagem de horas foi reiniciada.',
+            mensagem: 'O comando resetou o ranking de horas da tropa para iniciar a nova semana.',
             data: new Date()
         };
         await User.updateMany({}, { $push: { caixaEntrada: notif } });
 
-        res.json({ success: true, message: 'Ranking semanal resetado com sucesso e tropa notificada!' });
+        res.json({ success: true, message: 'Ranking semanal resetado com sucesso!' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao resetar ranking.' });
     }
@@ -321,7 +320,27 @@ app.post('/api/admin/notificar/ranking', async (req, res) => {
     }
 });
 
-// --- TURNOS ---
+// --- ROTA DE ATUALIZAR STATUS DE PLANTÃO NO BANCO ---
+app.put('/api/membro/status-plantao', async (req, res) => {
+    try {
+        const { nickname, emPlantao } = req.body;
+        if (!nickname) return res.status(400).json({ success: false, message: 'Nickname obrigatório.' });
+
+        await User.updateOne(
+            { nickname: new RegExp('^' + nickname + '$', 'i') },
+            { $set: { emPlantao: !!emPlantao } }
+        );
+
+        // Notifica o Socket em tempo real
+        io.emit('atualizar_status_geral_tropa');
+
+        res.json({ success: true, message: 'Status de plantão atualizado!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao atualizar status.' });
+    }
+});
+
+// --- ROTA DE REGISTAR/FINALIZAR TURNO ---
 app.post('/api/membro/turno', async (req, res) => {
     try {
         const { nickname, duracao, fotoComprovante } = req.body;
@@ -335,14 +354,21 @@ app.post('/api/membro/turno', async (req, res) => {
             fotoComprovante: fotoComprovante || 'Sem foto'
         };
 
+        // GARANTE QUE REMOVE O PLANTÃO (emPlantao: false)
         const resultado = await User.updateOne(
             { nickname: new RegExp('^' + nickname + '$', 'i') },
-            { $push: { historicoTurnos: novoTurno } }
+            { 
+                $push: { historicoTurnos: novoTurno },
+                $set: { emPlantao: false }
+            }
         );
 
         if (resultado.matchedCount === 0) {
             return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
         }
+
+        // DISPARA O EVENTO PARA O ADM LIMPAR A BOLINHA NA HORA
+        io.emit('atualizar_status_geral_tropa');
 
         res.json({ success: true, message: 'Turno registado com sucesso!' });
     } catch (error) {
@@ -351,7 +377,7 @@ app.post('/api/membro/turno', async (req, res) => {
     }
 });
 
-// --- SORTEIOS E AGENDAMENTO AUTOMÁTICO (FILTRO RIGOROSO DIÁRIO) ---
+// --- SORTEIOS E AGENDAMENTO AUTOMÁTICO ---
 app.get('/api/admin/sorteio/status', async (req, res) => {
   try {
     const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' }).lean();
@@ -366,10 +392,9 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
     const membros = await User.find({}, '-password').lean();
     const elegiveis = membros.filter(m => {
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
-      // Exige turnos no horário regulamentar (17h-02h) E realizados especificamente HOJE
       const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoEhDeHoje(t.data));
       const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
-      return totalSegundosHoje >= 7200; // 2 horas no dia atual
+      return totalSegundosHoje >= 7200;
     });
     const listaElegiveis = elegiveis.map(m => ({
       id: m._id,
@@ -438,7 +463,7 @@ async function executarSorteioAutomatico() {
                 io.to('sala_geral_salazar').emit('receber_mensagem', {
                     nickname: 'SORTEIO OFICIAL',
                     cargo: 'Comando',
-                    mensagem: `⚠️ O horário do sorteio agendado (${config.horarioAlvo}) chegou, mas nenhum operacional acumulou 2h de plantão HOJE no horário regulamentar (17h-02h).`,
+                    mensagem: `⚠️ O horário do sorteio agendado (${config.horarioAlvo}) chegou, mas nenhum operacional acumulou 2h de plantão HOJE.`,
                     hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
                 });
             }
@@ -493,25 +518,17 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
   }
 });
 
-// --- WEBSOCKETS (COM STATUS DE PLANTÃO 🟡) ---
+// --- WEBSOCKETS ---
 const usuariosOnline = {}; 
 io.on('connection', (socket) => {
   socket.on('entrar_sala', (data) => {
     let salaId = typeof data === 'string' ? data : (data.salaId || 'sala_geral_salazar');
     let nickname = typeof data === 'string' ? 'Operacional' : (data.nickname || 'Operacional');
     let cargo = typeof data === 'string' ? 'Soldado' : (data.cargo || 'Soldado');
-    let emPlantao = typeof data === 'object' && data.emPlantao ? true : false;
 
     socket.join(salaId);
-    usuariosOnline[socket.id] = { nickname, cargo, salaId, emPlantao };
-    atualizarListaOnline(salaId);
-  });
-
-  socket.on('atualizar_status_plantao', (data) => {
-    if (usuariosOnline[socket.id]) {
-      usuariosOnline[socket.id].emPlantao = data.emPlantao;
-      atualizarListaOnline(usuariosOnline[socket.id].salaId);
-    }
+    usuariosOnline[socket.id] = { nickname, cargo, salaId };
+    atualizarEstadoOperacional(salaId);
   });
 
   socket.on('chat_mensagem', (data) => {
@@ -523,19 +540,22 @@ io.on('connection', (socket) => {
     if (user) {
       const salaId = user.salaId;
       delete usuariosOnline[socket.id];
-      atualizarListaOnline(salaId);
+      atualizarEstadoOperacional(salaId);
     }
   });
 });
 
-function atualizarListaOnline(salaId) {
+function atualizarEstadoOperacional(salaId) {
   const conexõesNaSala = Object.values(usuariosOnline).filter(u => u.salaId === salaId);
   const unicosMap = {};
   conexõesNaSala.forEach(u => { unicosMap[u.nickname] = u; });
-  io.to(salaId).emit('atualizar_usuarios_online', Object.values(unicosMap));
+  const listaFormatada = Object.values(unicosMap);
+
+  io.to(salaId).emit('atualizar_usuarios_online', listaFormatada);
+  io.emit('atualizar_status_adm', listaFormatada);
 }
 
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor rodando localmente na porta ${PORT} 🚀`);
+  console.log(`Servidor rodando na porta ${PORT} 🚀`);
 });

@@ -8,7 +8,7 @@ const caixaEntradaSchema = new mongoose.Schema({
 });
 
 const UserSchema = new mongoose.Schema({
-    nickname: { type: String, required: true, unique: true }, // Chave primária do jogo
+    nickname: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     cargo: { 
         type: String, 
@@ -19,17 +19,20 @@ const UserSchema = new mongoose.Schema({
     status: { type: String, enum: ['pendente', 'ativo', 'inativo', 'demitido'], default: 'pendente' },
     dataEntrada: { type: Date, default: Date.now },
     
+    // Status de plantão persistente (cronômetro)
+    emPlantao: { type: Boolean, default: false },
+
     // Personalização de Perfil
     avatarUrl: { type: String, default: '/images/default-avatar.png' },
     emojiStatus: { type: String, default: '🎖️' },
     simbolo: { type: String, default: '' },
     bio: { type: String, maxLength: 120 },
 
-    // Sistema de Histórico do Membro
+    // Histórico do Membro
     historicoTurnos: [{
         data: { type: Date, default: Date.now },
         duracao: String,
-        fotoComprovante: String // Caminho ou URL da foto do turno anexada
+        fotoComprovante: String
     }],
     historicoPromocoes: [{
         data: { type: Date, default: Date.now },
@@ -45,7 +48,6 @@ const UserSchema = new mongoose.Schema({
     caixaEntrada: [caixaEntradaSchema]
 });
 
-// Patamar de Fidelidade Automático por Tempo de Gestão
 UserSchema.virtual('patamarFidelidade').get(function () {
     const agora = new Date();
     const diferencaDias = Math.floor((agora - this.dataEntrada) / (1000 * 60 * 60 * 24));

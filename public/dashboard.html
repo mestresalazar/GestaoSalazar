@@ -441,14 +441,11 @@
         carregarCaixaEntrada();
         setInterval(carregarCaixaEntrada, 6000);
 
-        let estadoTurnoInicial = localStorage.getItem(`turno_estado_${user.nickname}`) || 'parado';
-
         const socket = io();
         socket.emit('entrar_sala', { 
             salaId: 'sala_geral_salazar', 
             nickname: user.nickname, 
-            cargo: user.cargo || 'Soldado',
-            emPlantao: estadoTurnoInicial === 'ativo'
+            cargo: user.cargo || 'Soldado'
         });
 
         function carregarHistoricoChatLocal() {
@@ -494,7 +491,6 @@
             adicionarMsgNoChat(data, true);
         });
 
-        // Exibe bolinha verde (🟢 Online) ou amarela pulsante (🟡 Em Plantão)
         socket.on('atualizar_usuarios_online', (usuarios) => {
             const listaOnline = document.getElementById('listaOnline');
             listaOnline.innerHTML = '';
@@ -659,7 +655,7 @@
             }
         }
 
-        function fazerCheckin() {
+        async function fazerCheckin() {
             if (estadoTurno === 'ativo') {
                 mostrarModalCustomizado('Aviso', 'Turno já em andamento!');
                 return;
@@ -687,8 +683,16 @@
             localStorage.setItem(`turno_inicio_${user.nickname}`, Date.now());
             localStorage.setItem(`turno_segundos_acumulados_${user.nickname}`, 0);
 
-            // Notifica o servidor que o jogador iniciou o plantão (bolinha amarela)
-            socket.emit('atualizar_status_plantao', { emPlantao: true });
+            // Atualiza na base de dados para fixar a bolinha amarela (emPlantao: true) para todos os ADMs
+            try {
+                await fetch('/api/membro/status-plantao', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nickname: user.nickname, emPlantao: true })
+                });
+            } catch (e) {
+                console.error('Erro ao atualizar status de plantão:', e);
+            }
 
             const btnPausar = document.getElementById('btnPausar');
             btnPausar.style.display = 'block';
@@ -701,10 +705,10 @@
                 atualizarDisplayTimer();
             }, 1000);
             
-            mostrarModalCustomizado('Sucesso', 'Check-in registado! Estás de plantão (status 🟡 no rádio).');
+            mostrarModalCustomizado('Sucesso', 'Check-in registado! Estás de plantão oficial (status 🟡 visível no painel ADM).');
         }
 
-        function alternarPausa() {
+        async function alternarPausa() {
             if (estadoTurno === 'parado') return;
 
             const btnPausar = document.getElementById('btnPausar');
@@ -720,19 +724,35 @@
                 estadoTurno = 'pausado';
                 localStorage.setItem(`turno_estado_${user.nickname}`, 'pausado');
 
-                // Notifica pausa
-                socket.emit('atualizar_status_plantao', { emPlantao: false });
+                // Remove status de plantão na base de dados (volta a verde ou offline)
+                try {
+                    await fetch('/api/membro/status-plantao', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ nickname: user.nickname, emPlantao: false })
+                    });
+                } catch (e) {
+                    console.error(e);
+                }
 
                 btnPausar.innerText = 'Retomar Turno';
                 btnPausar.style.backgroundColor = 'rgba(34, 197, 94, 0.9)';
-                mostrarModalCustomizado('Turno Pausado', 'O cronômetro foi congelado.');
+                mostrarModalCustomizado('Turno Pausado', 'O cronômetro foi congelado e o plantão pausado.');
             } else {
                 estadoTurno = 'ativo';
                 localStorage.setItem(`turno_estado_${user.nickname}`, 'ativo');
                 localStorage.setItem(`turno_inicio_${user.nickname}`, Date.now());
 
-                // Notifica retomada do plantão
-                socket.emit('atualizar_status_plantao', { emPlantao: true });
+                // Retoma o status de plantão na base de dados
+                try {
+                    await fetch('/api/membro/status-plantao', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ nickname: user.nickname, emPlantao: true })
+                    });
+                } catch (e) {
+                    console.error(e);
+                }
 
                 btnPausar.innerText = 'Pausar Turno';
                 btnPausar.style.backgroundColor = 'rgba(234, 179, 8, 0.9)';
@@ -788,7 +808,6 @@
                     localStorage.removeItem(`turno_segundos_acumulados_${user.nickname}`);
                     
                     estadoTurno = 'parado';
-                    socket.emit('atualizar_status_plantao', { emPlantao: false });
 
                     document.getElementById('fotoComprovante').value = '';
                     document.getElementById('statusAnexo').innerText = '';
@@ -839,8 +858,16 @@
             document.getElementById('modalHistorico').style.display = 'none';
         }
 
-        function logout() {
-            socket.emit('atualizar_status_plantao', { emPlantao: false });
+        async function logout() {
+            try {
+                await fetch('/api/membro/status-plantao', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nickname: user.nickname, emPlantao: false })
+                });
+            } catch (e) {
+                console.error(e);
+            }
             localStorage.clear();
             window.location.href = 'index.html';
         }

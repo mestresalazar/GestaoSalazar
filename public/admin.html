@@ -134,6 +134,16 @@
         .btn-reset { background-color: rgba(234, 179, 8, 0.9); color: #000; }
         .btn-demitir { background-color: rgba(220, 38, 38, 0.9); }
 
+        .status-dot-offline { display: inline-block; width: 8px; height: 8px; background: #64748b; border-radius: 50%; margin-right: 5px; }
+        .status-dot-online { display: inline-block; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; margin-right: 5px; box-shadow: 0 0 6px #22c55e; }
+        .status-dot-plantao { display: inline-block; width: 8px; height: 8px; background: #eab308; border-radius: 50%; margin-right: 5px; box-shadow: 0 0 6px #eab308; animation: pulse-yellow 1.5s infinite; }
+
+        @keyframes pulse-yellow {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 5px rgba(234, 179, 8, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(234, 179, 8, 0); }
+        }
+
         #chatBox {
             height: 250px;
             background: rgba(15, 23, 42, 0.75);
@@ -213,7 +223,7 @@
                             <tr>
                                 <th>Nickname</th>
                                 <th>Cargo</th>
-                                <th>Status</th>
+                                <th>Status Operacional</th>
                                 <th>Último Plantão</th>
                                 <th>Ações de Comando</th>
                             </tr>
@@ -227,10 +237,9 @@
                 </div>
             </div>
 
-            <!-- CENTRAL DE SORTEIOS AUTOMÁTICA E COMANDOS ADM -->
             <div class="card">
-                <h3>🎁 Central de Sorteios Diários (Mínimo de 2h de Plantão)</h3>
-                <p style="color: #e2e8f0; margin-bottom: 15px; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Apenas operacionais com 2 horas ou mais acumuladas participam automaticamente.</p>
+                <h3>🎁 Central de Sorteios Diários (Mínimo de 2h de Plantão HOJE)</h3>
+                <p style="color: #e2e8f0; margin-bottom: 15px; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Apenas operacionais com 2 horas ou mais acumuladas no dia atual participam automaticamente.</p>
                 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px;">
                     <div>
@@ -249,13 +258,12 @@
                 </div>
 
                 <div style="margin-bottom: 15px;">
-                    <h4 style="color: #38bdf8; font-size: 14px; margin-bottom: 8px;">🛡️ Operacionais Elegíveis (Com 2h+):</h4>
+                    <h4 style="color: #38bdf8; font-size: 14px; margin-bottom: 8px;">🛡️ Operacionais Elegíveis (Com 2h+ HOJE):</h4>
                     <div id="listaElegiveisSorteio" style="max-height: 120px; overflow-y: auto; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; padding: 8px; font-size: 12px; color: #cbd5e1;">
                         A carregar elegíveis...
                     </div>
                 </div>
 
-                <!-- BOTÕES DE CONTROLO DO COMANDO -->
                 <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                     <button class="btn-action" style="background-color: rgba(2, 132, 199, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="salvarConfiguracaoSorteio()">💾 Salvar Agendamento</button>
                     <button class="btn-action" style="background-color: rgba(22, 163, 74, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="executarSorteioImediato()">🎲 Forçar Sorteio Imediato</button>
@@ -285,7 +293,7 @@
         </div>
     </div>
 
-    <!-- Modal de Histórico Operacional Completo -->
+    <!-- Modal de Histórico -->
     <div id="modalAdminHistorico">
         <div class="modal-content">
             <button class="close-modal" onclick="fecharHistoricoAdmin()">X</button>
@@ -316,8 +324,21 @@
 
         document.getElementById('userBadgeInfo').innerText = `${user.nickname} (${user.cargo || 'General'})`;
 
+        let listaMembrosCache = [];
+        let usuariosOnlineSocket = [];
+
         const socket = io();
         socket.emit('entrar_sala', { salaId: 'sala_geral_salazar', nickname: user.nickname, cargo: user.cargo || 'Comando' });
+
+        socket.on('atualizar_status_adm', (listaOnline) => {
+            usuariosOnlineSocket = listaOnline || [];
+            renderizarTabelaEfetivo();
+        });
+
+        // RECARREGA A TABELA DIREITO DO BANCO DE DADOS SEMPRE QUE ALGUÉM INICIA OU FINALIZA TURNO
+        socket.on('atualizar_status_geral_tropa', () => {
+            carregarEfetivo();
+        });
 
         socket.on('receber_mensagem', (data) => {
             const chatBox = document.getElementById('chatBox');
@@ -390,31 +411,52 @@
                 const response = await fetch('/api/admin/membros');
                 const data = await response.json();
 
-                const tabela = document.getElementById('tabelaEfetivo');
-                tabela.innerHTML = '';
-
-                if (data.success && data.membros.length > 0) {
-                    data.membros.forEach(membro => {
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `
-                            <td><b>${membro.nickname}</b></td>
-                            <td>${membro.cargo || 'Privado'}</td>
-                            <td><span style="padding: 2px 6px; border-radius: 4px; font-size: 11px; background: ${membro.status === 'ativo' ? '#16a34a' : '#eab308'}; color: #fff;">${membro.status || 'pendente'}</span></td>
-                            <td style="color: #38bdf8; font-size: 12px;">${membro.ultimoPlantao || 'Nenhum plantão'}</td>
-                            <td>
-                                ${membro.status !== 'ativo' ? `<button class="btn-action btn-aprovar" style="width:auto;" onclick="atualizarMembro('${membro._id}', 'ativo', 'Soldado')">Aprovar</button>` : ''}
-                                <button class="btn-action btn-historico" style="width:auto;" onclick="verHistoricoMembro('${membro.nickname}', '${membro._id}')">Ver Histórico</button>
-                                <button class="btn-action btn-promover" style="width:auto;" onclick="promoverMembro('${membro._id}', '${membro.cargo}')">Promover</button>
-                                <button class="btn-action btn-demitir" style="width:auto;" onclick="demitirMembro('${membro._id}')">Demitir</button>
-                            </td>
-                        `;
-                        tabela.appendChild(tr);
-                    });
-                } else {
-                    tabela.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #94a3b8;">Nenhum membro encontrado.</td></tr>`;
+                if (data.success) {
+                    listaMembrosCache = data.membros;
+                    renderizarTabelaEfetivo();
                 }
             } catch (error) {
                 console.error('Erro ao carregar efetivo:', error);
+            }
+        }
+
+        function renderizarTabelaEfetivo() {
+            const tabela = document.getElementById('tabelaEfetivo');
+            tabela.innerHTML = '';
+
+            if (listaMembrosCache.length > 0) {
+                listaMembrosCache.forEach(membro => {
+                    const tr = document.createElement('tr');
+                    
+                    let statusOperacionalHtml = `<span class="status-dot-offline"></span> <span style="color:#64748b;">Offline</span>`;
+                    
+                    // 1. Prioridade máxima: Verifica se o cronômetro de plantão está ativo na BD (emPlantao)
+                    if (membro.emPlantao) {
+                        statusOperacionalHtml = `<span class="status-dot-plantao"></span> <b style="color:#eab308;">Em Plantão</b>`;
+                    } else {
+                        // 2. Se não está em plantão, verifica se está navegando pelo site (online)
+                        const userOnlineInfo = usuariosOnlineSocket.find(u => u.nickname.toLowerCase() === membro.nickname.toLowerCase());
+                        if (userOnlineInfo) {
+                            statusOperacionalHtml = `<span class="status-dot-online"></span> <b style="color:#22c55e;">Online</b>`;
+                        }
+                    }
+
+                    tr.innerHTML = `
+                        <td><b>${membro.nickname}</b></td>
+                        <td>${membro.cargo || 'Privado'}</td>
+                        <td>${statusOperacionalHtml}</td>
+                        <td style="color: #38bdf8; font-size: 12px;">${membro.ultimoPlantao || 'Nenhum plantão'}</td>
+                        <td>
+                            ${membro.status !== 'ativo' ? `<button class="btn-action btn-aprovar" style="width:auto;" onclick="atualizarMembro('${membro._id}', 'ativo', 'Soldado')">Aprovar</button>` : ''}
+                            <button class="btn-action btn-historico" style="width:auto;" onclick="verHistoricoMembro('${membro.nickname}', '${membro._id}')">Ver Histórico</button>
+                            <button class="btn-action btn-promover" style="width:auto;" onclick="promoverMembro('${membro._id}', '${membro.cargo}')">Promover</button>
+                            <button class="btn-action btn-demitir" style="width:auto;" onclick="demitirMembro('${membro._id}')">Demitir</button>
+                        </td>
+                    `;
+                    tabela.appendChild(tr);
+                });
+            } else {
+                tabela.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #94a3b8;">Nenhum membro encontrado.</td></tr>`;
             }
         }
 
@@ -482,11 +524,11 @@
                         const div = document.createElement('div');
                         div.style.padding = '3px 0';
                         div.style.borderBottom = '1px solid rgba(56, 189, 248, 0.1)';
-                        div.innerHTML = `• <b>${m.nickname}</b> (${m.cargo}) — <i>Elegível (2h+ cumpridas)</i>`;
+                        div.innerHTML = `• <b>${m.nickname}</b> (${m.cargo}) — <i>Elegível (2h+ cumpridas HOJE)</i>`;
                         container.appendChild(div);
                     });
                 } else {
-                    container.innerHTML = `<span style="color: #ef4444;">Nenhum operacional elegível com 2h+ de plantão.</span>`;
+                    container.innerHTML = `<span style="color: #ef4444;">Nenhum operacional elegível com 2h+ cumpridas HOJE.</span>`;
                 }
             } catch (e) {
                 console.error(e);
@@ -556,7 +598,7 @@
 
             mostrarModalCustomizado(
                 'Confirmação de Sorteio Imediato',
-                `Deseja efetuar o sorteio imediato agora para ${qtdGanhadores} ganhador(es) com 2h+?`,
+                `Deseja efetuar o sorteio imediato agora para ${qtdGanhadores} ganhador(es) com 2h+ cumpridas HOJE?`,
                 'confirmacao',
                 async () => {
                     try {
