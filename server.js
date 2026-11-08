@@ -38,6 +38,14 @@ function converterSegundosParaDuracao(segundosTotais) {
   return `${horas}:${minutos}:${segundos}`;
 }
 
+// Função para verificar se a data/hora do turno está entre 17:00 e 02:00
+function turnoEstaNoHorarioPermitido(dataTurno) {
+    const d = new Date(dataTurno);
+    const hora = d.getHours();
+    // Permitido das 17:00 até às 23:59 OU das 00:00 até às 01:59 (02:00)
+    return (hora >= 17 && hora <= 23) || (hora >= 0 && hora < 2);
+}
+
 // --- AUTENTICAÇÃO (LOGIN) ---
 app.post('/api/auth/login', async (req, res) => {
     try {
@@ -145,8 +153,7 @@ app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
             membro: {
                 nickname: membro.nickname,
                 cargo: membro.cargo || 'Soldado',
-                status: membro.status || 'Ativo',
-                ultimoPlantao: ultimoTurno ? `Duração: ${ultimoTurno.duracao} em ${new Date(ultimoTurno.data).toLocaleDateString()}` : 'Nenhum plantão registado'
+                status: membro.status || 'Ativo'
             },
             historicoTurnos: membro.historicoTurnos || [],
             historicoPromocoes: membro.historicoPromocoes || [],
@@ -234,12 +241,13 @@ app.delete('/api/admin/membro/:id', async (req, res) => {
     }
 });
 
-// --- RANKINGS ---
+// --- RANKINGS (Blindado estritamente para 17h às 02h) ---
 app.get('/api/ranking', async (req, res) => {
     try {
         const membros = await User.find({}, 'nickname cargo historicoTurnos').lean();
         const ranking = membros.map(m => {
-            const totalSegundos = (m.historicoTurnos || []).reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+            const turnosValidos = (m.historicoTurnos || []).filter(t => turnoEstaNoHorarioPermitido(t.data));
+            const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
             return {
                 nickname: m.nickname,
                 cargo: m.cargo || 'Soldado',
@@ -258,7 +266,8 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
     try {
         const membros = await User.find({}, 'nickname cargo historicoTurnos').lean();
         const ranking = membros.map(m => {
-            const totalSegundos = (m.historicoTurnos || []).reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+            const turnosValidos = (m.historicoTurnos || []).filter(t => turnoEstaNoHorarioPermitido(t.data));
+            const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
             return {
                 nickname: m.nickname,
                 cargo: m.cargo || 'Soldado',
@@ -284,10 +293,9 @@ app.put('/api/admin/ranking/resetar', async (req, res) => {
 
 app.post('/api/admin/notificar/ranking', async (req, res) => {
     try {
-        const membros = await User.find({}, 'nickname historicoTurnos').lean();
         const notif = {
             titulo: '📊 Posição do Ranking',
-            mensagem: 'O comando atualizou as notificações relativas ao ranking semanal de horas.',
+            mensagem: 'O comando atualizou as notificações relativas ao ranking semanal de horas (17h às 02h).',
             data: new Date()
         };
         await User.updateMany({}, { $push: { caixaEntrada: notif } });
@@ -327,7 +335,7 @@ app.post('/api/membro/turno', async (req, res) => {
     }
 });
 
-// --- SORTEIOS ---
+// --- SORTEIOS E AGENDAMENTO AUTOMÁTICO ---
 app.get('/api/admin/sorteio/status', async (req, res) => {
   try {
     const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' }).lean();
@@ -342,8 +350,9 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
     const membros = await User.find({}, '-password').lean();
     const elegiveis = membros.filter(m => {
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
-      const totalSegundos = m.historicoTurnos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
-      return totalSegundos >= 7200;
+      const turnosValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data));
+      const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+      return totalSegundos >= 7200; // 2 horas (7200 segundos)
     });
     const listaElegiveis = elegiveis.map(m => ({
       id: m._id,
@@ -371,18 +380,71 @@ app.post('/api/admin/sorteio/agendar', async (req, res) => {
   }
 });
 
+// Função interna para processar e disparar o sorteio no canal
+async function executarSorteioAutomatico() {
+    try {
+        const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' });
+        if (!config || config.executado) return;
+
+        const agora = new Date();
+        const horaAtualStr = String(agora.getHours()).padStart(2, '0') + ':' + String(agora.getMinutes()).padStart(2, '0');
+        
+        // Se a hora atual bater com o horário alvo agendado
+        if (horaAtualStr === config.horarioAlvo) {
+            const membros = await User.find({}, '-password').lean();
+            const elegiveis = membros.filter(m => {
+              if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
+              const turnosValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data));
+              const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+              return totalSegundos >= 7200;
+            });
+
+            if (elegiveis.length > 0) {
+                const premiosLista = config.premios ? config.premios.split(',').map(p => p.trim()) : ['Prêmio Especial'];
+                
+                for (let i = 0; i < Math.min(config.qtdGanhadores || 1, elegiveis.length); i++) {
+                  const randomIndex = Math.floor(Math.random() * elegiveis.length);
+                  const escolhido = elegiveis.splice(randomIndex, 1)[0];
+                  const premioSorteado = premiosLista[i % premiosLista.length];
+
+                  await User.findByIdAndUpdate(escolhido._id, {
+                    $push: { historicoSorteios: { descricaoPremio: premioSorteado, status: 'Contemplado', data: new Date() } }
+                  });
+
+                  // Dispara mensagem automática no WebSocket para o canal de rádio
+                  io.to('sala_geral_salazar').emit('receber_mensagem', {
+                      nickname: 'SORTEIO OFICIAL',
+                      cargo: 'Comando',
+                      mensagem: `🏆 O operacional ${escolhido.nickname} (${escolhido.cargo || 'Soldado'}) foi contemplado no sorteio agendado e ganhou: ${premioSorteado}!`,
+                      hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                  });
+                }
+            }
+
+            config.executado = true;
+            await config.save();
+        }
+    } catch (e) {
+        console.error('Erro no agendamento automático do sorteio:', e);
+    }
+}
+
+// Verifica a cada 30 segundos se chegou a hora do sorteio agendado
+setInterval(executarSorteioAutomatico, 30000);
+
 app.post('/api/admin/sorteio/realizar', async (req, res) => {
   try {
     const { qtdGanhadores, premios } = req.body;
     const membros = await User.find({}, '-password').lean();
     const elegiveis = membros.filter(m => {
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
-      const totalSegundos = m.historicoTurnos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+      const turnosValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data));
+      const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
       return totalSegundos >= 7200;
     });
 
     if (elegiveis.length === 0) {
-      return res.json({ success: false, message: 'Não há operacionais elegíveis com 2h+ para realizar o sorteio.' });
+      return res.json({ success: false, message: 'Não há operacionais elegíveis com 2h+ no horário permitido (17h-02h) para realizar o sorteio.' });
     }
 
     const premiosLista = premios ? premios.split(',').map(p => p.trim()) : ['Prêmio Especial'];
