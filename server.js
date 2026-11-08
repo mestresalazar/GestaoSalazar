@@ -80,10 +80,17 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
     }
 });
 
-// --- HISTÓRICO DO MEMBRO (Painel Admin) ---
-app.get('/api/admin/membro/:nickname', async (req, res) => {
+// --- HISTÓRICO DO MEMBRO (Painel Admin - Flexível para ID ou Nickname) ---
+app.get('/api/admin/membro/:param', async (req, res) => {
     try {
-        const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }, '-password').lean();
+        const param = req.params.param;
+        let query = { nickname: new RegExp('^' + param + '$', 'i') };
+        
+        if (param.match(/^[0-9a-fA-F]{24}$/)) {
+            query = { $or: [{ nickname: new RegExp('^' + param + '$', 'i') }, { _id: param }] };
+        }
+
+        const membro = await User.findOne(query, '-password').lean();
         if (!membro) {
             return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
         }
@@ -102,6 +109,28 @@ app.get('/api/admin/membro/:nickname', async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro ao carregar dados do membro.' });
+    }
+});
+
+app.get('/api/admin/membros/:param', async (req, res) => {
+    try {
+        const param = req.params.param;
+        let query = { nickname: new RegExp('^' + param + '$', 'i') };
+        if (param.match(/^[0-9a-fA-F]{24}$/)) {
+            query = { $or: [{ nickname: new RegExp('^' + param + '$', 'i') }, { _id: param }] };
+        }
+        const membro = await User.findOne(query, '-password').lean();
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+        res.json({
+            success: true,
+            membro: { nickname: membro.nickname, cargo: membro.cargo || 'Soldado', status: membro.status || 'Ativo' },
+            historicoTurnos: membro.historicoTurnos || [],
+            historicoPromocoes: membro.historicoPromocoes || [],
+            historicoSorteios: membro.historicoSorteios || [],
+            caixaEntrada: membro.caixaEntrada || []
+        });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro no servidor.' });
     }
 });
 
