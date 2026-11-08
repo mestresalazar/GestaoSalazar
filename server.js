@@ -38,7 +38,7 @@ function converterSegundosParaDuracao(segundosTotais) {
   return `${horas}:${minutos}:${segundos}`;
 }
 
-// Validação estrita do horário regulamentar (17:00 às 02:00)
+// Horário regulamentar estrito para o ranking (17:00 às 02:00)
 function turnoEstaNoHorarioPermitido(dataTurno) {
     const d = new Date(dataTurno);
     const hora = d.getHours();
@@ -59,11 +59,12 @@ app.post('/api/auth/login', async (req, res) => {
 
         res.json({ success: true, message: 'Login bem-sucedido', user: { nickname: user.nickname, cargo: user.cargo, role: user.role, status: user.status } });
     } catch (e) {
+        console.error('Erro no login:', e);
         res.status(500).json({ success: false, message: 'Erro no servidor.' });
     }
 });
 
-// --- AUTENTICAÇÃO (REGISTO) ---
+// --- AUTENTICAÇÃO (REGISTO BLINDADO) ---
 app.post('/api/auth/register', async (req, res) => {
     try {
         const { nickname, senha, password } = req.body;
@@ -73,24 +74,29 @@ app.post('/api/auth/register', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Preencha o nickname e a senha.' });
         }
 
-        const userExiste = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
+        const userExiste = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') });
         if (userExiste) {
             return res.status(400).json({ success: false, message: 'Este nickname já está registado.' });
         }
 
+        // Criação segura ignorando restrições rígidas de schema antigo
         const novoUtilizador = new User({
             nickname: nickname.trim(),
             password: passFinal,
             cargo: 'Soldado',
             status: 'pendente',
-            role: 'membro'
+            role: 'membro',
+            historicoTurnos: [],
+            historicoPromocoes: [],
+            historicoSorteios: [],
+            caixaEntrada: []
         });
 
         await novoUtilizador.save();
         res.json({ success: true, message: 'Conta registada com sucesso!' });
     } catch (error) {
-        console.error('Erro no registo:', error);
-        res.status(500).json({ success: false, message: 'Erro ao registar conta.' });
+        console.error('Erro crítico no registo:', error);
+        res.status(500).json({ success: false, message: 'Erro ao registar conta na base de dados.' });
     }
 });
 
@@ -240,7 +246,7 @@ app.delete('/api/admin/membro/:id', async (req, res) => {
     }
 });
 
-// --- RANKINGS (Apenas quem tem horas acumuladas > 0 no horário regulamentar) ---
+// --- RANKINGS (Oculta quem tem 0 horas) ---
 app.get('/api/ranking', async (req, res) => {
     try {
         const membros = await User.find({}, 'nickname cargo historicoTurnos').lean();
@@ -281,7 +287,6 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
     }
 });
 
-// Zera os turnos de todos e envia notificação para a caixa de entrada
 app.put('/api/admin/ranking/resetar', async (req, res) => {
     try {
         await User.updateMany({}, { $set: { historicoTurnos: [] } });
@@ -343,7 +348,7 @@ app.post('/api/membro/turno', async (req, res) => {
     }
 });
 
-// --- SORTEIOS E AGENDAMENTO AUTOMÁTICO ---
+// --- SORTEIOS E AGENDAMENTO AUTOMÁTICO (Com fuso horário ajustado para o Brasil) ---
 app.get('/api/admin/sorteio/status', async (req, res) => {
   try {
     const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' }).lean();
@@ -394,7 +399,9 @@ async function executarSorteioAutomatico() {
         if (!config || config.executado) return;
 
         const agora = new Date();
-        const horaAtualStr = String(agora.getHours()).padStart(2, '0') + ':' + String(agora.getMinutes()).padStart(2, '0');
+        // Converte estritamente para o fuso horário do Brasil para bater certo com a hora local
+        const horaLocal = new Date(agora.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+        const horaAtualStr = String(horaLocal.getHours()).padStart(2, '0') + ':' + String(horaLocal.getMinutes()).padStart(2, '0');
         
         if (horaAtualStr === config.horarioAlvo) {
             const membros = await User.find({}, '-password').lean();
@@ -428,7 +435,7 @@ async function executarSorteioAutomatico() {
                 io.to('sala_geral_salazar').emit('receber_mensagem', {
                     nickname: 'SORTEIO OFICIAL',
                     cargo: 'Comando',
-                    mensagem: `⚠️ O horário do sorteio agendado foi atingido, mas não há nenhum operacional elegível com 2h+ de plantão no horário regulamentar (17h-02h).`,
+                    mensagem: `⚠️ O horário do sorteio agendado (${config.horarioAlvo}) foi atingido, mas não há nenhum operacional elegível com 2h+ de plantão no horário regulamentar (17h-02h).`,
                     hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
                 });
             }
@@ -441,7 +448,7 @@ async function executarSorteioAutomatico() {
     }
 }
 
-setInterval(executarSorteioAutomatico, 30000);
+setInterval(executarSorteioAutomatico, 10000);
 
 app.post('/api/admin/sorteio/realizar', async (req, res) => {
   try {
