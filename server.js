@@ -45,6 +45,15 @@ function turnoEstaNoHorarioPermitido(dataTurno) {
     return (hora >= 17 && hora <= 23) || (hora >= 0 && hora < 2);
 }
 
+// Verifica se o turno foi realizado no mesmo dia civil (Hoje)
+function turnoEhDeHoje(dataTurno) {
+    const d = new Date(dataTurno);
+    const hoje = new Date();
+    return d.getDate() === hoje.getDate() &&
+           d.getMonth() === hoje.getMonth() &&
+           d.getFullYear() === hoje.getFullYear();
+}
+
 // --- AUTENTICAÇÃO (LOGIN) ---
 app.post('/api/auth/login', async (req, res) => {
     try {
@@ -168,7 +177,7 @@ app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
 // --- EFETIVO E PAINEL ADM ---
 app.get('/api/admin/membros', async (req, res) => {
   try {
-    const membros = await User.find({}, '-password').lean(); 
+    const membros = await User.find({}, '-password -historicoTurnos.fotoComprovante').lean(); 
     const membrosFormatados = membros.map(m => {
       const ultimoTurno = m.historicoTurnos && m.historicoTurnos.length > 0 
         ? m.historicoTurnos[m.historicoTurnos.length - 1] 
@@ -187,7 +196,7 @@ app.get('/api/admin/membros', async (req, res) => {
 
 app.get('/api/admin/efetivo', async (req, res) => {
     try {
-        const membros = await User.find({}, '-password').lean();
+        const membros = await User.find({}, '-password -historicoTurnos.fotoComprovante').lean();
         res.json({ success: true, efetivo: membros });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro ao carregar efetivo.' });
@@ -342,7 +351,7 @@ app.post('/api/membro/turno', async (req, res) => {
     }
 });
 
-// --- SORTEIOS E AGENDAMENTO AUTOMÁTICO ---
+// --- SORTEIOS E AGENDAMENTO AUTOMÁTICO (FILTRO RIGOROSO DIÁRIO) ---
 app.get('/api/admin/sorteio/status', async (req, res) => {
   try {
     const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' }).lean();
@@ -357,9 +366,10 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
     const membros = await User.find({}, '-password').lean();
     const elegiveis = membros.filter(m => {
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
-      const turnosValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data));
-      const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
-      return totalSegundos >= 7200;
+      // Exige turnos no horário regulamentar (17h-02h) E realizados especificamente HOJE
+      const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoEhDeHoje(t.data));
+      const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+      return totalSegundosHoje >= 7200; // 2 horas no dia atual
     });
     const listaElegiveis = elegiveis.map(m => ({
       id: m._id,
@@ -400,9 +410,9 @@ async function executarSorteioAutomatico() {
             const membros = await User.find({}, '-password').lean();
             const elegiveis = membros.filter(m => {
               if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
-              const turnosValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data));
-              const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
-              return totalSegundos >= 7200;
+              const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoEhDeHoje(t.data));
+              const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+              return totalSegundosHoje >= 7200;
             });
 
             if (elegiveis.length > 0) {
@@ -420,7 +430,7 @@ async function executarSorteioAutomatico() {
                   io.to('sala_geral_salazar').emit('receber_mensagem', {
                       nickname: 'SORTEIO OFICIAL',
                       cargo: 'Comando',
-                      mensagem: `🏆 O operacional ${escolhido.nickname} (${escolhido.cargo || 'Soldado'}) foi contemplado no sorteio agendado e ganhou: ${premioSorteado}!`,
+                      mensagem: `🏆 O operacional ${escolhido.nickname} (${escolhido.cargo || 'Soldado'}) cumpriu 2h+ HOJE e ganhou o sorteio: ${premioSorteado}!`,
                       hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
                   });
                 }
@@ -428,7 +438,7 @@ async function executarSorteioAutomatico() {
                 io.to('sala_geral_salazar').emit('receber_mensagem', {
                     nickname: 'SORTEIO OFICIAL',
                     cargo: 'Comando',
-                    mensagem: `⚠️ O horário do sorteio agendado (${config.horarioAlvo}) foi atingido, mas não há nenhum operacional elegível com 2h+ de plantão no horário regulamentar (17h-02h).`,
+                    mensagem: `⚠️ O horário do sorteio agendado (${config.horarioAlvo}) chegou, mas nenhum operacional acumulou 2h de plantão HOJE no horário regulamentar (17h-02h).`,
                     hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
                 });
             }
@@ -449,13 +459,13 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
     const membros = await User.find({}, '-password').lean();
     const elegiveis = membros.filter(m => {
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
-      const turnosValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data));
-      const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
-      return totalSegundos >= 7200;
+      const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoEhDeHoje(t.data));
+      const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+      return totalSegundosHoje >= 7200;
     });
 
     if (elegiveis.length === 0) {
-      return res.json({ success: false, message: 'Não há operacionais elegíveis com 2h+ no horário permitido (17h-02h) para realizar o sorteio.' });
+      return res.json({ success: false, message: 'Não há operacionais elegíveis com 2h+ cumpridas HOJE para realizar o sorteio.' });
     }
 
     const premiosLista = premios ? premios.split(',').map(p => p.trim()) : ['Prêmio Especial'];
@@ -483,17 +493,25 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
   }
 });
 
-// --- WEBSOCKETS ---
+// --- WEBSOCKETS (COM STATUS DE PLANTÃO 🟡) ---
 const usuariosOnline = {}; 
 io.on('connection', (socket) => {
   socket.on('entrar_sala', (data) => {
     let salaId = typeof data === 'string' ? data : (data.salaId || 'sala_geral_salazar');
     let nickname = typeof data === 'string' ? 'Operacional' : (data.nickname || 'Operacional');
     let cargo = typeof data === 'string' ? 'Soldado' : (data.cargo || 'Soldado');
+    let emPlantao = typeof data === 'object' && data.emPlantao ? true : false;
 
     socket.join(salaId);
-    usuariosOnline[socket.id] = { nickname, cargo, salaId };
+    usuariosOnline[socket.id] = { nickname, cargo, salaId, emPlantao };
     atualizarListaOnline(salaId);
+  });
+
+  socket.on('atualizar_status_plantao', (data) => {
+    if (usuariosOnline[socket.id]) {
+      usuariosOnline[socket.id].emPlantao = data.emPlantao;
+      atualizarListaOnline(usuariosOnline[socket.id].salaId);
+    }
   });
 
   socket.on('chat_mensagem', (data) => {
@@ -519,5 +537,5 @@ function atualizarListaOnline(salaId) {
 
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor rodando na porta ${PORT} 🚀`);
+  console.log(`Servidor rodando localmente na porta ${PORT} 🚀`);
 });

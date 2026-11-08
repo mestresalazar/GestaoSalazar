@@ -164,7 +164,7 @@
             flex-direction: column;
         }
         .chat-sidebar-online {
-            width: 130px;
+            width: 140px;
             background: rgba(15, 23, 42, 0.7);
             border: 1px solid rgba(56, 189, 248, 0.2);
             border-radius: 6px;
@@ -183,18 +183,33 @@
         .online-user-item {
             font-size: 11px;
             color: #cbd5e1;
-            padding: 3px 0;
+            padding: 4px 0;
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
         }
+        /* Bolinhas de Status */
         .online-dot {
-            width: 7px;
-            height: 7px;
+            width: 8px;
+            height: 8px;
             background-color: #22c55e;
             border-radius: 50%;
             display: inline-block;
             box-shadow: 0 0 5px #22c55e;
+        }
+        .plantao-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #eab308;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 6px #eab308;
+            animation: pulse-yellow 1.5s infinite;
+        }
+        @keyframes pulse-yellow {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 5px rgba(234, 179, 8, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(234, 179, 8, 0); }
         }
 
         #chatBox {
@@ -307,9 +322,9 @@
 
             <div class="card">
                 <h3>🎁 Status do Sorteio Diário</h3>
-                <p style="color: #e2e8f0; margin-bottom: 15px; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Para estar elegível, cumpre pelo menos 2h acumuladas de plantão no dia.</p>
+                <p style="color: #e2e8f0; margin-bottom: 15px; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Para participar hoje, cumpre pelo menos 2h acumuladas no dia atual (17h–02h).</p>
                 <div id="statusSorteio" style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); padding: 12px; border-radius: 6px; text-align: center; font-weight: bold; color: #eab308; font-size: 14px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">
-                    Elegível ao atingir 2h de plantão.
+                    Elegível ao atingir 2h de plantão HOJE.
                 </div>
             </div>
         </div>
@@ -426,8 +441,15 @@
         carregarCaixaEntrada();
         setInterval(carregarCaixaEntrada, 6000);
 
+        let estadoTurnoInicial = localStorage.getItem(`turno_estado_${user.nickname}`) || 'parado';
+
         const socket = io();
-        socket.emit('entrar_sala', { salaId: 'sala_geral_salazar', nickname: user.nickname, cargo: user.cargo || 'Soldado' });
+        socket.emit('entrar_sala', { 
+            salaId: 'sala_geral_salazar', 
+            nickname: user.nickname, 
+            cargo: user.cargo || 'Soldado',
+            emPlantao: estadoTurnoInicial === 'ativo'
+        });
 
         function carregarHistoricoChatLocal() {
             const chatBox = document.getElementById('chatBox');
@@ -472,6 +494,7 @@
             adicionarMsgNoChat(data, true);
         });
 
+        // Exibe bolinha verde (🟢 Online) ou amarela pulsante (🟡 Em Plantão)
         socket.on('atualizar_usuarios_online', (usuarios) => {
             const listaOnline = document.getElementById('listaOnline');
             listaOnline.innerHTML = '';
@@ -479,7 +502,9 @@
                 usuarios.forEach(u => {
                     const item = document.createElement('div');
                     item.className = 'online-user-item';
-                    item.innerHTML = `<span class="online-dot"></span> <b>${u.nickname}</b>`;
+                    const dotClass = u.emPlantao ? 'plantao-dot' : 'online-dot';
+                    const statusText = u.emPlantao ? '<span style="color:#eab308; font-size:10px;"> (Plantão)</span>' : '';
+                    item.innerHTML = `<span class="${dotClass}"></span> <b>${u.nickname}</b>${statusText}`;
                     listaOnline.appendChild(item);
                 });
             } else {
@@ -662,6 +687,9 @@
             localStorage.setItem(`turno_inicio_${user.nickname}`, Date.now());
             localStorage.setItem(`turno_segundos_acumulados_${user.nickname}`, 0);
 
+            // Notifica o servidor que o jogador iniciou o plantão (bolinha amarela)
+            socket.emit('atualizar_status_plantao', { emPlantao: true });
+
             const btnPausar = document.getElementById('btnPausar');
             btnPausar.style.display = 'block';
             btnPausar.innerText = 'Pausar Turno';
@@ -673,7 +701,7 @@
                 atualizarDisplayTimer();
             }, 1000);
             
-            mostrarModalCustomizado('Sucesso', 'Check-in registado! Se fechares a aba ou o navegador, o tempo continuará a contar em segundo plano.');
+            mostrarModalCustomizado('Sucesso', 'Check-in registado! Estás de plantão (status 🟡 no rádio).');
         }
 
         function alternarPausa() {
@@ -692,6 +720,9 @@
                 estadoTurno = 'pausado';
                 localStorage.setItem(`turno_estado_${user.nickname}`, 'pausado');
 
+                // Notifica pausa
+                socket.emit('atualizar_status_plantao', { emPlantao: false });
+
                 btnPausar.innerText = 'Retomar Turno';
                 btnPausar.style.backgroundColor = 'rgba(34, 197, 94, 0.9)';
                 mostrarModalCustomizado('Turno Pausado', 'O cronômetro foi congelado.');
@@ -699,6 +730,9 @@
                 estadoTurno = 'ativo';
                 localStorage.setItem(`turno_estado_${user.nickname}`, 'ativo');
                 localStorage.setItem(`turno_inicio_${user.nickname}`, Date.now());
+
+                // Notifica retomada do plantão
+                socket.emit('atualizar_status_plantao', { emPlantao: true });
 
                 btnPausar.innerText = 'Pausar Turno';
                 btnPausar.style.backgroundColor = 'rgba(234, 179, 8, 0.9)';
@@ -744,7 +778,7 @@
 
                 const data = await response.json();
                 if (data.success) {
-                    mostrarModalCustomizado('Sucesso', `Turno finalizado e gravado no histórico com sucesso! Duração: ${tempoFinal}`);
+                    mostrarModalCustomizado('Sucesso', `Turno finalizado e gravado com sucesso! Duração: ${tempoFinal}`);
                     carregarRanking();
                     
                     localStorage.removeItem(`turno_segundos_${user.nickname}`);
@@ -754,6 +788,8 @@
                     localStorage.removeItem(`turno_segundos_acumulados_${user.nickname}`);
                     
                     estadoTurno = 'parado';
+                    socket.emit('atualizar_status_plantao', { emPlantao: false });
+
                     document.getElementById('fotoComprovante').value = '';
                     document.getElementById('statusAnexo').innerText = '';
                     atualizarDisplayTimer();
@@ -804,6 +840,7 @@
         }
 
         function logout() {
+            socket.emit('atualizar_status_plantao', { emPlantao: false });
             localStorage.clear();
             window.location.href = 'index.html';
         }
