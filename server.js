@@ -42,7 +42,6 @@ function converterSegundosParaDuracao(segundosTotais) {
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { nickname, senha, password } = req.body;
-        const passFinal = password || senha;
         const user = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') }).lean();
         if (!user) return res.status(400).json({ success: false, message: 'Utilizador não encontrado.' });
         res.json({ success: true, message: 'Login bem-sucedido', user: { nickname: user.nickname, cargo: user.cargo, role: user.role } });
@@ -51,7 +50,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// --- HISTÓRICO DO MEMBRO ---
+// --- HISTÓRICO DO MEMBRO (Dashboard) ---
 app.get('/api/membro/historico/:nickname', async (req, res) => {
     try {
         const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }, '-password').lean();
@@ -81,7 +80,7 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
     }
 });
 
-// --- EFETIVO E PAINEL ADM (OTIMIZADO COM .lean()) ---
+// --- EFETIVO E PAINEL ADM ---
 app.get('/api/admin/membros', async (req, res) => {
   try {
     const membros = await User.find({}, '-password').lean(); 
@@ -110,7 +109,7 @@ app.get('/api/admin/efetivo', async (req, res) => {
     }
 });
 
-// --- RANKING (OTIMIZADO COM .lean()) ---
+// --- RANKINGS (Cobre todas as variações chamadas pelo frontend) ---
 app.get('/api/ranking', async (req, res) => {
     try {
         const membros = await User.find({}, 'nickname cargo historicoTurnos').lean();
@@ -127,6 +126,25 @@ app.get('/api/ranking', async (req, res) => {
         res.json({ success: true, ranking });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro ao carregar ranking.' });
+    }
+});
+
+app.get('/api/admin/ranking/turnos', async (req, res) => {
+    try {
+        const membros = await User.find({}, 'nickname cargo historicoTurnos').lean();
+        const ranking = membros.map(m => {
+            const totalSegundos = (m.historicoTurnos || []).reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+            return {
+                nickname: m.nickname,
+                cargo: m.cargo || 'Soldado',
+                totalSegundos: totalSegundos,
+                totalFormatado: converterSegundosParaDuracao(totalSegundos)
+            };
+        }).sort((a, b) => b.totalSegundos - a.totalSegundos);
+
+        res.json({ success: true, ranking: ranking.slice(0, 10) });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao carregar ranking de turnos.' });
     }
 });
 
