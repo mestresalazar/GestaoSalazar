@@ -24,11 +24,6 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors());
 app.use(express.static('public'));
 
-// Rotas Oficiais Existentes
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/ponto', require('./routes/pontoRoutes'));
-app.use('/api/admin', require('./routes/adminRoutes'));
-
 function converterDuracaoParaSegundos(duracaoStr) {
   if (!duracaoStr) return 0;
   const partes = duracaoStr.split(':');
@@ -36,37 +31,130 @@ function converterDuracaoParaSegundos(duracaoStr) {
   return (parseInt(partes[0]) * 3600) + (parseInt(partes[1]) * 60) + parseInt(partes[2]);
 }
 
-// --- ROTAS DE SEGURANÇA E SORTEIOS EM FALTA (Evitam o erro 404 e o travamento) ---
+function converterSegundosParaDuracao(segundosTotais) {
+  const horas = String(Math.floor(segundosTotais / 3600)).padStart(2, '0');
+  const minutos = String(Math.floor((segundosTotais % 3600) / 60)).padStart(2, '0');
+  const segundos = String(segundosTotais % 60).padStart(2, '0');
+  return `${horas}:${minutos}:${segundos}`;
+}
+
+// --- AUTENTICAÇÃO ---
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { nickname, senha, password } = req.body;
+        const passFinal = password || senha;
+        const user = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') }).lean();
+        if (!user) return res.status(400).json({ success: false, message: 'Utilizador não encontrado.' });
+        res.json({ success: true, message: 'Login bem-sucedido', user: { nickname: user.nickname, cargo: user.cargo, role: user.role } });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro no servidor.' });
+    }
+});
+
+// --- HISTÓRICO DO MEMBRO ---
+app.get('/api/membro/historico/:nickname', async (req, res) => {
+    try {
+        const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }, '-password').lean();
+        if (!membro) {
+            return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+        }
+
+        const ultimoTurno = membro.historicoTurnos && membro.historicoTurnos.length > 0 
+            ? membro.historicoTurnos[membro.historicoTurnos.length - 1] 
+            : null;
+
+        res.json({
+            success: true,
+            membro: {
+                nickname: membro.nickname,
+                cargo: membro.cargo || 'Soldado',
+                status: membro.status || 'Ativo',
+                ultimoPlantao: ultimoTurno ? `Duração: ${ultimoTurno.duracao} em ${new Date(ultimoTurno.data).toLocaleDateString()}` : 'Nenhum plantão registado'
+            },
+            historicoTurnos: membro.historicoTurnos || [],
+            historicoPromocoes: membro.historicoPromocoes || [],
+            historicoSorteios: membro.historicoSorteios || [],
+            caixaEntrada: membro.caixaEntrada || []
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao carregar histórico.' });
+    }
+});
+
+// --- EFETIVO E PAINEL ADM (OTIMIZADO COM .lean()) ---
+app.get('/api/admin/membros', async (req, res) => {
+  try {
+    const membros = await User.find({}, '-password').lean(); 
+    const membrosFormatados = membros.map(m => {
+      const ultimoTurno = m.historicoTurnos && m.historicoTurnos.length > 0 
+        ? m.historicoTurnos[m.historicoTurnos.length - 1] 
+        : null;
+      
+      return {
+        ...m,
+        ultimoPlantao: ultimoTurno ? `${ultimoTurno.duracao} (${new Date(ultimoTurno.data).toLocaleDateString()})` : 'Nenhum plantão registado'
+      };
+    });
+    res.json({ success: true, membros: membrosFormatados });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Erro ao carregar efetivo.' });
+  }
+});
+
 app.get('/api/admin/efetivo', async (req, res) => {
     try {
-        const membros = await User.find({}, '-password');
+        const membros = await User.find({}, '-password').lean();
         res.json({ success: true, efetivo: membros });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro ao carregar efetivo.' });
     }
 });
 
+// --- RANKING (OTIMIZADO COM .lean()) ---
 app.get('/api/ranking', async (req, res) => {
     try {
-        const membros = await User.find({}, '-password');
+        const membros = await User.find({}, 'nickname cargo historicoTurnos').lean();
         const ranking = membros.map(m => {
             const totalSegundos = (m.historicoTurnos || []).reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
             return {
                 nickname: m.nickname,
                 cargo: m.cargo || 'Soldado',
                 totalHorasSegundos: totalSegundos,
-                totalHorasFormatado: `${Math.floor(totalSegundos / 3600)}h ${Math.floor((totalSegundos % 3600) / 60)}m`
+                totalHorasFormatado: converterSegundosParaDuracao(totalSegundos)
             };
         }).sort((a, b) => b.totalHorasSegundos - a.totalHorasSegundos);
+
         res.json({ success: true, ranking });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro ao carregar ranking.' });
     }
 });
 
+// --- TURNOS ---
+app.post('/api/membro/turno', async (req, res) => {
+    try {
+        const { nickname, duracao, fotoComprovante } = req.body;
+        const user = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
+        if (!user) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        if (!user.historicoTurnos) user.historicoTurnos = [];
+        user.historicoTurnos.push({
+            data: new Date(),
+            duracao: duracao,
+            fotoComprovante: fotoComprovante || 'Sem foto'
+        });
+
+        await user.save();
+        res.json({ success: true, message: 'Turno registado com sucesso!' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao guardar turno.' });
+    }
+});
+
+// --- SORTEIOS ---
 app.get('/api/admin/sorteio/status', async (req, res) => {
   try {
-    const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' });
+    const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' }).lean();
     res.json({ success: true, agendamento: config });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Erro ao buscar status.' });
@@ -75,7 +163,7 @@ app.get('/api/admin/sorteio/status', async (req, res) => {
 
 app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
   try {
-    const membros = await User.find({}, '-password');
+    const membros = await User.find({}, '-password').lean();
     const elegiveis = membros.filter(m => {
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
       const totalSegundos = m.historicoTurnos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
@@ -106,7 +194,6 @@ app.post('/api/admin/sorteio/agendar', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro ao salvar agendamento.' });
   }
 });
-// --------------------------------------------------------------------------
 
 // --- WEBSOCKETS ---
 const usuariosOnline = {}; 
