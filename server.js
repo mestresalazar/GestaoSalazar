@@ -80,6 +80,31 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
     }
 });
 
+// --- HISTÓRICO DO MEMBRO (Painel Admin) ---
+app.get('/api/admin/membro/:nickname', async (req, res) => {
+    try {
+        const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }, '-password').lean();
+        if (!membro) {
+            return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+        }
+
+        res.json({
+            success: true,
+            membro: {
+                nickname: membro.nickname,
+                cargo: membro.cargo || 'Soldado',
+                status: membro.status || 'Ativo'
+            },
+            historicoTurnos: membro.historicoTurnos || [],
+            historicoPromocoes: membro.historicoPromocoes || [],
+            historicoSorteios: membro.historicoSorteios || [],
+            caixaEntrada: membro.caixaEntrada || []
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao carregar dados do membro.' });
+    }
+});
+
 // --- EFETIVO E PAINEL ADM ---
 app.get('/api/admin/membros', async (req, res) => {
   try {
@@ -148,7 +173,7 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
     }
 });
 
-// --- TURNOS (Blindada com updateOne para evitar erros de validação) ---
+// --- TURNOS (Blindada com updateOne) ---
 app.post('/api/membro/turno', async (req, res) => {
     try {
         const { nickname, duracao, fotoComprovante } = req.body;
