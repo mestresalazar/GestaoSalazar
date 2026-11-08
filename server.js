@@ -15,7 +15,7 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: "*",
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST", "PUT", "DELETE"]
   }
 });
 
@@ -42,9 +42,15 @@ function converterSegundosParaDuracao(segundosTotais) {
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { nickname, senha, password } = req.body;
+        const passFinal = senha || password;
         const user = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') }).lean();
+        
         if (!user) return res.status(400).json({ success: false, message: 'Utilizador não encontrado.' });
-        res.json({ success: true, message: 'Login bem-sucedido', user: { nickname: user.nickname, cargo: user.cargo, role: user.role } });
+        if (user.password && user.password !== passFinal) {
+            return res.status(400).json({ success: false, message: 'Senha incorreta.' });
+        }
+
+        res.json({ success: true, message: 'Login bem-sucedido', user: { nickname: user.nickname, cargo: user.cargo, role: user.role, status: user.status } });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro no servidor.' });
     }
@@ -69,7 +75,8 @@ app.post('/api/auth/register', async (req, res) => {
             nickname: nickname.trim(),
             password: passFinal,
             cargo: 'Soldado',
-            status: 'pendente'
+            status: 'pendente',
+            role: 'membro'
         });
 
         await novoUtilizador.save();
@@ -181,6 +188,52 @@ app.get('/api/admin/efetivo', async (req, res) => {
     }
 });
 
+// --- GESTÃO DE MEMBROS (PUT e DELETE) ---
+app.put('/api/admin/membro/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, cargo } = req.body;
+        const updateData = {};
+        if (status) updateData.status = status;
+        if (cargo) updateData.cargo = cargo;
+
+        const membro = await User.findByIdAndUpdate(id, { $set: updateData }, { new: true });
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+        
+        if (cargo) {
+            await User.findByIdAndUpdate(id, {
+                $push: { historicoPromocoes: { novoCargo: cargo, data: new Date() } }
+            });
+        }
+
+        res.json({ success: true, message: 'Membro atualizado com sucesso!', membro });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao atualizar membro.' });
+    }
+});
+
+app.put('/api/admin/membro/resetar-turnos/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const membro = await User.findByIdAndUpdate(id, { $set: { historicoTurnos: [] } }, { new: true });
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+        res.json({ success: true, message: 'Turnos resetados com sucesso!' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao resetar turnos.' });
+    }
+});
+
+app.delete('/api/admin/membro/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const membro = await User.findByIdAndDelete(id);
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+        res.json({ success: true, message: 'Membro demitido/removido com sucesso!' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao remover membro.' });
+    }
+});
+
 // --- RANKINGS ---
 app.get('/api/ranking', async (req, res) => {
     try {
@@ -217,6 +270,30 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
         res.json({ success: true, ranking: ranking.slice(0, 10) });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro ao carregar ranking de turnos.' });
+    }
+});
+
+app.put('/api/admin/ranking/resetar', async (req, res) => {
+    try {
+        await User.updateMany({}, { $set: { historicoTurnos: [] } });
+        res.json({ success: true, message: 'Ranking resetado com sucesso!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao resetar ranking.' });
+    }
+});
+
+app.post('/api/admin/notificar/ranking', async (req, res) => {
+    try {
+        const membros = await User.find({}, 'nickname historicoTurnos').lean();
+        const notif = {
+            titulo: '📊 Posição do Ranking',
+            mensagem: 'O comando atualizou as notificações relativas ao ranking semanal de horas.',
+            data: new Date()
+        };
+        await User.updateMany({}, { $push: { caixaEntrada: notif } });
+        res.json({ success: true, message: 'Notificações enviadas!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao enviar notificações.' });
     }
 });
 
@@ -291,6 +368,45 @@ app.post('/api/admin/sorteio/agendar', async (req, res) => {
     res.json({ success: true, message: 'Sorteio agendado com sucesso!' });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Erro ao salvar agendamento.' });
+  }
+});
+
+app.post('/api/admin/sorteio/realizar', async (req, res) => {
+  try {
+    const { qtdGanhadores, premios } = req.body;
+    const membros = await User.find({}, '-password').lean();
+    const elegiveis = membros.filter(m => {
+      if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
+      const totalSegundos = m.historicoTurnos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+      return totalSegundos >= 7200;
+    });
+
+    if (elegiveis.length === 0) {
+      return res.json({ success: false, message: 'Não há operacionais elegíveis com 2h+ para realizar o sorteio.' });
+    }
+
+    const premiosLista = premios ? premios.split(',').map(p => p.trim()) : ['Prêmio Especial'];
+    const ganhadores = [];
+
+    for (let i = 0; i < Math.min(parseInt(qtdGanhadores) || 1, elegiveis.length); i++) {
+      const randomIndex = Math.floor(Math.random() * elegiveis.length);
+      const escolhido = elegiveis.splice(randomIndex, 1)[0];
+      const premioSorteado = premiosLista[i % premiosLista.length];
+
+      ganhadores.push({
+        nickname: escolhido.nickname,
+        cargo: escolhido.cargo || 'Soldado',
+        premio: premioSorteado
+      });
+
+      await User.findByIdAndUpdate(escolhido._id, {
+        $push: { historicoSorteios: { descricaoPremio: premioSorteado, status: 'Contemplado', data: new Date() } }
+      });
+    }
+
+    res.json({ success: true, ganhadores });
+  } catch (e) {
+    res.status(500).json({ success: false, message: 'Erro ao realizar sorteio.' });
   }
 });
 
