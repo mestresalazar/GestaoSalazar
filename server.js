@@ -80,29 +80,23 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
     }
 });
 
-// --- ROTA UNIVERSAL DE SEGURANÇA PARA HISTÓRICO ADMIN (Nunca dá 404) ---
-app.get('/api/admin/membro*', async (req, res) => {
+// --- ROTA ROBUSTA DE HISTÓRICO ADMIN (Sem erros de sintaxe) ---
+const buscarHistoricoAdmin = async (req, res) => {
     try {
-        const partes = req.path.split('/');
-        let param = partes[partes.length - 1];
-        
-        if (!param || param === 'membro') {
-            param = 'Mestre';
-        }
-
+        const param = req.params.param || 'Mestre';
         let query = { nickname: new RegExp('^' + decodeURIComponent(param) + '$', 'i') };
+        
         if (param.match(/^[0-9a-fA-F]{24}$/)) {
             query = { $or: [{ nickname: new RegExp('^' + param + '$', 'i') }, { _id: param }] };
         }
 
         let membro = await User.findOne(query, '-password').lean();
-        
         if (!membro) {
             membro = await User.findOne({}, '-password').lean();
         }
 
         if (!membro) {
-            return res.status(200).json({
+            return res.json({
                 success: true,
                 membro: { nickname: 'Mestre', cargo: 'General', status: 'ativo' },
                 historicoTurnos: [],
@@ -125,25 +119,18 @@ app.get('/api/admin/membro*', async (req, res) => {
             caixaEntrada: membro.caixaEntrada || []
         });
     } catch (error) {
-        console.error('Erro na rota universal de historico:', error);
-        res.status(200).json({
-            success: true,
-            membro: { nickname: 'Mestre', cargo: 'General', status: 'ativo' },
-            historicoTurnos: [],
-            historicoPromocoes: [],
-            historicoSorteios: [],
-            caixaEntrada: []
-        });
+        console.error('Erro na rota de historico admin:', error);
+        res.status(500).json({ success: false, message: 'Erro ao carregar dados do membro.' });
     }
-});
+};
 
-app.get('/api/admin/membros*', async (req, res) => {
-    req.url = req.url.replace('/membros', '/membro');
-    return app._router.handle(req, res);
-});
+app.get('/api/admin/membro/:param', buscarHistoricoAdmin);
+app.get('/api/admin/membro', buscarHistoricoAdmin);
+app.get('/api/admin/membros/:param', buscarHistoricoAdmin);
+app.get('/api/admin/membros', buscarHistoricoAdmin);
 
 // --- EFETIVO E PAINEL ADM ---
-app.get('/api/admin/membros', async (req, res) => {
+app.get('/api/admin/membros-lista', async (req, res) => {
   try {
     const membros = await User.find({}, '-password').lean(); 
     const membrosFormatados = membros.map(m => {
