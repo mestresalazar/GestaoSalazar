@@ -148,7 +148,7 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
     }
 });
 
-// --- TURNOS (Blindada contra Erro 500) ---
+// --- TURNOS (Blindada com updateOne para evitar erros de validação) ---
 app.post('/api/membro/turno', async (req, res) => {
     try {
         const { nickname, duracao, fotoComprovante } = req.body;
@@ -156,18 +156,21 @@ app.post('/api/membro/turno', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Nickname não fornecido.' });
         }
 
-        const user = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
-        if (!user) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
-
-        if (!user.historicoTurnos) user.historicoTurnos = [];
-        
-        user.historicoTurnos.push({
+        const novoTurno = {
             data: new Date(),
             duracao: duracao || '00:00:00',
             fotoComprovante: fotoComprovante || 'Sem foto'
-        });
+        };
 
-        await user.save();
+        const resultado = await User.updateOne(
+            { nickname: new RegExp('^' + nickname + '$', 'i') },
+            { $push: { historicoTurnos: novoTurno } }
+        );
+
+        if (resultado.matchedCount === 0) {
+            return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+        }
+
         res.json({ success: true, message: 'Turno registado com sucesso!' });
     } catch (error) {
         console.error('Erro ao guardar turno:', error);
