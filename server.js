@@ -80,10 +80,39 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
     }
 });
 
-// --- ROTA ROBUSTA DE HISTÓRICO ADMIN (Sem erros de sintaxe) ---
-const buscarHistoricoAdmin = async (req, res) => {
+// --- EFETIVO E PAINEL ADM (Rotas exatas) ---
+app.get('/api/admin/membros', async (req, res) => {
+  try {
+    const membros = await User.find({}, '-password').lean(); 
+    const membrosFormatados = membros.map(m => {
+      const ultimoTurno = m.historicoTurnos && m.historicoTurnos.length > 0 
+        ? m.historicoTurnos[m.historicoTurnos.length - 1] 
+        : null;
+      
+      return {
+        ...m,
+        ultimoPlantao: ultimoTurno ? `${ultimoTurno.duracao} (${new Date(ultimoTurno.data).toLocaleDateString()})` : 'Nenhum plantão registado'
+      };
+    });
+    res.json({ success: true, membros: membrosFormatados });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Erro ao carregar efetivo.' });
+  }
+});
+
+app.get('/api/admin/efetivo', async (req, res) => {
     try {
-        const param = req.params.param || 'Mestre';
+        const membros = await User.find({}, '-password').lean();
+        res.json({ success: true, efetivo: membros });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao carregar efetivo.' });
+    }
+});
+
+// --- HISTÓRICO DO MEMBRO (Admin) ---
+const handlerHistoricoAdmin = async (req, res) => {
+    try {
+        const param = req.params.param || req.params.nickname || 'Mestre';
         let query = { nickname: new RegExp('^' + decodeURIComponent(param) + '$', 'i') };
         
         if (param.match(/^[0-9a-fA-F]{24}$/)) {
@@ -119,44 +148,14 @@ const buscarHistoricoAdmin = async (req, res) => {
             caixaEntrada: membro.caixaEntrada || []
         });
     } catch (error) {
-        console.error('Erro na rota de historico admin:', error);
-        res.status(500).json({ success: false, message: 'Erro ao carregar dados do membro.' });
+        console.error('Erro ao carregar histórico admin:', error);
+        res.status(500).json({ success: false, message: 'Erro no servidor.' });
     }
 };
 
-app.get('/api/admin/membro/:param', buscarHistoricoAdmin);
-app.get('/api/admin/membro', buscarHistoricoAdmin);
-app.get('/api/admin/membros/:param', buscarHistoricoAdmin);
-app.get('/api/admin/membros', buscarHistoricoAdmin);
-
-// --- EFETIVO E PAINEL ADM ---
-app.get('/api/admin/membros-lista', async (req, res) => {
-  try {
-    const membros = await User.find({}, '-password').lean(); 
-    const membrosFormatados = membros.map(m => {
-      const ultimoTurno = m.historicoTurnos && m.historicoTurnos.length > 0 
-        ? m.historicoTurnos[m.historicoTurnos.length - 1] 
-        : null;
-      
-      return {
-        ...m,
-        ultimoPlantao: ultimoTurno ? `${ultimoTurno.duracao} (${new Date(ultimoTurno.data).toLocaleDateString()})` : 'Nenhum plantão registado'
-      };
-    });
-    res.json({ success: true, membros: membrosFormatados });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Erro ao carregar efetivo.' });
-  }
-});
-
-app.get('/api/admin/efetivo', async (req, res) => {
-    try {
-        const membros = await User.find({}, '-password').lean();
-        res.json({ success: true, efetivo: membros });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Erro ao carregar efetivo.' });
-    }
-});
+app.get('/api/admin/membro/:param', handlerHistoricoAdmin);
+app.get('/api/admin/membro', handlerHistoricoAdmin);
+app.get('/api/admin/membros/:param', handlerHistoricoAdmin);
 
 // --- RANKINGS ---
 app.get('/api/ranking', async (req, res) => {
