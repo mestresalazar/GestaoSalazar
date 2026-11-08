@@ -24,6 +24,10 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors());
 app.use(express.static('public'));
 
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/ponto', require('./routes/pontoRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
+
 function converterDuracaoParaSegundos(duracaoStr) {
   if (!duracaoStr) return 0;
   const partes = duracaoStr.split(':');
@@ -31,131 +35,120 @@ function converterDuracaoParaSegundos(duracaoStr) {
   return (parseInt(partes[0]) * 3600) + (parseInt(partes[1]) * 60) + parseInt(partes[2]);
 }
 
-function converterSegundosParaDuracao(segundosTotais) {
-  const horas = String(Math.floor(segundosTotais / 3600)).padStart(2, '0');
-  const minutos = String(Math.floor((segundosTotais % 3600) / 60)).padStart(2, '0');
-  const segundos = String(segundosTotais % 60).padStart(2, '0');
-  return `${horas}:${minutos}:${segundos}`;
-}
-
-// --- AUTENTICAÇÃO ---
-app.post('/api/auth/login', async (req, res) => {
-    try {
-        const { nickname, senha, password } = req.body;
-        const user = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') }).lean();
-        if (!user) return res.status(400).json({ success: false, message: 'Utilizador não encontrado.' });
-        res.json({ success: true, message: 'Login bem-sucedido', user: { nickname: user.nickname, cargo: user.cargo, role: user.role } });
-    } catch (e) {
-        res.status(500).json({ success: false, message: 'Erro no servidor.' });
-    }
-});
-
-// --- HISTÓRICO DO MEMBRO (Dashboard) ---
-app.get('/api/membro/historico/:nickname', async (req, res) => {
-    try {
-        const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }, '-password').lean();
-        if (!membro) {
-            return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
-        }
-
-        const ultimoTurno = membro.historicoTurnos && membro.historicoTurnos.length > 0 
-            ? membro.historicoTurnos[membro.historicoTurnos.length - 1] 
-            : null;
-
-        res.json({
-            success: true,
-            membro: {
-                nickname: membro.nickname,
-                cargo: membro.cargo || 'Soldado',
-                status: membro.status || 'Ativo',
-                ultimoPlantao: ultimoTurno ? `Duração: ${ultimoTurno.duracao} em ${new Date(ultimoTurno.data).toLocaleDateString()}` : 'Nenhum plantão registado'
-            },
-            historicoTurnos: membro.historicoTurnos || [],
-            historicoPromocoes: membro.historicoPromocoes || [],
-            historicoSorteios: membro.historicoSorteios || [],
-            caixaEntrada: membro.caixaEntrada || []
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Erro ao carregar histórico.' });
-    }
-});
-
-// --- EFETIVO E PAINEL ADM ---
-app.get('/api/admin/membros', async (req, res) => {
+// Rota para agendar sorteio salvando no MongoDB
+app.post('/api/admin/sorteio/agendar', async (req, res) => {
   try {
-    const membros = await User.find({}, '-password').lean(); 
-    const membrosFormatados = membros.map(m => {
-      const ultimoTurno = m.historicoTurnos && m.historicoTurnos.length > 0 
-        ? m.historicoTurnos[m.historicoTurnos.length - 1] 
-        : null;
-      
-      return {
-        ...m,
-        ultimoPlantao: ultimoTurno ? `${ultimoTurno.duracao} (${new Date(ultimoTurno.data).toLocaleDateString()})` : 'Nenhum plantão registado'
-      };
-    });
-    res.json({ success: true, membros: membrosFormatados });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Erro ao carregar efetivo.' });
+    const { dataAlvo, horarioAlvo, qtdGanhadores, premios } = req.body;
+    
+    await ConfigSorteio.findOneAndUpdate(
+      { chave: 'sorteio_ativo' },
+      {
+        dataAlvo,
+        horarioAlvo,
+        qtdGanhadores: parseInt(qtdGanhadores) || 1,
+        premios: premios || 'Prêmio Especial',
+        executado: false
+      },
+      { upsert: true, new: true }
+    );
+
+    console.log(`[SORTEIO AUTOMÁTICO] Salvo na BD e agendado para ${dataAlvo} às ${horarioAlvo}`);
+    res.json({ success: true, message: 'Sorteio agendado e salvo com sucesso na base de dados!' });
+  } catch (err) {
+    console.error('Erro ao agendar sorteio:', err);
+    res.status(500).json({ success: false, message: 'Erro ao salvar agendamento.' });
   }
 });
 
-app.get('/api/admin/efetivo', async (req, res) => {
-    try {
-        const membros = await User.find({}, '-password').lean();
-        res.json({ success: true, efetivo: membros });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Erro ao carregar efetivo.' });
-    }
+app.get('/api/admin/sorteio/status', async (req, res) => {
+  try {
+    const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' });
+    res.json({ success: true, agendamento: config });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Erro ao buscar status.' });
+  }
 });
 
-// --- RANKINGS (Cobre todas as variações chamadas pelo frontend) ---
-app.get('/api/ranking', async (req, res) => {
-    try {
-        const membros = await User.find({}, 'nickname cargo historicoTurnos').lean();
-        const ranking = membros.map(m => {
-            const totalSegundos = (m.historicoTurnos || []).reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
-            return {
-                nickname: m.nickname,
-                cargo: m.cargo || 'Soldado',
-                totalHorasSegundos: totalSegundos,
-                totalHorasFormatado: converterSegundosParaDuracao(totalSegundos)
-            };
-        }).sort((a, b) => b.totalHorasSegundos - a.totalHorasSegundos);
+// Verificador automático do sorteio automático (Exige mínimo de 2 horas / 7200 segundos)
+setInterval(async () => {
+  try {
+    const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' });
+    if (!config || config.executado) return;
 
-        res.json({ success: true, ranking });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Erro ao carregar ranking.' });
+    const agora = new Date();
+    const ano = agora.getFullYear();
+    const mes = String(agora.getMonth() + 1).padStart(2, '0');
+    const dia = String(agora.getDate()).padStart(2, '0');
+    const dataAtualStr = `${ano}-${mes}-${dia}`;
+
+    const horaAtual = agora.getHours();
+    const minAtual = agora.getMinutes();
+    const totalMinutosAtuais = (horaAtual * 60) + minAtual;
+
+    const [hAlvo, mAlvo] = config.horarioAlvo.split(':').map(Number);
+    const totalMinutosAlvo = (hAlvo * 60) + mAlvo;
+
+    if (dataAtualStr === config.dataAlvo && totalMinutosAtuais >= totalMinutosAlvo) {
+      console.log('[SORTEIO AUTOMÁTICO] Horário atingido! A executar sorteio automático...');
+      
+      config.executado = true;
+      await config.save();
+
+      const todosMembros = await User.find({});
+      const elegiveis = todosMembros.filter(m => {
+        if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
+        const totalSegundos = m.historicoTurnos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+        return totalSegundos >= 7200;
+      });
+
+      if (elegiveis.length > 0) {
+        const embaralhados = [...elegiveis].sort(() => 0.5 - Math.random());
+        const numPremiados = Math.min(config.qtdGanhadores, embaralhados.length);
+        const listaPremios = config.premios.split(',').map(p => p.trim());
+
+        for (let i = 0; i < numPremiados; i++) {
+          const vencedor = embaralhados[i];
+          const premioAtribuido = listaPremios[i] || listaPremios[0];
+
+          if (!vencedor.historicoSorteios) vencedor.historicoSorteios = [];
+          vencedor.historicoSorteios.push({
+            data: new Date(),
+            descricaoPremio: premioAtribuido,
+            status: 'venceu'
+          });
+
+          if (!vencedor.caixaEntrada) vencedor.caixaEntrada = [];
+          vencedor.caixaEntrada.push({
+            data: new Date(),
+            titulo: '🏆 Vencedor do Sorteio Diário',
+            mensagem: `Você foi contemplado no sorteio oficial automático e ganhou: ${premioAtribuido}!`,
+            lida: false
+          });
+
+          await vencedor.save({ validateBeforeSave: false });
+
+          io.to('sala_geral_salazar').emit('receber_mensagem', {
+            nickname: 'SORTEIO OFICIAL',
+            cargo: 'Comando',
+            mensagem: `🏆 O operacional ${vencedor.nickname} (${vencedor.cargo || 'Soldado'}) venceu o sorteio automático e levou: ${premioAtribuido}!`
+          });
+        }
+      }
     }
-});
+  } catch (err) {
+    console.error('Erro no loop do sorteio automático:', err);
+  }
+}, 15000);
 
-app.get('/api/admin/ranking/turnos', async (req, res) => {
-    try {
-        const membros = await User.find({}, 'nickname cargo historicoTurnos').lean();
-        const ranking = membros.map(m => {
-            const totalSegundos = (m.historicoTurnos || []).reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
-            return {
-                nickname: m.nickname,
-                cargo: m.cargo || 'Soldado',
-                totalSegundos: totalSegundos,
-                totalFormatado: converterSegundosParaDuracao(totalSegundos)
-            };
-        }).sort((a, b) => b.totalSegundos - a.totalSegundos);
-
-        res.json({ success: true, ranking: ranking.slice(0, 10) });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Erro ao carregar ranking de turnos.' });
-    }
-});
-
-// --- TURNOS ---
 app.post('/api/membro/turno', async (req, res) => {
     try {
         const { nickname, duracao, fotoComprovante } = req.body;
-        const user = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
-        if (!user) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+        const user = await User.findOne({ nickname });
+        
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+        }
 
-        if (!user.historicoTurnos) user.historicoTurnos = [];
         user.historicoTurnos.push({
             data: new Date(),
             duracao: duracao,
@@ -163,63 +156,49 @@ app.post('/api/membro/turno', async (req, res) => {
         });
 
         await user.save();
-        res.json({ success: true, message: 'Turno registado com sucesso!' });
+        res.json({ success: true, message: 'Turno registado com sucesso no histórico!' });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Erro ao guardar turno.' });
+        console.error('Erro ao guardar turno:', error);
+        res.status(500).json({ success: false, message: 'Erro interno no servidor.' });
     }
 });
 
-// --- SORTEIOS ---
-app.get('/api/admin/sorteio/status', async (req, res) => {
-  try {
-    const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' }).lean();
-    res.json({ success: true, agendamento: config });
-  } catch (err) {
-    res.status(500).json({ success: false, message: 'Erro ao buscar status.' });
-  }
+app.get('/api/membro/historico/:nickname', async (req, res) => {
+    try {
+        const user = await User.findOne({ nickname: req.params.nickname });
+        
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+        }
+
+        res.json({
+            success: true,
+            historicoTurnos: user.historicoTurnos || [],
+            historicoPromocoes: user.historicoPromocoes || [],
+            historicoSorteios: user.historicoSorteios || [],
+            caixaEntrada: user.caixaEntrada || []
+        });
+    } catch (error) {
+        console.error('Erro ao buscar histórico:', error);
+        res.status(500).json({ success: false, message: 'Erro interno no servidor.' });
+    }
 });
 
-app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
-  try {
-    const membros = await User.find({}, '-password').lean();
-    const elegiveis = membros.filter(m => {
-      if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
-      const totalSegundos = m.historicoTurnos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
-      return totalSegundos >= 7200;
-    });
-    const listaElegiveis = elegiveis.map(m => ({
-      id: m._id,
-      nickname: m.nickname,
-      cargo: m.cargo || 'Soldado',
-      totalTurnos: m.historicoTurnos.length
-    }));
-    res.json({ success: true, elegiveis: listaElegiveis });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Erro ao carregar elegíveis.' });
-  }
-});
-
-app.post('/api/admin/sorteio/agendar', async (req, res) => {
-  try {
-    const { dataAlvo, horarioAlvo, qtdGanhadores, premios } = req.body;
-    await ConfigSorteio.findOneAndUpdate(
-      { chave: 'sorteio_ativo' },
-      { dataAlvo, horarioAlvo, qtdGanhadores: parseInt(qtdGanhadores) || 1, premios: premios || 'Prêmio Especial', executado: false },
-      { upsert: true, new: true }
-    );
-    res.json({ success: true, message: 'Sorteio agendado com sucesso!' });
-  } catch (err) {
-    res.status(500).json({ success: false, message: 'Erro ao salvar agendamento.' });
-  }
-});
-
-// --- WEBSOCKETS ---
 const usuariosOnline = {}; 
+
 io.on('connection', (socket) => {
   socket.on('entrar_sala', (data) => {
-    let salaId = typeof data === 'string' ? data : (data.salaId || 'sala_geral_salazar');
-    let nickname = typeof data === 'string' ? 'Operacional' : (data.nickname || 'Operacional');
-    let cargo = typeof data === 'string' ? 'Soldado' : (data.cargo || 'Soldado');
+    let salaId, nickname, cargo;
+
+    if (typeof data === 'string') {
+      salaId = data;
+      nickname = 'Operacional';
+      cargo = 'Soldado';
+    } else {
+      salaId = data.salaId;
+      nickname = data.nickname || 'Operacional';
+      cargo = data.cargo || 'Soldado';
+    }
 
     socket.join(salaId);
     usuariosOnline[socket.id] = { nickname, cargo, salaId };
@@ -247,7 +226,7 @@ function atualizarListaOnline(salaId) {
   io.to(salaId).emit('atualizar_usuarios_online', Object.values(unicosMap));
 }
 
-const PORT = process.env.PORT || 10000;
-server.listen(PORT, '0.0.0.0', () => {
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT} 🚀`);
 });
