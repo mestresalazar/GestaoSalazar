@@ -38,7 +38,7 @@ function converterSegundosParaDuracao(segundosTotais) {
   return `${horas}:${minutos}:${segundos}`;
 }
 
-// Validação estricta do horário regulamentar (17:00 às 02:00)
+// Validação estrita do horário regulamentar (17:00 às 02:00)
 function turnoEstaNoHorarioPermitido(dataTurno) {
     const d = new Date(dataTurno);
     const hora = d.getHours();
@@ -240,7 +240,7 @@ app.delete('/api/admin/membro/:id', async (req, res) => {
     }
 });
 
-// --- RANKINGS (Filtrado estritamente das 17h às 02h) ---
+// --- RANKINGS (Apenas quem tem horas acumuladas > 0 no horário regulamentar) ---
 app.get('/api/ranking', async (req, res) => {
     try {
         const membros = await User.find({}, 'nickname cargo historicoTurnos').lean();
@@ -253,7 +253,7 @@ app.get('/api/ranking', async (req, res) => {
                 totalHorasSegundos: totalSegundos,
                 totalHorasFormatado: converterSegundosParaDuracao(totalSegundos)
             };
-        }).sort((a, b) => b.totalHorasSegundos - a.totalHorasSegundos);
+        }).filter(m => m.totalHorasSegundos > 0).sort((a, b) => b.totalHorasSegundos - a.totalHorasSegundos);
 
         res.json({ success: true, ranking });
     } catch (error) {
@@ -273,7 +273,7 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
                 totalSegundos: totalSegundos,
                 totalFormatado: converterSegundosParaDuracao(totalSegundos)
             };
-        }).sort((a, b) => b.totalSegundos - a.totalSegundos);
+        }).filter(m => m.totalSegundos > 0).sort((a, b) => b.totalSegundos - a.totalSegundos);
 
         res.json({ success: true, ranking: ranking.slice(0, 10) });
     } catch (error) {
@@ -281,11 +281,19 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
     }
 });
 
-// Zera o histórico de turnos de todos para resetar o ranking no painel
+// Zera os turnos de todos e envia notificação para a caixa de entrada
 app.put('/api/admin/ranking/resetar', async (req, res) => {
     try {
         await User.updateMany({}, { $set: { historicoTurnos: [] } });
-        res.json({ success: true, message: 'Ranking semanal resetado com sucesso!' });
+
+        const notif = {
+            titulo: '🔄 Ranking Semanal Resetado',
+            mensagem: 'O comando resetou o ranking de horas da tropa para iniciar a nova semana. A contagem de horas foi reiniciada.',
+            data: new Date()
+        };
+        await User.updateMany({}, { $push: { caixaEntrada: notif } });
+
+        res.json({ success: true, message: 'Ranking semanal resetado com sucesso e tropa notificada!' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao resetar ranking.' });
     }
@@ -352,7 +360,7 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
       const turnosValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data));
       const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
-      return totalSegundos >= 7200; // 2 horas
+      return totalSegundos >= 7200;
     });
     const listaElegiveis = elegiveis.map(m => ({
       id: m._id,
@@ -380,7 +388,6 @@ app.post('/api/admin/sorteio/agendar', async (req, res) => {
   }
 });
 
-// Sorteio Automático Agendado com aviso caso não haja elegíveis
 async function executarSorteioAutomatico() {
     try {
         const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' });
@@ -418,7 +425,6 @@ async function executarSorteioAutomatico() {
                   });
                 }
             } else {
-                // Aviso automático no chat caso não exista nenhum elegível
                 io.to('sala_geral_salazar').emit('receber_mensagem', {
                     nickname: 'SORTEIO OFICIAL',
                     cargo: 'Comando',
