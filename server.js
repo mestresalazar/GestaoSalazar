@@ -52,7 +52,7 @@ function turnoEhDeHoje(dataTurno) {
            d.getFullYear() === hoje.getFullYear();
 }
 
-// --- AUTENTICAÇÃO (LOGIN) ---
+// --- AUTENTICAÇÃO (LOGIN COM VALIDAÇÃO DE PENDENTE) ---
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { nickname, senha, password } = req.body;
@@ -64,9 +64,13 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Senha incorreta.' });
         }
 
+        // BLOQUEIO DE CONTAS PENDENTES
+        if (user.status === 'pendente') {
+            return res.status(403).json({ success: false, message: 'A sua conta aguarda aprovação do Comando para ter acesso ao site.' });
+        }
+
         res.json({ success: true, message: 'Login bem-sucedido', user: { nickname: user.nickname, cargo: user.cargo, role: user.role, status: user.status } });
     } catch (e) {
-        console.error('Erro no login:', e);
         res.status(500).json({ success: false, message: 'Erro no servidor.' });
     }
 });
@@ -94,9 +98,8 @@ app.post('/api/auth/register', async (req, res) => {
         });
 
         await novoUtilizador.save();
-        res.json({ success: true, message: 'Conta registada com sucesso!' });
+        res.json({ success: true, message: 'Conta registada com sucesso! Aguarde aprovação.' });
     } catch (error) {
-        console.error('Erro crítico no registo:', error);
         res.status(500).json({ success: false, message: 'Erro ao registar conta na base de dados.' });
     }
 });
@@ -168,7 +171,6 @@ app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
             caixaEntrada: membro.caixaEntrada || []
         });
     } catch (error) {
-        console.error('Erro ao carregar histórico admin:', error);
         res.status(500).json({ success: false, message: 'Erro no servidor.' });
     }
 });
@@ -220,6 +222,7 @@ app.put('/api/admin/membro/:id', async (req, res) => {
             });
         }
 
+        io.emit('atualizar_status_geral_tropa');
         res.json({ success: true, message: 'Membro atualizado com sucesso!', membro });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro ao atualizar membro.' });
@@ -231,6 +234,7 @@ app.put('/api/admin/membro/resetar-turnos/:id', async (req, res) => {
         const { id } = req.params;
         const membro = await User.findByIdAndUpdate(id, { $set: { historicoTurnos: [] } }, { new: true });
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+        io.emit('atualizar_status_geral_tropa');
         res.json({ success: true, message: 'Turnos resetados com sucesso!' });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro ao resetar turnos.' });
@@ -242,6 +246,7 @@ app.delete('/api/admin/membro/:id', async (req, res) => {
         const { id } = req.params;
         const membro = await User.findByIdAndDelete(id);
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+        io.emit('atualizar_status_geral_tropa');
         res.json({ success: true, message: 'Membro demitido/removido com sucesso!' });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro ao remover membro.' });
@@ -299,6 +304,7 @@ app.put('/api/admin/ranking/resetar', async (req, res) => {
             data: new Date()
         };
         await User.updateMany({}, { $push: { caixaEntrada: notif } });
+        io.emit('atualizar_status_geral_tropa');
 
         res.json({ success: true, message: 'Ranking semanal resetado com sucesso!' });
     } catch (e) {
@@ -320,7 +326,65 @@ app.post('/api/admin/notificar/ranking', async (req, res) => {
     }
 });
 
-// --- ROTA DE ATUALIZAR STATUS DE PLANTÃO NO BANCO ---
+// --- ROTA EXCLUSIVA DO MESTRE: ADICIONAR TEMPO MANUALMENTE ---
+app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
+    try {
+        const { adminNickname, targetNickname, horas, minutos, segundos, motivo } = req.body;
+
+        if (!adminNickname || adminNickname.toLowerCase().trim() !== 'mestre') {
+            return res.status(403).json({ success: false, message: 'Acesso negado. Apenas a conta Mestre pode injetar tempo manualmente.' });
+        }
+
+        if (!targetNickname) {
+            return res.status(400).json({ success: false, message: 'Nickname do membro alvo é obrigatório.' });
+        }
+
+        const h = parseInt(horas) || 0;
+        const m = parseInt(minutos) || 0;
+        const s = parseInt(segundos) || 0;
+        const totalSegundos = (h * 3600) + (m * 60) + s;
+
+        if (totalSegundos <= 0) {
+            return res.status(400).json({ success: false, message: 'O tempo a adicionar deve ser superior a zero.' });
+        }
+
+        const duracaoFormatada = converterSegundosParaDuracao(totalSegundos);
+
+        const novoTurnoManual = {
+            data: new Date(),
+            duracao: duracaoFormatada,
+            fotoComprovante: motivo ? `Injeção Manual por Mestre: ${motivo}` : 'Injeção Manual por Mestre'
+        };
+
+        const notif = {
+            titulo: '⏱️ Tempo Adicionado Manualmente',
+            mensagem: `O Comando (Mestre) adicionou manualmente ${duracaoFormatada} ao teu histórico de turnos. Motivo: ${motivo || 'Ajuste operacional'}.`,
+            data: new Date()
+        };
+
+        const resultado = await User.findOneAndUpdate(
+            { nickname: new RegExp('^' + targetNickname.trim() + '$', 'i') },
+            { 
+                $push: { 
+                    historicoTurnos: novoTurnoManual,
+                    caixaEntrada: notif
+                } 
+            },
+            { new: true }
+        );
+
+        if (!resultado) {
+            return res.status(404).json({ success: false, message: 'Membro alvo não encontrado na base de dados.' });
+        }
+
+        io.emit('atualizar_status_geral_tropa');
+        res.json({ success: true, message: `Adicionado com sucesso ${duracaoFormatada} para o operacional ${resultado.nickname}!` });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro interno ao adicionar tempo.' });
+    }
+});
+
+// --- ROTA DE STATUS DE PLANTÃO ---
 app.put('/api/membro/status-plantao', async (req, res) => {
     try {
         const { nickname, emPlantao } = req.body;
@@ -331,16 +395,14 @@ app.put('/api/membro/status-plantao', async (req, res) => {
             { $set: { emPlantao: !!emPlantao } }
         );
 
-        // Notifica o Socket em tempo real
         io.emit('atualizar_status_geral_tropa');
-
         res.json({ success: true, message: 'Status de plantão atualizado!' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao atualizar status.' });
     }
 });
 
-// --- ROTA DE REGISTAR/FINALIZAR TURNO ---
+// --- ROTA DE REGISTAR/FINALIZAR TURNO (BLINDADA CONTRA BUGS DE TEMPO) ---
 app.post('/api/membro/turno', async (req, res) => {
     try {
         const { nickname, duracao, fotoComprovante } = req.body;
@@ -348,13 +410,17 @@ app.post('/api/membro/turno', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Nickname não fornecido.' });
         }
 
+        // Validação estrita do formato do tempo para evitar estouros ou valores anômalos
+        if (!duracao || typeof duracao !== 'string' || !duracao.match(/^\d{2}:\d{2}:\d{2}$/)) {
+            return res.status(400).json({ success: false, message: 'Duração de turno inválida.' });
+        }
+
         const novoTurno = {
             data: new Date(),
-            duracao: duracao || '00:00:00',
+            duracao: duracao,
             fotoComprovante: fotoComprovante || 'Sem foto'
         };
 
-        // GARANTE QUE REMOVE O PLANTÃO (emPlantao: false)
         const resultado = await User.updateOne(
             { nickname: new RegExp('^' + nickname + '$', 'i') },
             { 
@@ -367,17 +433,14 @@ app.post('/api/membro/turno', async (req, res) => {
             return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
         }
 
-        // DISPARA O EVENTO PARA O ADM LIMPAR A BOLINHA NA HORA
         io.emit('atualizar_status_geral_tropa');
-
         res.json({ success: true, message: 'Turno registado com sucesso!' });
     } catch (error) {
-        console.error('Erro ao guardar turno:', error);
         res.status(500).json({ success: false, message: 'Erro ao guardar turno.' });
     }
 });
 
-// --- SORTEIOS E AGENDAMENTO AUTOMÁTICO ---
+// --- SORTEIOS E AGENDAMENTO ---
 app.get('/api/admin/sorteio/status', async (req, res) => {
   try {
     const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' }).lean();
@@ -472,7 +535,7 @@ async function executarSorteioAutomatico() {
             await config.save();
         }
     } catch (e) {
-        console.error('Erro no agendamento automático do sorteio:', e);
+        console.error(e);
     }
 }
 

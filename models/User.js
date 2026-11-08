@@ -48,16 +48,6 @@ const UserSchema = new mongoose.Schema({
     caixaEntrada: [caixaEntradaSchema]
 });
 
-UserSchema.virtual('patamarFidelidade').get(function () {
-    const agora = new Date();
-    const diferencaDias = Math.floor((agora - this.dataEntrada) / (1000 * 60 * 60 * 24));
-
-    if (diferencaDias >= 181) return { nome: 'Diamante', badge: '💎', classeCss: 'patamar-diamante' };
-    if (diferencaDias >= 91)  return { nome: 'Ouro',    badge: '🥇', classeCss: 'patamar-ouro' };
-    if (diferencaDias >= 31)  return { nome: 'Prata',    badge: '🥈', classeCss: 'patamar-prata' };
-    return { nome: 'Bronze',   badge: '🥉', classeCss: 'patamar-bronze' };
-});
-
 UserSchema.set('toJSON', { virtuals: true });
 UserSchema.set('toObject', { virtuals: true });
 
