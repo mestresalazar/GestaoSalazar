@@ -64,7 +64,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// --- AUTENTICAÇÃO (REGISTO BLINDADO SEM CONFLITO DE ROLE) ---
+// --- AUTENTICAÇÃO (REGISTO BLINDADO) ---
 app.post('/api/auth/register', async (req, res) => {
     try {
         const { nickname, senha, password } = req.body;

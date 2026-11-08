@@ -576,14 +576,23 @@
         carregarRanking();
 
         let timerInterval = null;
-        let segundosTotais = parseInt(localStorage.getItem(`turno_segundos_${user.nickname}`)) || 0;
         let estadoTurno = localStorage.getItem(`turno_estado_${user.nickname}`) || 'parado';
 
         function atualizarDisplayTimer() {
+            let segundosTotais = 0;
+            if (estadoTurno === 'ativo') {
+                const timestampInicio = parseInt(localStorage.getItem(`turno_inicio_${user.nickname}`)) || Date.now();
+                const segundosPausados = parseInt(localStorage.getItem(`turno_segundos_acumulados_${user.nickname}`)) || 0;
+                segundosTotais = segundosPausados + Math.floor((Date.now() - timestampInicio) / 1000);
+            } else {
+                segundosTotais = parseInt(localStorage.getItem(`turno_segundos_${user.nickname}`)) || 0;
+            }
+
             const horas = String(Math.floor(segundosTotais / 3600)).padStart(2, '0');
             const minutos = String(Math.floor((segundosTotais % 3600) / 60)).padStart(2, '0');
             const segundos = String(segundosTotais % 60).padStart(2, '0');
             document.getElementById('timerDisplay').innerText = `${horas}:${minutos}:${segundos}`;
+            return segundosTotais;
         }
 
         function restaurarEstadoTurno() {
@@ -603,8 +612,6 @@
                 btnPausar.style.color = '#000';
                 
                 timerInterval = setInterval(() => {
-                    segundosTotais++;
-                    localStorage.setItem(`turno_segundos_${user.nickname}`, segundosTotais);
                     atualizarDisplayTimer();
                 }, 1000);
             } else if (estadoTurno === 'pausado') {
@@ -650,12 +657,10 @@
                 reader.readAsDataURL(file);
             }
 
-            if (estadoTurno === 'parado') {
-                segundosTotais = 0;
-            }
-
             estadoTurno = 'ativo';
             localStorage.setItem(`turno_estado_${user.nickname}`, 'ativo');
+            localStorage.setItem(`turno_inicio_${user.nickname}`, Date.now());
+            localStorage.setItem(`turno_segundos_acumulados_${user.nickname}`, 0);
 
             const btnPausar = document.getElementById('btnPausar');
             btnPausar.style.display = 'block';
@@ -665,12 +670,10 @@
 
             clearInterval(timerInterval);
             timerInterval = setInterval(() => {
-                segundosTotais++;
-                localStorage.setItem(`turno_segundos_${user.nickname}`, segundosTotais);
                 atualizarDisplayTimer();
             }, 1000);
             
-            mostrarModalCustomizado('Sucesso', 'Check-in registado com sucesso! Turno iniciado e protegido contra F5.');
+            mostrarModalCustomizado('Sucesso', 'Check-in registado! Se fechares a aba ou o navegador, o tempo continuará a contar em segundo plano.');
         }
 
         function alternarPausa() {
@@ -678,6 +681,12 @@
 
             const btnPausar = document.getElementById('btnPausar');
             if (estadoTurno === 'ativo') {
+                const timestampInicio = parseInt(localStorage.getItem(`turno_inicio_${user.nickname}`)) || Date.now();
+                const segundosAnteriores = parseInt(localStorage.getItem(`turno_segundos_acumulados_${user.nickname}`)) || 0;
+                const segundosAtuais = segundosAnteriores + Math.floor((Date.now() - timestampInicio) / 1000);
+                
+                localStorage.setItem(`turno_segundos_acumulados_${user.nickname}`, segundosAtuais);
+
                 clearInterval(timerInterval);
                 timerInterval = null;
                 estadoTurno = 'pausado';
@@ -689,14 +698,13 @@
             } else {
                 estadoTurno = 'ativo';
                 localStorage.setItem(`turno_estado_${user.nickname}`, 'ativo');
+                localStorage.setItem(`turno_inicio_${user.nickname}`, Date.now());
 
                 btnPausar.innerText = 'Pausar Turno';
                 btnPausar.style.backgroundColor = 'rgba(234, 179, 8, 0.9)';
                 btnPausar.style.color = '#000';
                 
                 timerInterval = setInterval(() => {
-                    segundosTotais++;
-                    localStorage.setItem(`turno_segundos_${user.nickname}`, segundosTotais);
                     atualizarDisplayTimer();
                 }, 1000);
                 mostrarModalCustomizado('Turno Retomado', 'O cronômetro voltou a contar.');
@@ -704,6 +712,7 @@
         }
 
         async function fazerCheckout() {
+            const segundosTotais = atualizarDisplayTimer();
             if (estadoTurno === 'parado' && segundosTotais === 0) {
                 mostrarModalCustomizado('Aviso', 'Nenhum turno ativo.');
                 return;
@@ -741,8 +750,9 @@
                     localStorage.removeItem(`turno_segundos_${user.nickname}`);
                     localStorage.removeItem(`turno_estado_${user.nickname}`);
                     localStorage.removeItem(`turno_foto_${user.nickname}`);
+                    localStorage.removeItem(`turno_inicio_${user.nickname}`);
+                    localStorage.removeItem(`turno_segundos_acumulados_${user.nickname}`);
                     
-                    segundosTotais = 0;
                     estadoTurno = 'parado';
                     document.getElementById('fotoComprovante').value = '';
                     document.getElementById('statusAnexo').innerText = '';
