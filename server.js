@@ -38,7 +38,7 @@ function converterSegundosParaDuracao(segundosTotais) {
   return `${horas}:${minutos}:${segundos}`;
 }
 
-// Horário regulamentar estrito para o ranking (17:00 às 02:00)
+// Horário regulamentar estrito para o ranking e elegibilidade (17:00 às 02:00)
 function turnoEstaNoHorarioPermitido(dataTurno) {
     const d = new Date(dataTurno);
     const hora = d.getHours();
@@ -64,7 +64,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// --- AUTENTICAÇÃO (REGISTO BLINDADO) ---
+// --- AUTENTICAÇÃO (REGISTO BLINDADO SEM CONFLITO DE ROLE) ---
 app.post('/api/auth/register', async (req, res) => {
     try {
         const { nickname, senha, password } = req.body;
@@ -79,17 +79,11 @@ app.post('/api/auth/register', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Este nickname já está registado.' });
         }
 
-        // Criação segura ignorando restrições rígidas de schema antigo
         const novoUtilizador = new User({
             nickname: nickname.trim(),
             password: passFinal,
             cargo: 'Soldado',
-            status: 'pendente',
-            role: 'membro',
-            historicoTurnos: [],
-            historicoPromocoes: [],
-            historicoSorteios: [],
-            caixaEntrada: []
+            status: 'pendente'
         });
 
         await novoUtilizador.save();
@@ -348,7 +342,7 @@ app.post('/api/membro/turno', async (req, res) => {
     }
 });
 
-// --- SORTEIOS E AGENDAMENTO AUTOMÁTICO (Com fuso horário ajustado para o Brasil) ---
+// --- SORTEIOS E AGENDAMENTO AUTOMÁTICO ---
 app.get('/api/admin/sorteio/status', async (req, res) => {
   try {
     const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' }).lean();
@@ -399,7 +393,6 @@ async function executarSorteioAutomatico() {
         if (!config || config.executado) return;
 
         const agora = new Date();
-        // Converte estritamente para o fuso horário do Brasil para bater certo com a hora local
         const horaLocal = new Date(agora.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
         const horaAtualStr = String(horaLocal.getHours()).padStart(2, '0') + ':' + String(horaLocal.getMinutes()).padStart(2, '0');
         
