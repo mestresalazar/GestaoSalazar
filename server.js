@@ -519,13 +519,18 @@ app.get('/api/admin/sorteio/status', async (req, res) => {
 
 app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
   try {
+    const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' }).lean();
+    const exluidosIds = (config && config.excluidosHoje) ? config.excluidosHoje.map(id => id.toString()) : [];
+
     const membros = await User.find({}, '-password').lean();
     const elegiveis = membros.filter(m => {
+      if (exluidosIds.includes(m._id.toString())) return false; // Se foi resetado/excluído deste ciclo, não aparece
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
       const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoEhDeHoje(t.data));
       const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
       return totalSegundosHoje >= 7200;
     });
+
     const listaElegiveis = elegiveis.map(m => ({
       id: m._id,
       nickname: m.nickname,
@@ -544,7 +549,7 @@ app.post('/api/admin/sorteio/agendar', async (req, res) => {
     
     await ConfigSorteio.findOneAndUpdate(
       { chave: 'sorteio_ativo' },
-      { dataAlvo, horarioAlvo, qtdGanhadores: parseInt(qtdGanhadores) || 1, premios: premios || 'Prêmio Especial', executado: false },
+      { dataAlvo, horarioAlvo, qtdGanhadores: parseInt(qtdGanhadores) || 1, premios: premios || 'Prêmio Especial', executado: false, excluidosHoje: [] },
       { upsert: true, new: true }
     );
 
@@ -563,25 +568,42 @@ app.post('/api/admin/sorteio/agendar', async (req, res) => {
   }
 });
 
-// --- ROTA ADMIN: RESETAR APENAS O ESTADO DO SORTEIO (SEGURA PARA O RANKING) ---
+// --- ROTA ADMIN: RESETAR ELEGÍVEIS (EXCLUI OS ATUAIS DO CICLO SEM MEXER NAS HORAS DO RANKING) ---
 app.put('/api/admin/sorteio/resetar-elegiveis', async (req, res) => {
     try {
-        // Redefine apenas o status do sorteio para permitir um novo ciclo, mantendo 100% intocados o ranking e os turnos da tropa!
+        // Busca todos os membros que atualmente têm 2h+ hoje para os colocar na lista de excluídos do ciclo atual
+        const membros = await User.find({}, '-password').lean();
+        const idsParaExcluir = [];
+
+        membros.forEach(m => {
+            if (m.historicoTurnos && m.historicoTurnos.length > 0) {
+                const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoEhDeHoje(t.data));
+                const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+                if (totalSegundosHoje >= 7200) {
+                    idsParaExcluir.push(m._id);
+                }
+            }
+        });
+
+        // Atualiza a configuração do sorteio adicionando os IDs à lista de excluídos de hoje (e mantendo intocado o ranking/horas)
         await ConfigSorteio.findOneAndUpdate(
             { chave: 'sorteio_ativo' },
-            { $set: { executado: false } },
-            { upsert: true }
+            { 
+                $set: { executado: false },
+                $addToSet: { excluidosHoje: { $each: idsParaExcluir } }
+            },
+            { upsert: true, new: true }
         );
 
         const notif = {
-            titulo: '🔄 Sorteio Diário Reiniciado',
-            mensagem: 'O Comando reiniciou o status do sorteio diário. As horas do ranking mantêm-se preservadas.',
+            titulo: '🔄 Ciclo de Sorteio Reiniciado',
+            mensagem: 'O Comando reiniciou a lista de elegíveis deste ciclo. As horas do ranking semanal continuam 100% preservadas.',
             data: new Date()
         };
         await User.updateMany({}, { $push: { caixaEntrada: notif } });
 
         io.emit('atualizar_status_geral_tropa');
-        res.json({ success: true, message: 'Status do sorteio reiniciado com sucesso! O ranking e as horas da tropa foram totalmente preservados.' });
+        res.json({ success: true, message: 'Elegíveis deste ciclo limpos com sucesso! O ranking e as horas da tropa foram totalmente preservados.' });
     } catch (e) {
         console.error("Erro ao resetar elegíveis:", e);
         res.status(500).json({ success: false, message: 'Erro ao resetar elegíveis do sorteio.' });
@@ -598,8 +620,10 @@ async function executarSorteioAutomatico() {
         const horaAtualStr = String(horaLocal.getHours()).padStart(2, '0') + ':' + String(horaLocal.getMinutes()).padStart(2, '0');
         
         if (horaAtualStr === config.horarioAlvo) {
+            const exluidosIds = (config.excluidosHoje) ? config.excluidosHoje.map(id => id.toString()) : [];
             const membros = await User.find({}, '-password').lean();
             const elegiveis = membros.filter(m => {
+              if (exluidosIds.includes(m._id.toString())) return false;
               if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
               const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoEhDeHoje(t.data));
               const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
@@ -635,8 +659,12 @@ setInterval(executarSorteioAutomatico, 10000);
 app.post('/api/admin/sorteio/realizar', async (req, res) => {
   try {
     const { qtdGanhadores, premios } = req.body;
+    const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' }).lean();
+    const exluidosIds = (config && config.excluidosHoje) ? config.excluidosHoje.map(id => id.toString()) : [];
+
     const membros = await User.find({}, '-password').lean();
     const elegiveis = membros.filter(m => {
+      if (exluidosIds.includes(m._id.toString())) return false;
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
       const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoEhDeHoje(t.data));
       const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
@@ -644,7 +672,7 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
     });
 
     if (elegiveis.length === 0) {
-      return res.json({ success: false, message: 'Não há operacionais elegíveis com 2h+ cumpridas HOJE.' });
+      return res.json({ success: false, message: 'Não há operacionais elegíveis disponíveis para este sorteio.' });
     }
 
     const premiosLista = premios ? premios.split(',').map(p => p.trim()) : ['Prêmio Especial'];
