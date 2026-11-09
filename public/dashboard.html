@@ -566,6 +566,21 @@
             cargo: user.cargo || 'Soldado'
         });
 
+        // --- SINCRONIZAÇÃO EM TEMPO REAL ENTRE DISPOSITIVOS (SEM F5) ---
+        socket.on('atualizar_estado_turno_usuario', async (data) => {
+            if (data && data.nickname && user && data.nickname.toLowerCase() === user.nickname.toLowerCase()) {
+                await restaurarEstadoTurno();
+                carregarRanking();
+                verificarProgressoProvas();
+                carregarCaixaEntrada();
+            }
+        });
+
+        socket.on('atualizar_status_geral_tropa', () => {
+            carregarRanking();
+            verificarProgressoProvas();
+        });
+
         function carregarHistoricoChatLocal() {
             const chatBox = document.getElementById('chatBox');
             const mensagensSalvas = JSON.parse(localStorage.getItem('chat_historico_salazar')) || [];
@@ -720,7 +735,6 @@
         let timestampInicioServer = null;
         let fotoComprovanteBase64 = '';
 
-        // --- CÁLCULO SEGURO BASEADO NO SERVIDOR (CONTA) ---
         function calcularSegundosTotais() {
             if (estadoTurno === 'ativo' && timestampInicioServer) {
                 const decorridoAgora = Math.floor((Date.now() - timestampInicioServer) / 1000);
@@ -763,7 +777,6 @@
             }
         });
 
-        // --- RESTAURAR ESTADO DIRETAMENTE DA CONTA (CORRIGIDO PARA RECALCULAR AO ATUALIZAR) ---
         async function restaurarEstadoTurno() {
             try {
                 const res = await fetch(`/api/membro/historico/${encodeURIComponent(user.nickname)}`);
@@ -796,6 +809,7 @@
                 atualizarDisplayTimer();
                 iniciarLoopTimer();
             } else if (estadoTurno === 'pausado') {
+                if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
                 if (btnPausar) {
                     btnPausar.style.display = 'block';
                     btnPausar.innerText = 'Retomar Turno';
@@ -803,13 +817,13 @@
                 }
                 atualizarDisplayTimer();
             } else {
+                if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
                 if (btnPausar) btnPausar.style.display = 'none';
                 atualizarDisplayTimer();
             }
         }
         restaurarEstadoTurno();
 
-        // --- ANEXAR E SALVAR FOTO DIRETAMENTE NA CONTA ---
         function converterFotoLocal(input) {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
@@ -880,7 +894,7 @@
             }
 
             iniciarLoopTimer();
-            mostrarModalCustomizado('Sucesso', 'Check-in registado na conta! Podes atualizar a página ou abrir noutro dispositivo que o tempo continuará certo.');
+            mostrarModalCustomizado('Sucesso', 'Check-in registado!');
         }
 
         async function alternarPausa() {
@@ -888,7 +902,6 @@
 
             const btnPausar = document.getElementById('btnPausar');
             if (estadoTurno === 'ativo') {
-                // Pausar
                 segundosAcumuladosBase = calcularSegundosTotais();
                 timestampInicioServer = null;
                 estadoTurno = 'pausado';
@@ -916,9 +929,8 @@
                     btnPausar.innerText = 'Retomar Turno';
                     btnPausar.style.backgroundColor = 'rgba(34, 197, 94, 0.9)';
                 }
-                mostrarModalCustomizado('Turno Pausado', 'O cronômetro foi pausado e guardado na tua conta.');
+                mostrarModalCustomizado('Turno Pausado', 'O cronômetro foi pausado.');
             } else {
-                // Retomar
                 const agoraTimestamp = Date.now();
                 estadoTurno = 'ativo';
                 timestampInicioServer = agoraTimestamp;
@@ -1048,7 +1060,7 @@
                 await fetch('/api/membro/status-plantao', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nickname: user.nickname, emPlantao: false })
+                    body: JSON.stringify({ nickname: user.nickname, emPlantao: false, estadoTurno: 'parado' })
                 });
             } catch (e) {
                 console.error(e);

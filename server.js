@@ -334,7 +334,7 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
     }
 });
 
-// --- ATUALIZAR ESTADO DO PLANTÃO / TURNO NA CONTA (MULTI-DISPOSITIVO) ---
+// --- ATUALIZAR ESTADO DO PLANTÃO / TURNO NA CONTA (TEMPO REAL) ---
 app.put('/api/membro/status-plantao', async (req, res) => {
     try {
         const { nickname, emPlantao, estadoTurno, inicioPlantao, segundosAcumulados, fotoComprovanteAtiva } = req.body;
@@ -350,14 +350,18 @@ app.put('/api/membro/status-plantao', async (req, res) => {
         if (fotoComprovanteAtiva !== undefined) updateData.fotoComprovanteAtiva = fotoComprovanteAtiva;
 
         await User.updateOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, { $set: updateData });
+
+        // NOTIFICA EM TEMPO REAL TODOS OS DISPOSITIVOS
+        io.emit('atualizar_estado_turno_usuario', { nickname: nickname.toLowerCase() });
         io.emit('atualizar_status_geral_tropa');
-        res.json({ success: true, message: 'Estado do turno sincronizado na conta com sucesso!' });
+
+        res.json({ success: true, message: 'Estado do turno sincronizado com sucesso!' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao atualizar status na conta.' });
     }
 });
 
-// --- FINALIZAR TURNO (LIMPA O ESTADO DA CONTA E GRAVA HISTÓRICO) ---
+// --- FINALIZAR TURNO (TEMPO REAL) ---
 app.post('/api/membro/turno', async (req, res) => {
     try {
         const { nickname, duracao, fotoComprovante } = req.body;
@@ -392,7 +396,10 @@ app.post('/api/membro/turno', async (req, res) => {
 
         if (resultado.matchedCount === 0) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
+        // NOTIFICA EM TEMPO REAL TODOS OS DISPOSITIVOS
+        io.emit('atualizar_estado_turno_usuario', { nickname: nickname.toLowerCase() });
         io.emit('atualizar_status_geral_tropa');
+
         res.json({ success: true, message: 'Turno validado e registado com sucesso!' });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro ao guardar turno.' });
