@@ -745,23 +745,54 @@
         let timerInterval = null;
         let estadoTurno = localStorage.getItem(`turno_estado_${user.nickname}`) || 'parado';
 
-        function atualizarDisplayTimer() {
-            let segundosTotais = 0;
+        // --- CÁLCULO SEGURO BASEADO NO TEMPO REAL DO RELÓGIO (TIMESTAMP) ---
+        function calcularSegundosTotais() {
             if (estadoTurno === 'ativo') {
-                const timestampInicio = parseInt(localStorage.getItem(`turno_inicio_${user.nickname}`)) || Date.now();
+                const timestampInicio = parseInt(localStorage.getItem(`turno_inicio_${user.nickname}`));
                 const segundosPausados = parseInt(localStorage.getItem(`turno_segundos_acumulados_${user.nickname}`)) || 0;
-                segundosTotais = segundosPausados + Math.floor((Date.now() - timestampInicio) / 1000);
+                
+                if (!timestampInicio) return segundosPausados;
+
+                const decorridoAgora = Math.floor((Date.now() - timestampInicio) / 1000);
+                return segundosPausados + decorridoAgora;
             } else {
-                segundosTotais = parseInt(localStorage.getItem(`turno_segundos_${user.nickname}`)) || 0;
+                return parseInt(localStorage.getItem(`turno_segundos_acumulados_${user.nickname}`)) || 0;
             }
+        }
+
+        function atualizarDisplayTimer() {
+            const segundosTotais = calcularSegundosTotais();
 
             const horas = String(Math.floor(segundosTotais / 3600)).padStart(2, '0');
             const minutos = String(Math.floor((segundosTotais % 3600) / 60)).padStart(2, '0');
             const segundos = String(segundosTotais % 60).padStart(2, '0');
+            
             const display = document.getElementById('timerDisplay');
             if (display) display.innerText = `${horas}:${minutos}:${segundos}`;
+            
             return segundosTotais;
         }
+
+        function iniciarLoopTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            atualizarDisplayTimer();
+            timerInterval = setInterval(() => {
+                atualizarDisplayTimer();
+            }, 1000);
+        }
+
+        // Proteções contra congelamento de aba/segundo plano do navegador
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && estadoTurno === 'ativo') {
+                atualizarDisplayTimer();
+            }
+        });
+
+        window.addEventListener('focus', () => {
+            if (estadoTurno === 'ativo') {
+                atualizarDisplayTimer();
+            }
+        });
 
         function restaurarEstadoTurno() {
             atualizarDisplayTimer();
@@ -781,9 +812,7 @@
                     btnPausar.style.color = '#000';
                 }
                 
-                timerInterval = setInterval(() => {
-                    atualizarDisplayTimer();
-                }, 1000);
+                iniciarLoopTimer();
             } else if (estadoTurno === 'pausado') {
                 if (btnPausar) {
                     btnPausar.style.display = 'block';
@@ -853,11 +882,7 @@
                 btnPausar.style.color = '#000';
             }
 
-            clearInterval(timerInterval);
-            timerInterval = setInterval(() => {
-                atualizarDisplayTimer();
-            }, 1000);
-            
+            iniciarLoopTimer();
             mostrarModalCustomizado('Sucesso', 'Check-in registado! Estás de plantão oficial.');
         }
 
@@ -866,11 +891,9 @@
 
             const btnPausar = document.getElementById('btnPausar');
             if (estadoTurno === 'ativo') {
-                const timestampInicio = parseInt(localStorage.getItem(`turno_inicio_${user.nickname}`)) || Date.now();
-                const segundosAnteriores = parseInt(localStorage.getItem(`turno_segundos_acumulados_${user.nickname}`)) || 0;
-                const segundosAtuais = segundosAnteriores + Math.floor((Date.now() - timestampInicio) / 1000);
-                
-                localStorage.setItem(`turno_segundos_acumulados_${user.nickname}`, segundosAtuais);
+                const segundosTotais = calcularSegundosTotais();
+                localStorage.setItem(`turno_segundos_acumulados_${user.nickname}`, segundosTotais);
+                localStorage.removeItem(`turno_inicio_${user.nickname}`);
 
                 clearInterval(timerInterval);
                 timerInterval = null;
@@ -913,9 +936,7 @@
                     btnPausar.style.color = '#000';
                 }
                 
-                timerInterval = setInterval(() => {
-                    atualizarDisplayTimer();
-                }, 1000);
+                iniciarLoopTimer();
                 mostrarModalCustomizado('Turno Retomado', 'O cronômetro voltou a contar.');
             }
         }
