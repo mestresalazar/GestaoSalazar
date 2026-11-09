@@ -728,7 +728,6 @@
                 'confirmacao',
                 async () => {
                     try {
-                        // Limpa imediatamente na tela para feedback visual instantâneo
                         document.getElementById('listaElegiveisSorteio').innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível com 2h+ cumpridas HOJE neste ciclo.</span>`;
 
                         const res = await fetch('/api/admin/sorteio/resetar-elegiveis', { method: 'PUT' });

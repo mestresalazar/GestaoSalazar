@@ -165,6 +165,7 @@ app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
     }
 });
 
+// --- LISTAGEM DE EFETIVO ADMIN (GARANTE QUE TODOS OS MEMBROS APARECEM) ---
 app.get('/api/admin/membros', async (req, res) => {
   try {
     const membros = await User.find({}, '-password -historicoTurnos.fotoComprovante').lean(); 
@@ -351,7 +352,6 @@ app.put('/api/membro/status-plantao', async (req, res) => {
 
         await User.updateOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, { $set: updateData });
 
-        // NOTIFICA EM TEMPO REAL TODOS OS DISPOSITIVOS
         io.emit('atualizar_estado_turno_usuario', { nickname: nickname.toLowerCase() });
         io.emit('atualizar_status_geral_tropa');
 
@@ -396,7 +396,6 @@ app.post('/api/membro/turno', async (req, res) => {
 
         if (resultado.matchedCount === 0) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
-        // NOTIFICA EM TEMPO REAL TODOS OS DISPOSITIVOS
         io.emit('atualizar_estado_turno_usuario', { nickname: nickname.toLowerCase() });
         io.emit('atualizar_status_geral_tropa');
 
