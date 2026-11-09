@@ -524,7 +524,7 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
 
     const membros = await User.find({}, '-password').lean();
     const elegiveis = membros.filter(m => {
-      if (exluidosIds.includes(m._id.toString())) return false; // Se foi resetado/excluído deste ciclo, não aparece
+      if (exluidosIds.includes(m._id.toString())) return false; 
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
       const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoEhDeHoje(t.data));
       const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
@@ -571,7 +571,6 @@ app.post('/api/admin/sorteio/agendar', async (req, res) => {
 // --- ROTA ADMIN: RESETAR ELEGÍVEIS (EXCLUI OS ATUAIS DO CICLO SEM MEXER NAS HORAS DO RANKING) ---
 app.put('/api/admin/sorteio/resetar-elegiveis', async (req, res) => {
     try {
-        // Busca todos os membros que atualmente têm 2h+ hoje para os colocar na lista de excluídos do ciclo atual
         const membros = await User.find({}, '-password').lean();
         const idsParaExcluir = [];
 
@@ -585,7 +584,6 @@ app.put('/api/admin/sorteio/resetar-elegiveis', async (req, res) => {
             }
         });
 
-        // Atualiza a configuração do sorteio adicionando os IDs à lista de excluídos de hoje (e mantendo intocado o ranking/horas)
         await ConfigSorteio.findOneAndUpdate(
             { chave: 'sorteio_ativo' },
             { 
