@@ -32,7 +32,7 @@ function converterDuracaoParaSegundos(duracaoStr) {
 }
 
 function converterSegundosParaDuracao(segundosTotais) {
-  const segundosSeguros = Math.max(0, parseInt(segundosTotais) || 0); // Sem limite máximo travado
+  const segundosSeguros = Math.max(0, parseInt(segundosTotais) || 0);
   const horas = String(Math.floor(segundosSeguros / 3600)).padStart(2, '0');
   const minutos = String(Math.floor((segundosSeguros % 3600) / 60)).padStart(2, '0');
   const segundos = String(segundosSeguros % 60).padStart(2, '0');
@@ -164,10 +164,15 @@ app.get('/api/admin/membros', async (req, res) => {
   try {
     const membros = await User.find({}, '-password -historicoTurnos.fotoComprovante').lean(); 
     const membrosFormatados = membros.map(m => {
+      const totalSegundosAcumulados = (m.historicoTurnos || []).reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+      const totalHorasFormatado = converterSegundosParaDuracao(totalSegundosAcumulados);
+      
       const ultimoTurno = m.historicoTurnos && m.historicoTurnos.length > 0 ? m.historicoTurnos[m.historicoTurnos.length - 1] : null;
       return {
         ...m,
-        ultimoPlantao: ultimoTurno ? `${ultimoTurno.duracao} (${new Date(ultimoTurno.data).toLocaleDateString()})` : 'Nenhum plantão registado'
+        ultimoPlantao: totalSegundosAcumulados > 0 
+          ? `Total: ${totalHorasFormatado} (${m.historicoTurnos.length} turnos)` 
+          : (ultimoTurno ? `${ultimoTurno.duracao} (${new Date(ultimoTurno.data).toLocaleDateString()})` : 'Nenhum plantão registado')
       };
     });
     res.json({ success: true, membros: membrosFormatados });
@@ -339,7 +344,7 @@ app.put('/api/membro/status-plantao', async (req, res) => {
     }
 });
 
-// --- ROTA DE REGISTAR TURNO (Sem limite máximo travado) ---
+// --- ROTA DE REGISTAR TURNO ---
 app.post('/api/membro/turno', async (req, res) => {
     try {
         const { nickname, duracao, fotoComprovante } = req.body;
@@ -354,7 +359,7 @@ app.post('/api/membro/turno', async (req, res) => {
 
         const novoTurno = {
             data: new Date(),
-            duracao: duracao, // Salva exatamente a duração cumprida pelo membro sem cortes
+            duracao: duracao,
             fotoComprovante: fotoComprovante || 'Sem foto'
         };
 
@@ -372,11 +377,22 @@ app.post('/api/membro/turno', async (req, res) => {
     }
 });
 
-// --- SISTEMA DE PROVAS BASEADO NA BÍBLIA RP RIO RISE / EXÉRCITO BRASILEIRO ---
+// --- SISTEMA DE PROVAS COM COOLDOWN DE 24 HORAS SEGURO ---
 app.get('/api/membro/provas/status/:nickname', async (req, res) => {
     try {
         const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }).lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        // Validação estrita de cooldown de 24 horas
+        if (membro.cooldownProvaAte && new Date() < new Date(membro.cooldownProvaAte)) {
+            const horasRestantes = Math.ceil((new Date(membro.cooldownProvaAte) - new Date()) / (1000 * 60 * 60));
+            return res.json({
+                success: true,
+                bloqueadoPorCooldown: true,
+                horasRestantes,
+                message: `Estás em cooldown devido a uma reprovação recente. Podes tentar novamente em cerca de ${horasRestantes} hora(s).`
+            });
+        }
 
         const turnosValidos = (membro.historicoTurnos || []).filter(t => turnoEstaNoHorarioPermitido(t.data));
         const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
@@ -401,6 +417,7 @@ app.get('/api/membro/provas/status/:nickname', async (req, res) => {
 
         res.json({
             success: true,
+            bloqueadoPorCooldown: false,
             totalHoras: totalHoras.toFixed(1),
             cargoAtual,
             provaDisponivelPara,
@@ -414,8 +431,16 @@ app.get('/api/membro/provas/status/:nickname', async (req, res) => {
 app.post('/api/membro/provas/submeter', async (req, res) => {
     try {
         const { nickname, cargoAlvo, respostas } = req.body;
-        let gabarito = {};
+        
+        const membro = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
+        // Validação defensiva no backend para impedir submissão durante o cooldown
+        if (membro.cooldownProvaAte && new Date() < new Date(membro.cooldownProvaAte)) {
+            return res.status(400).json({ success: false, message: 'Tentativa bloqueada. Estás no período de cooldown de 24 horas.' });
+        }
+
+        let gabarito = {};
         if (cargoAlvo === 'Sargento') {
             gabarito = { q1: 'a', q2: 'b', q3: 'b' };
         } else if (cargoAlvo === 'Tenente') {
@@ -427,35 +452,53 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
         let acertos = 0;
         let totalPerguntas = Object.keys(gabarito).length;
 
-        if (respostas.q1 === gabarito.q1) acertos++;
-        if (respostas.q2 === gabarito.q2) acertos++;
-        if (respostas.q3 === gabarito.q3) acertos++;
+        if (respostas && respostas.q1 === gabarito.q1) acertos++;
+        if (respostas && respostas.q2 === gabarito.q2) acertos++;
+        if (respostas && respostas.q3 === gabarito.q3) acertos++;
 
         const aprovado = (acertos / totalPerguntas) >= 0.7;
 
-        const membro = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
-        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
-
         if (aprovado) {
-            membro.cargo = cargoAlvo;
-            membro.historicoPromocoes.push({ novoCargo: cargoAlvo, data: new Date() });
-            membro.provasRealizadas.push({ cargoAlvo, status: 'aprovado', data: new Date() });
-            membro.caixaEntrada.push({
-                titulo: '🎉 Aprovado na Prova!',
-                mensagem: `Parabéns! Foste aprovado na prova do Exército Brasileiro e promovido para <b>${cargoAlvo}</b>!`,
-                data: new Date()
-            });
+            await User.updateOne(
+                { _id: membro._id },
+                { 
+                    $set: { cargo: cargoAlvo, cooldownProvaAte: null },
+                    $push: { 
+                        historicoPromocoes: { novoCargo: cargoAlvo, data: new Date() },
+                        caixaEntrada: {
+                            titulo: '🎉 Aprovado na Prova!',
+                            mensagem: `Parabéns! Foste aprovado na prova do Exército Brasileiro e promovido para <b>${cargoAlvo}</b>!`,
+                            data: new Date()
+                        }
+                    }
+                }
+            );
 
-            await membro.save();
             io.emit('atualizar_status_geral_tropa');
             res.json({ success: true, aprovado: true, message: `Parabéns! Passaste na prova com ${acertos}/${totalPerguntas} acertos e foste promovido a ${cargoAlvo}!` });
         } else {
-            membro.provasRealizadas.push({ cargoAlvo, status: 'reprovado', data: new Date() });
-            await membro.save();
-            res.json({ success: true, aprovado: false, message: `Infelizmente obtiviste ${acertos}/${totalPerguntas} acertos. Precisas de pelo menos 70% para passar na Bíblia RP.` });
+            const dataCooldown = new Date();
+            dataCooldown.setHours(dataCooldown.getHours() + 24);
+
+            await User.updateOne(
+                { _id: membro._id },
+                { 
+                    $set: { cooldownProvaAte: dataCooldown },
+                    $push: { 
+                        caixaEntrada: {
+                            titulo: '❌ Reprovado na Prova (Cooldown 24h)',
+                            mensagem: `Obtiviste ${acertos}/${totalPerguntas} acertos na prova para ${cargoAlvo}. Estás em cooldown de 24 horas.`,
+                            data: new Date()
+                        }
+                    }
+                }
+            );
+
+            res.json({ success: true, aprovado: false, message: `Infelizmente obtiviste ${acertos}/${totalPerguntas} acertos. Foste reprovado e terás um cooldown de 24 horas para tentar novamente.` });
         }
     } catch (e) {
-        res.status(500).json({ success: false, message: 'Erro ao processar prova.' });
+        console.error("Erro na prova:", e);
+        res.status(500).json({ success: false, message: 'Erro interno ao processar prova.' });
     }
 });
 
@@ -615,5 +658,5 @@ function atualizarEstadoOperacional(salaId) {
 
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor rodando na porta ${PORT} 🚀 (Bíblia RP Rio Rise Ativa)`);
+  console.log(`Servidor rodando na porta ${PORT} 🚀 (Bíblia RP Rio Rise Ativa com Cooldown 24h Blindado)`);
 });

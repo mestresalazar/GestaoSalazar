@@ -447,6 +447,13 @@
                     const btn = document.getElementById('btnIniciarProva');
                     card.style.display = 'block';
 
+                    // Se estiver em cooldown, bloqueia e esconde o botão totalmente
+                    if (data.bloqueadoPorCooldown) {
+                        info.innerHTML = `⏳ <span style="color: #ef4444; font-weight: bold;">${data.message}</span>`;
+                        btn.style.display = 'none';
+                        return;
+                    }
+
                     if (data.provaDisponivelPara) {
                         cargoDestinoAtual = data.provaDisponivelPara;
                         document.getElementById('spanCargoAlvo').innerText = cargoDestinoAtual;
@@ -558,9 +565,16 @@
                             user.cargo = cargoDestinoAtual;
                             localStorage.setItem('user', JSON.stringify(user));
                             window.location.reload();
+                        } else {
+                            // Atualiza a tela para sumir com o botão e mostrar o cooldown
+                            verificarProgressoProvas();
                         }
                     });
-                    verificarProgressoProvas();
+                } else {
+                    fecharModalProva();
+                    mostrarModalCustomizado('Bloqueado', data.message, 'alerta', () => {
+                        verificarProgressoProvas();
+                    });
                 }
             } catch (e) { console.error(e); mostrarModalCustomizado('Erro', 'Erro ao submeter a prova.'); }
         }

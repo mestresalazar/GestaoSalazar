@@ -22,6 +22,9 @@ const UserSchema = new mongoose.Schema({
     // Status de plantão persistente (cronômetro)
     emPlantao: { type: Boolean, default: false },
 
+    // Cooldown de 24 horas após reprovação na prova
+    cooldownProvaAte: { type: Date, default: null },
+
     // Personalização de Perfil
     avatarUrl: { type: String, default: '/images/default-avatar.png' },
     emojiStatus: { type: String, default: '🎖️' },
