@@ -715,20 +715,18 @@
         carregarRanking();
 
         let timerInterval = null;
-        let estadoTurno = localStorage.getItem(`turno_estado_${user.nickname}`) || 'parado';
+        let estadoTurno = 'parado';
+        let segundosAcumuladosBase = 0;
+        let timestampInicioServer = null;
+        let fotoComprovanteBase64 = '';
 
-        // --- CÁLCULO SEGURO BASEADO NO TIMESTAMP DO SERVIDOR E DO DISPOSITIVO ---
+        // --- CÁLCULO SEGURO BASEADO NO SERVIDOR (CONTA) ---
         function calcularSegundosTotais() {
-            if (estadoTurno === 'ativo') {
-                const timestampInicio = parseInt(localStorage.getItem(`turno_inicio_${user.nickname}`));
-                const segundosPausados = parseInt(localStorage.getItem(`turno_segundos_acumulados_${user.nickname}`)) || 0;
-                
-                if (!timestampInicio) return segundosPausados;
-
-                const decorridoAgora = Math.floor((Date.now() - timestampInicio) / 1000);
-                return segundosPausados + decorridoAgora;
+            if (estadoTurno === 'ativo' && timestampInicioServer) {
+                const decorridoAgora = Math.floor((Date.now() - timestampInicioServer) / 1000);
+                return segundosAcumuladosBase + decorridoAgora;
             } else {
-                return parseInt(localStorage.getItem(`turno_segundos_acumulados_${user.nickname}`)) || 0;
+                return segundosAcumuladosBase;
             }
         }
 
@@ -766,34 +764,28 @@
             }
         });
 
+        // --- RESTAURAR ESTADO DIRETAMENTE DA CONTA (MULTI-DISPOSITIVO REAL) ---
         async function restaurarEstadoTurno() {
             try {
-                // Sincroniza o estado ativo diretamente com o servidor (para funcionar entre dispositivos diferentes)
                 const res = await fetch(`/api/membro/historico/${encodeURIComponent(user.nickname)}`);
                 const data = await res.json();
 
                 if (data.success && data.membro) {
-                    if (data.membro.emPlantao && data.membro.inicioPlantao) {
-                        estadoTurno = 'ativo';
-                        localStorage.setItem(`turno_estado_${user.nickname}`, 'ativo');
-                        localStorage.setItem(`turno_inicio_${user.nickname}`, new Date(data.membro.inicioPlantao).getTime());
-                    } else if (estadoTurno !== 'pausado') {
-                        estadoTurno = 'parado';
-                        localStorage.setItem(`turno_estado_${user.nickname}`, 'parado');
-                        localStorage.removeItem(`turno_inicio_${user.nickname}`);
-                    }
+                    estadoTurno = data.membro.estadoTurno || 'parado';
+                    segundosAcumuladosBase = data.membro.segundosAcumulados || 0;
+                    timestampInicioServer = data.membro.inicioPlantao ? new Date(data.membro.inicioPlantao).getTime() : null;
+                    fotoComprovanteBase64 = data.membro.fotoComprovanteAtiva || '';
                 }
             } catch (e) {
-                console.error('Erro ao sincronizar turno com o servidor:', e);
+                console.error('Erro ao sincronizar turno com a conta:', e);
             }
 
             atualizarDisplayTimer();
             const btnPausar = document.getElementById('btnPausar');
             const statusAnexo = document.getElementById('statusAnexo');
-            const fotoSalva = localStorage.getItem(`turno_foto_${user.nickname}`);
 
-            if (fotoSalva && statusAnexo) {
-                statusAnexo.innerText = '✅ Print protegido e pronto na memória!';
+            if (fotoComprovanteBase64 && statusAnexo) {
+                statusAnexo.innerText = '✅ Print guardado na tua conta e pronto!';
             }
 
             if (estadoTurno === 'ativo') {
@@ -810,18 +802,36 @@
                     btnPausar.innerText = 'Retomar Turno';
                     btnPausar.style.backgroundColor = 'rgba(34, 197, 94, 0.9)';
                 }
+            } else {
+                if (btnPausar) btnPausar.style.display = 'none';
             }
         }
         restaurarEstadoTurno();
 
+        // --- ANEXAR E SALVAR FOTO DIRETAMENTE NA CONTA ---
         function converterFotoLocal(input) {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
                 const reader = new FileReader();
-                reader.onload = function(e) {
-                    localStorage.setItem(`turno_foto_${user.nickname}`, e.target.result);
+                reader.onload = async function(e) {
+                    fotoComprovanteBase64 = e.target.result;
                     const statusAnexo = document.getElementById('statusAnexo');
                     if (statusAnexo) statusAnexo.innerHTML = `✅ Print carregado: <b>${file.name || 'Imagem'}</b>`;
+
+                    try {
+                        await fetch('/api/membro/status-plantao', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                nickname: user.nickname, 
+                                emPlantao: (estadoTurno === 'ativo'),
+                                estadoTurno: estadoTurno,
+                                fotoComprovanteAtiva: fotoComprovanteBase64
+                            })
+                        });
+                    } catch (err) {
+                        console.error('Erro ao salvar foto na conta:', err);
+                    }
                 };
                 reader.readAsDataURL(file);
             }
@@ -833,28 +843,15 @@
                 return;
             }
 
-            const fotoSalva = localStorage.getItem(`turno_foto_${user.nickname}`);
-            const fileInput = document.getElementById('fotoComprovante');
-
-            if (!fotoSalva && (!fileInput || fileInput.files.length === 0)) {
+            if (!fotoComprovanteBase64) {
                 mostrarModalCustomizado('Atenção', 'É obrigatório anexar a foto ou print do seu turno antes de iniciar!');
                 return;
             }
 
-            if (!fotoSalva && fileInput && fileInput.files.length > 0) {
-                const file = fileInput.files[0];
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    localStorage.setItem(`turno_foto_${user.nickname}`, e.target.result);
-                };
-                reader.readAsDataURL(file);
-            }
-
             const agoraTimestamp = Date.now();
             estadoTurno = 'ativo';
-            localStorage.setItem(`turno_estado_${user.nickname}`, 'ativo');
-            localStorage.setItem(`turno_inicio_${user.nickname}`, agoraTimestamp);
-            localStorage.setItem(`turno_segundos_acumulados_${user.nickname}`, 0);
+            timestampInicioServer = agoraTimestamp;
+            segundosAcumuladosBase = 0;
 
             try {
                 await fetch('/api/membro/status-plantao', {
@@ -863,11 +860,14 @@
                     body: JSON.stringify({ 
                         nickname: user.nickname, 
                         emPlantao: true,
-                        inicioPlantao: agoraTimestamp 
+                        estadoTurno: 'ativo',
+                        inicioPlantao: agoraTimestamp,
+                        segundosAcumulados: 0,
+                        fotoComprovanteAtiva: fotoComprovanteBase64
                     })
                 });
             } catch (e) {
-                console.error('Erro ao atualizar status de plantão:', e);
+                console.error('Erro ao atualizar check-in na conta:', e);
             }
 
             const btnPausar = document.getElementById('btnPausar');
@@ -879,7 +879,7 @@
             }
 
             iniciarLoopTimer();
-            mostrarModalCustomizado('Sucesso', 'Check-in registado! Estás de plantão oficial.');
+            mostrarModalCustomizado('Sucesso', 'Check-in registado na conta! Podes abrir noutro dispositivo que o tempo continuará certo.');
         }
 
         async function alternarPausa() {
@@ -887,20 +887,25 @@
 
             const btnPausar = document.getElementById('btnPausar');
             if (estadoTurno === 'ativo') {
-                const segundosTotais = calcularSegundosTotais();
-                localStorage.setItem(`turno_segundos_acumulados_${user.nickname}`, segundosTotais);
-                localStorage.removeItem(`turno_inicio_${user.nickname}`);
+                // Pausar
+                segundosAcumuladosBase = calcularSegundosTotais();
+                timestampInicioServer = null;
+                estadoTurno = 'pausado';
 
                 clearInterval(timerInterval);
                 timerInterval = null;
-                estadoTurno = 'pausado';
-                localStorage.setItem(`turno_estado_${user.nickname}`, 'pausado');
 
                 try {
                     await fetch('/api/membro/status-plantao', {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ nickname: user.nickname, emPlantao: false })
+                        body: JSON.stringify({ 
+                            nickname: user.nickname, 
+                            emPlantao: false,
+                            estadoTurno: 'pausado',
+                            inicioPlantao: null,
+                            segundosAcumulados: segundosAcumuladosBase
+                        })
                     });
                 } catch (e) {
                     console.error(e);
@@ -910,12 +915,12 @@
                     btnPausar.innerText = 'Retomar Turno';
                     btnPausar.style.backgroundColor = 'rgba(34, 197, 94, 0.9)';
                 }
-                mostrarModalCustomizado('Turno Pausado', 'O cronômetro foi congelado e o plantão pausado.');
+                mostrarModalCustomizado('Turno Pausado', 'O cronômetro foi pausado e guardado na tua conta.');
             } else {
+                // Retomar
                 const agoraTimestamp = Date.now();
                 estadoTurno = 'ativo';
-                localStorage.setItem(`turno_estado_${user.nickname}`, 'ativo');
-                localStorage.setItem(`turno_inicio_${user.nickname}`, agoraTimestamp);
+                timestampInicioServer = agoraTimestamp;
 
                 try {
                     await fetch('/api/membro/status-plantao', {
@@ -924,7 +929,9 @@
                         body: JSON.stringify({ 
                             nickname: user.nickname, 
                             emPlantao: true,
-                            inicioPlantao: agoraTimestamp 
+                            estadoTurno: 'ativo',
+                            inicioPlantao: agoraTimestamp,
+                            segundosAcumulados: segundosAcumuladosBase
                         })
                     });
                 } catch (e) {
@@ -949,10 +956,8 @@
                 return;
             }
 
-            const imagemBase64 = localStorage.getItem(`turno_foto_${user.nickname}`);
-
-            if (!imagemBase64 || !imagemBase64.startsWith('data:image')) {
-                mostrarModalCustomizado('Atenção', 'Nenhum comprovante válido encontrado neste dispositivo. Anexe o print novamente.');
+            if (!fotoComprovanteBase64) {
+                mostrarModalCustomizado('Atenção', 'Nenhum comprovante encontrado na conta. Anexe o print novamente.');
                 return;
             }
             
@@ -971,7 +976,7 @@
                     body: JSON.stringify({
                         nickname: user.nickname,
                         duracao: tempoFinal,
-                        fotoComprovante: imagemBase64
+                        fotoComprovante: fotoComprovanteBase64
                     })
                 });
 
@@ -981,13 +986,10 @@
                     carregarRanking();
                     verificarProgressoProvas();
                     
-                    localStorage.removeItem(`turno_segundos_${user.nickname}`);
-                    localStorage.removeItem(`turno_estado_${user.nickname}`);
-                    localStorage.removeItem(`turno_foto_${user.nickname}`);
-                    localStorage.removeItem(`turno_inicio_${user.nickname}`);
-                    localStorage.removeItem(`turno_segundos_acumulados_${user.nickname}`);
-                    
                     estadoTurno = 'parado';
+                    segundosAcumuladosBase = 0;
+                    timestampInicioServer = null;
+                    fotoComprovanteBase64 = '';
 
                     const fotoComp = document.getElementById('fotoComprovante');
                     const statusAnexo = document.getElementById('statusAnexo');

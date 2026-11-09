@@ -99,7 +99,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-// --- HISTÓRICO DO MEMBRO (COM SINCRONIZAÇÃO MULTI-DISPOSITIVO) ---
+// --- HISTÓRICO E ESTADO ATUAL DO MEMBRO ---
 app.get('/api/membro/historico/:nickname', async (req, res) => {
     try {
         const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }, '-password').lean();
@@ -116,7 +116,10 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
                 cargo: membro.cargo || 'Soldado',
                 status: membro.status || 'Ativo',
                 emPlantao: !!membro.emPlantao,
+                estadoTurno: membro.estadoTurno || 'parado',
                 inicioPlantao: membro.inicioPlantao || null,
+                segundosAcumulados: membro.segundosAcumulados || 0,
+                fotoComprovanteAtiva: membro.fotoComprovanteAtiva || '',
                 ultimoPlantao: ultimoTurno ? `Duração: ${ultimoTurno.duracao} em ${new Date(ultimoTurno.data).toLocaleDateString()}` : 'Nenhum plantão registado'
             },
             historicoTurnos: membro.historicoTurnos || [],
@@ -331,27 +334,30 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
     }
 });
 
-// --- ROTA DE STATUS DE PLANTÃO COM SALVAMENTO DE INÍCIO NO SERVIDOR ---
+// --- ATUALIZAR ESTADO DO PLANTÃO / TURNO NA CONTA (MULTI-DISPOSITIVO) ---
 app.put('/api/membro/status-plantao', async (req, res) => {
     try {
-        const { nickname, emPlantao, inicioPlantao } = req.body;
+        const { nickname, emPlantao, estadoTurno, inicioPlantao, segundosAcumulados, fotoComprovanteAtiva } = req.body;
         if (!nickname) return res.status(400).json({ success: false, message: 'Nickname obrigatório.' });
 
-        const updateData = { emPlantao: !!emPlantao };
-        if (emPlantao) {
-            updateData.inicioPlantao = inicioPlantao ? new Date(inicioPlantao) : new Date();
-        } else {
-            updateData.inicioPlantao = null;
-        }
+        const updateData = {
+            emPlantao: !!emPlantao,
+            estadoTurno: estadoTurno || 'parado'
+        };
+
+        if (inicioPlantao !== undefined) updateData.inicioPlantao = inicioPlantao ? new Date(inicioPlantao) : null;
+        if (segundosAcumulados !== undefined) updateData.segundosAcumulados = segundosAcumulados;
+        if (fotoComprovanteAtiva !== undefined) updateData.fotoComprovanteAtiva = fotoComprovanteAtiva;
 
         await User.updateOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, { $set: updateData });
         io.emit('atualizar_status_geral_tropa');
-        res.json({ success: true, message: 'Status de plantão sincronizado com o servidor!' });
+        res.json({ success: true, message: 'Estado do turno sincronizado na conta com sucesso!' });
     } catch (e) {
-        res.status(500).json({ success: false, message: 'Erro ao atualizar status.' });
+        res.status(500).json({ success: false, message: 'Erro ao atualizar status na conta.' });
     }
 });
 
+// --- FINALIZAR TURNO (LIMPA O ESTADO DA CONTA E GRAVA HISTÓRICO) ---
 app.post('/api/membro/turno', async (req, res) => {
     try {
         const { nickname, duracao, fotoComprovante } = req.body;
@@ -372,7 +378,16 @@ app.post('/api/membro/turno', async (req, res) => {
 
         const resultado = await User.updateOne(
             { nickname: new RegExp('^' + nickname + '$', 'i') },
-            { $push: { historicoTurnos: novoTurno }, $set: { emPlantao: false, inicioPlantao: null } }
+            { 
+                $push: { historicoTurnos: novoTurno }, 
+                $set: { 
+                    emPlantao: false, 
+                    estadoTurno: 'parado',
+                    inicioPlantao: null,
+                    segundosAcumulados: 0,
+                    fotoComprovanteAtiva: ''
+                } 
+            }
         );
 
         if (resultado.matchedCount === 0) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });

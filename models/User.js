@@ -19,8 +19,12 @@ const UserSchema = new mongoose.Schema({
     status: { type: String, enum: ['pendente', 'ativo', 'inativo', 'demitido'], default: 'pendente' },
     dataEntrada: { type: Date, default: Date.now },
     
-    // Status de plantão persistente (cronômetro)
+    // Status de plantão persistente (cronômetro e multi-dispositivo)
     emPlantao: { type: Boolean, default: false },
+    estadoTurno: { type: String, enum: ['ativo', 'pausado', 'parado'], default: 'parado' },
+    inicioPlantao: { type: Date, default: null },
+    segundosAcumulados: { type: Number, default: 0 },
+    fotoComprovanteAtiva: { type: String, default: '' }, // Guarda o print na conta
 
     // Cooldown de 24 horas após reprovação na prova
     cooldownProvaAte: { type: Date, default: null },
