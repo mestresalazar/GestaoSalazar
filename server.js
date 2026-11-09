@@ -563,16 +563,10 @@ app.post('/api/admin/sorteio/agendar', async (req, res) => {
   }
 });
 
-// --- ROTA ADMIN: RESETAR APENAS OS TURNOS DE HOJE PARA LIMPAR ELEGÍVEIS ---
+// --- ROTA ADMIN: RESETAR APENAS O ESTADO DO SORTEIO (SEGURA PARA O RANKING) ---
 app.put('/api/admin/sorteio/resetar-elegiveis', async (req, res) => {
     try {
-        const membros = await User.find({});
-        for (let m of membros) {
-            // Filtra e mantém apenas os turnos que NÃO são de hoje
-            const turnosAntigos = (m.historicoTurnos || []).filter(t => !turnoEhDeHoje(t.data));
-            await User.findByIdAndUpdate(m._id, { $set: { historicoTurnos: turnosAntigos } });
-        }
-
+        // Redefine apenas o status do sorteio para permitir um novo ciclo, mantendo 100% intocados o ranking e os turnos da tropa!
         await ConfigSorteio.findOneAndUpdate(
             { chave: 'sorteio_ativo' },
             { $set: { executado: false } },
@@ -581,16 +575,16 @@ app.put('/api/admin/sorteio/resetar-elegiveis', async (req, res) => {
 
         const notif = {
             titulo: '🔄 Sorteio Diário Reiniciado',
-            mensagem: 'O Comando limpou os turnos de hoje para iniciar uma nova contagem para o sorteio.',
+            mensagem: 'O Comando reiniciou o status do sorteio diário. As horas do ranking mantêm-se preservadas.',
             data: new Date()
         };
         await User.updateMany({}, { $push: { caixaEntrada: notif } });
 
         io.emit('atualizar_status_geral_tropa');
-        res.json({ success: true, message: 'Turnos de hoje limpos! Lista de elegíveis reiniciada com sucesso.' });
+        res.json({ success: true, message: 'Status do sorteio reiniciado com sucesso! O ranking e as horas da tropa foram totalmente preservados.' });
     } catch (e) {
-        console.error("Erro ao resetar elegíveis de hoje:", e);
-        res.status(500).json({ success: false, message: 'Erro ao resetar elegíveis do dia.' });
+        console.error("Erro ao resetar elegíveis:", e);
+        res.status(500).json({ success: false, message: 'Erro ao resetar elegíveis do sorteio.' });
     }
 });
 
