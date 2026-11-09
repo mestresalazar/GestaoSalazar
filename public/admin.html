@@ -102,7 +102,6 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
         }
         th, td {
             padding: 10px;
@@ -111,9 +110,12 @@
             font-size: 13px;
         }
         th {
-            background-color: rgba(15, 23, 42, 0.7);
+            background-color: rgba(15, 23, 42, 0.9);
             color: #38bdf8;
             text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+            position: sticky;
+            top: 0;
+            z-index: 2;
         }
         .btn-action {
             padding: 5px 10px;
@@ -250,7 +252,9 @@
             <div class="card">
                 <h3>👥 Gerenciamento de Efetivo, Históricos e Promoções</h3>
                 <p style="color: #e2e8f0; margin-bottom: 15px; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Consulte os plantões recentes, histórico operacional completo e faça alterações hierárquicas.</p>
-                <div style="overflow-x: auto;">
+                
+                <!-- Container com altura máxima e scroll vertical -->
+                <div style="max-height: 320px; overflow-y: auto; border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; background: rgba(15, 23, 42, 0.5);">
                     <table>
                         <thead>
                             <tr>
@@ -292,7 +296,7 @@
 
                 <div style="margin-bottom: 15px;">
                     <h4 style="color: #38bdf8; font-size: 14px; margin-bottom: 8px;">🛡️ Operacionais Elegíveis (Com 2h+ HOJE):</h4>
-                    <div id="listaElegiveisSorteio" style="max-height: 120px; overflow-y: auto; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; padding: 8px; font-size: 12px; color: #cbd5e1;">
+                    <div id="listaElegiveisSorteio" style="max-height: 220px; overflow-y: auto; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; padding: 10px; font-size: 12px; color: #cbd5e1;">
                         A carregar elegíveis...
                     </div>
                 </div>
@@ -604,9 +608,9 @@
                 if (data.success && data.elegiveis.length > 0) {
                     data.elegiveis.forEach(m => {
                         const div = document.createElement('div');
-                        div.style.padding = '3px 0';
+                        div.style.padding = '4px 0';
                         div.style.borderBottom = '1px solid rgba(56, 189, 248, 0.1)';
-                        div.innerHTML = `• <b>${m.nickname}</b> (${m.cargo}) — <i>Elegível (2h+ cumpridas HOJE)</i>`;
+                        div.innerHTML = `• <b>${m.nickname}</b> (${m.cargo}) — <i style="color: #38bdf8;">Elegível (2h+ cumpridas HOJE)</i>`;
                         container.appendChild(div);
                     });
                 } else {
