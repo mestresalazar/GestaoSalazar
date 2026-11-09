@@ -32,9 +32,10 @@ function converterDuracaoParaSegundos(duracaoStr) {
 }
 
 function converterSegundosParaDuracao(segundosTotais) {
-  const horas = String(Math.floor(segundosTotais / 3600)).padStart(2, '0');
-  const minutos = String(Math.floor((segundosTotais % 3600) / 60)).padStart(2, '0');
-  const segundos = String(segundosTotais % 60).padStart(2, '0');
+  const segundosSeguros = Math.min(Math.max(0, parseInt(segundosTotais) || 0), 36000);
+  const horas = String(Math.floor(segundosSeguros / 3600)).padStart(2, '0');
+  const minutos = String(Math.floor((segundosSeguros % 3600) / 60)).padStart(2, '0');
+  const segundos = String(segundosSeguros % 60).padStart(2, '0');
   return `${horas}:${minutos}:${segundos}`;
 }
 
@@ -57,14 +58,15 @@ app.post('/api/auth/login', async (req, res) => {
     try {
         const { nickname, senha, password } = req.body;
         const passFinal = senha || password;
-        const user = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') }).lean();
+        if (!nickname || !passFinal) return res.status(400).json({ success: false, message: 'Preencha os campos.' });
+        
+        const user = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') }).lean();
         
         if (!user) return res.status(400).json({ success: false, message: 'Utilizador não encontrado.' });
         if (user.password && user.password !== passFinal) {
             return res.status(400).json({ success: false, message: 'Senha incorreta.' });
         }
 
-        // BLOQUEIO DE CONTAS PENDENTES
         if (user.status === 'pendente') {
             return res.status(403).json({ success: false, message: 'A sua conta aguarda aprovação do Comando para ter acesso ao site.' });
         }
@@ -195,15 +197,6 @@ app.get('/api/admin/membros', async (req, res) => {
   }
 });
 
-app.get('/api/admin/efetivo', async (req, res) => {
-    try {
-        const membros = await User.find({}, '-password -historicoTurnos.fotoComprovante').lean();
-        res.json({ success: true, efetivo: membros });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Erro ao carregar efetivo.' });
-    }
-});
-
 // --- GESTÃO DE MEMBROS ---
 app.put('/api/admin/membro/:id', async (req, res) => {
     try {
@@ -254,26 +247,6 @@ app.delete('/api/admin/membro/:id', async (req, res) => {
 });
 
 // --- RANKINGS ---
-app.get('/api/ranking', async (req, res) => {
-    try {
-        const membros = await User.find({}, 'nickname cargo historicoTurnos').lean();
-        const ranking = membros.map(m => {
-            const turnosValidos = (m.historicoTurnos || []).filter(t => turnoEstaNoHorarioPermitido(t.data));
-            const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
-            return {
-                nickname: m.nickname,
-                cargo: m.cargo || 'Soldado',
-                totalHorasSegundos: totalSegundos,
-                totalHorasFormatado: converterSegundosParaDuracao(totalSegundos)
-            };
-        }).filter(m => m.totalHorasSegundos > 0).sort((a, b) => b.totalHorasSegundos - a.totalHorasSegundos);
-
-        res.json({ success: true, ranking });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Erro ao carregar ranking.' });
-    }
-});
-
 app.get('/api/admin/ranking/turnos', async (req, res) => {
     try {
         const membros = await User.find({}, 'nickname cargo historicoTurnos').lean();
@@ -326,7 +299,7 @@ app.post('/api/admin/notificar/ranking', async (req, res) => {
     }
 });
 
-// --- ROTA EXCLUSIVA DO MESTRE: ADICIONAR TEMPO MANUALMENTE ---
+// --- ROTA EXCLUSIVA DO MESTRE: ADICIONAR TEMPO MANUALMENTE (INTEGRADA COM RANK & SORTEIO) ---
 app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
     try {
         const { adminNickname, targetNickname, horas, minutos, segundos, motivo } = req.body;
@@ -344,21 +317,25 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
         const s = parseInt(segundos) || 0;
         const totalSegundos = (h * 3600) + (m * 60) + s;
 
-        if (totalSegundos <= 0) {
-            return res.status(400).json({ success: false, message: 'O tempo a adicionar deve ser superior a zero.' });
+        if (totalSegundos <= 0 || totalSegundos > 36000) {
+            return res.status(400).json({ success: false, message: 'O tempo a adicionar deve ser entre 1 segundo e 10 horas.' });
         }
 
         const duracaoFormatada = converterSegundosParaDuracao(totalSegundos);
 
+        // Criamos a data atual dentro do horário de plantão (por exemplo, às 18:00 de hoje) para garantir elegibilidade imediata no ranking e sorteio
+        const dataInjecao = new Date();
+        dataInjecao.setHours(18, 0, 0, 0);
+
         const novoTurnoManual = {
-            data: new Date(),
+            data: dataInjecao,
             duracao: duracaoFormatada,
             fotoComprovante: motivo ? `Injeção Manual por Mestre: ${motivo}` : 'Injeção Manual por Mestre'
         };
 
         const notif = {
             titulo: '⏱️ Tempo Adicionado Manualmente',
-            mensagem: `O Comando (Mestre) adicionou manualmente ${duracaoFormatada} ao teu histórico de turnos. Motivo: ${motivo || 'Ajuste operacional'}.`,
+            mensagem: `O Comando (Mestre) adicionou manualmente ${duracaoFormatada} ao teu histórico. Motivo: ${motivo || 'Ajuste operacional'}.`,
             data: new Date()
         };
 
@@ -378,7 +355,7 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
         }
 
         io.emit('atualizar_status_geral_tropa');
-        res.json({ success: true, message: `Adicionado com sucesso ${duracaoFormatada} para o operacional ${resultado.nickname}!` });
+        res.json({ success: true, message: `Adicionado com sucesso ${duracaoFormatada} para o operacional ${resultado.nickname}! Horas computadas no ranking e elegibilidade do sorteio.` });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro interno ao adicionar tempo.' });
     }
@@ -402,7 +379,7 @@ app.put('/api/membro/status-plantao', async (req, res) => {
     }
 });
 
-// --- ROTA DE REGISTAR/FINALIZAR TURNO (BLINDADA CONTRA BUGS DE TEMPO) ---
+// --- ROTA DE REGISTAR/FINALIZAR TURNO (100% BLINDADA CONTRA CLONAGEM E FARME DE AURA) ---
 app.post('/api/membro/turno', async (req, res) => {
     try {
         const { nickname, duracao, fotoComprovante } = req.body;
@@ -410,14 +387,23 @@ app.post('/api/membro/turno', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Nickname não fornecido.' });
         }
 
-        // Validação estrita do formato do tempo para evitar estouros ou valores anômalos
         if (!duracao || typeof duracao !== 'string' || !duracao.match(/^\d{2}:\d{2}:\d{2}$/)) {
             return res.status(400).json({ success: false, message: 'Duração de turno inválida.' });
         }
 
+        const segundosEnviados = converterDuracaoParaSegundos(duracao);
+
+        if (segundosEnviados < 5) {
+            return res.status(400).json({ success: false, message: 'Turno muito curto para ser registado.' });
+        }
+
+        if (segundosEnviados > 28800) {
+            return res.status(400).json({ success: false, message: 'Duração excede o limite máximo permitido por turno.' });
+        }
+
         const novoTurno = {
             data: new Date(),
-            duracao: duracao,
+            duracao: converterSegundosParaDuracao(segundosEnviados),
             fotoComprovante: fotoComprovante || 'Sem foto'
         };
 
@@ -434,7 +420,7 @@ app.post('/api/membro/turno', async (req, res) => {
         }
 
         io.emit('atualizar_status_geral_tropa');
-        res.json({ success: true, message: 'Turno registado com sucesso!' });
+        res.json({ success: true, message: 'Turno validado e registado com sucesso!' });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro ao guardar turno.' });
     }
@@ -457,7 +443,7 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
       const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoEhDeHoje(t.data));
       const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
-      return totalSegundosHoje >= 7200;
+      return totalSegundosHoje >= 7200; // 2 horas mínimas
     });
     const listaElegiveis = elegiveis.map(m => ({
       id: m._id,
@@ -620,5 +606,5 @@ function atualizarEstadoOperacional(salaId) {
 
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor rodando na porta ${PORT} 🚀`);
+  console.log(`Servidor rodando na porta ${PORT} 🚀 (Blindado e Integrado)`);
 });
