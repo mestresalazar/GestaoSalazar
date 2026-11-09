@@ -32,7 +32,7 @@ function converterDuracaoParaSegundos(duracaoStr) {
 }
 
 function converterSegundosParaDuracao(segundosTotais) {
-  const segundosSeguros = Math.min(Math.max(0, parseInt(segundosTotais) || 0), 36000);
+  const segundosSeguros = Math.max(0, parseInt(segundosTotais) || 0); // Sem limite máximo travado
   const horas = String(Math.floor(segundosSeguros / 3600)).padStart(2, '0');
   const minutos = String(Math.floor((segundosSeguros % 3600) / 60)).padStart(2, '0');
   const segundos = String(segundosSeguros % 60).padStart(2, '0');
@@ -53,7 +53,7 @@ function turnoEhDeHoje(dataTurno) {
            d.getFullYear() === hoje.getFullYear();
 }
 
-// --- AUTENTICAÇÃO (LOGIN COM VALIDAÇÃO DE PENDENTE) ---
+// --- AUTENTICAÇÃO (LOGIN) ---
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { nickname, senha, password } = req.body;
@@ -61,12 +61,10 @@ app.post('/api/auth/login', async (req, res) => {
         if (!nickname || !passFinal) return res.status(400).json({ success: false, message: 'Preencha os campos.' });
         
         const user = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') }).lean();
-        
         if (!user) return res.status(400).json({ success: false, message: 'Utilizador não encontrado.' });
         if (user.password && user.password !== passFinal) {
             return res.status(400).json({ success: false, message: 'Senha incorreta.' });
         }
-
         if (user.status === 'pendente') {
             return res.status(403).json({ success: false, message: 'A sua conta aguarda aprovação do Comando para ter acesso ao site.' });
         }
@@ -82,15 +80,10 @@ app.post('/api/auth/register', async (req, res) => {
     try {
         const { nickname, senha, password } = req.body;
         const passFinal = senha || password;
-
-        if (!nickname || !passFinal) {
-            return res.status(400).json({ success: false, message: 'Preencha o nickname e a senha.' });
-        }
+        if (!nickname || !passFinal) return res.status(400).json({ success: false, message: 'Preencha o nickname e a senha.' });
 
         const userExiste = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') });
-        if (userExiste) {
-            return res.status(400).json({ success: false, message: 'Este nickname já está registado.' });
-        }
+        if (userExiste) return res.status(400).json({ success: false, message: 'Este nickname já está registado.' });
 
         const novoUtilizador = new User({
             nickname: nickname.trim(),
@@ -106,13 +99,11 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-// --- HISTÓRICO DO MEMBRO (Dashboard) ---
+// --- HISTÓRICO DO MEMBRO ---
 app.get('/api/membro/historico/:nickname', async (req, res) => {
     try {
         const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }, '-password').lean();
-        if (!membro) {
-            return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
-        }
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
         const ultimoTurno = membro.historicoTurnos && membro.historicoTurnos.length > 0 
             ? membro.historicoTurnos[membro.historicoTurnos.length - 1] 
@@ -136,28 +127,20 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
     }
 });
 
-// --- HISTÓRICO DO MEMBRO (Admin) ---
+// --- HISTÓRICO ADMIN ---
 app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
     try {
         const nickname = req.params.nickname;
         let query = { nickname: new RegExp('^' + decodeURIComponent(nickname) + '$', 'i') };
-        
         if (nickname.match(/^[0-9a-fA-F]{24}$/)) {
             query = { $or: [{ nickname: new RegExp('^' + nickname + '$', 'i') }, { _id: nickname }] };
         }
 
         let membro = await User.findOne(query, '-password').lean();
-        if (!membro) {
-            membro = await User.findOne({}, '-password').lean();
-        }
+        if (!membro) membro = await User.findOne({}, '-password').lean();
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
-        if (!membro) {
-            return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
-        }
-
-        const ultimoTurno = membro.historicoTurnos && membro.historicoTurnos.length > 0 
-            ? membro.historicoTurnos[membro.historicoTurnos.length - 1] 
-            : null;
+        const ultimoTurno = membro.historicoTurnos && membro.historicoTurnos.length > 0 ? membro.historicoTurnos[membro.historicoTurnos.length - 1] : null;
 
         res.json({
             success: true,
@@ -177,15 +160,11 @@ app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
     }
 });
 
-// --- EFETIVO E PAINEL ADM ---
 app.get('/api/admin/membros', async (req, res) => {
   try {
     const membros = await User.find({}, '-password -historicoTurnos.fotoComprovante').lean(); 
     const membrosFormatados = membros.map(m => {
-      const ultimoTurno = m.historicoTurnos && m.historicoTurnos.length > 0 
-        ? m.historicoTurnos[m.historicoTurnos.length - 1] 
-        : null;
-      
+      const ultimoTurno = m.historicoTurnos && m.historicoTurnos.length > 0 ? m.historicoTurnos[m.historicoTurnos.length - 1] : null;
       return {
         ...m,
         ultimoPlantao: ultimoTurno ? `${ultimoTurno.duracao} (${new Date(ultimoTurno.data).toLocaleDateString()})` : 'Nenhum plantão registado'
@@ -197,7 +176,6 @@ app.get('/api/admin/membros', async (req, res) => {
   }
 });
 
-// --- GESTÃO DE MEMBROS ---
 app.put('/api/admin/membro/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -210,9 +188,7 @@ app.put('/api/admin/membro/:id', async (req, res) => {
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
         
         if (cargo) {
-            await User.findByIdAndUpdate(id, {
-                $push: { historicoPromocoes: { novoCargo: cargo, data: new Date() } }
-            });
+            await User.findByIdAndUpdate(id, { $push: { historicoPromocoes: { novoCargo: cargo, data: new Date() } } });
         }
 
         io.emit('atualizar_status_geral_tropa');
@@ -270,7 +246,6 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
 app.put('/api/admin/ranking/resetar', async (req, res) => {
     try {
         await User.updateMany({}, { $set: { historicoTurnos: [] } });
-
         const notif = {
             titulo: '🔄 Ranking Semanal Resetado',
             mensagem: 'O comando resetou o ranking de horas da tropa para iniciar a nova semana.',
@@ -278,7 +253,6 @@ app.put('/api/admin/ranking/resetar', async (req, res) => {
         };
         await User.updateMany({}, { $push: { caixaEntrada: notif } });
         io.emit('atualizar_status_geral_tropa');
-
         res.json({ success: true, message: 'Ranking semanal resetado com sucesso!' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao resetar ranking.' });
@@ -299,7 +273,7 @@ app.post('/api/admin/notificar/ranking', async (req, res) => {
     }
 });
 
-// --- ROTA EXCLUSIVA DO MESTRE: ADICIONAR TEMPO MANUALMENTE (INTEGRADA COM RANK & SORTEIO) ---
+// --- ROTA EXCLUSIVA DO MESTRE: INJEÇÃO DE TEMPO MANUAL ---
 app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
     try {
         const { adminNickname, targetNickname, horas, minutos, segundos, motivo } = req.body;
@@ -307,7 +281,6 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
         if (!adminNickname || adminNickname.toLowerCase().trim() !== 'mestre') {
             return res.status(403).json({ success: false, message: 'Acesso negado. Apenas a conta Mestre pode injetar tempo manualmente.' });
         }
-
         if (!targetNickname) {
             return res.status(400).json({ success: false, message: 'Nickname do membro alvo é obrigatório.' });
         }
@@ -317,13 +290,11 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
         const s = parseInt(segundos) || 0;
         const totalSegundos = (h * 3600) + (m * 60) + s;
 
-        if (totalSegundos <= 0 || totalSegundos > 36000) {
-            return res.status(400).json({ success: false, message: 'O tempo a adicionar deve ser entre 1 segundo e 10 horas.' });
+        if (totalSegundos <= 0) {
+            return res.status(400).json({ success: false, message: 'O tempo a adicionar deve ser superior a 0.' });
         }
 
         const duracaoFormatada = converterSegundosParaDuracao(totalSegundos);
-
-        // Criamos a data atual dentro do horário de plantão (por exemplo, às 18:00 de hoje) para garantir elegibilidade imediata no ranking e sorteio
         const dataInjecao = new Date();
         dataInjecao.setHours(18, 0, 0, 0);
 
@@ -335,27 +306,20 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
 
         const notif = {
             titulo: '⏱️ Tempo Adicionado Manualmente',
-            mensagem: `O Comando (Mestre) adicionou manualmente ${duracaoFormatada} ao teu histórico. Motivo: ${motivo || 'Ajuste operacional'}.`,
+            mensagem: `O Comando (Mestre) adicionou ${duracaoFormatada} ao teu histórico. Motivo: ${motivo || 'Ajuste operacional'}.`,
             data: new Date()
         };
 
         const resultado = await User.findOneAndUpdate(
             { nickname: new RegExp('^' + targetNickname.trim() + '$', 'i') },
-            { 
-                $push: { 
-                    historicoTurnos: novoTurnoManual,
-                    caixaEntrada: notif
-                } 
-            },
+            { $push: { historicoTurnos: novoTurnoManual, caixaEntrada: notif } },
             { new: true }
         );
 
-        if (!resultado) {
-            return res.status(404).json({ success: false, message: 'Membro alvo não encontrado na base de dados.' });
-        }
+        if (!resultado) return res.status(404).json({ success: false, message: 'Membro alvo não encontrado na base de dados.' });
 
         io.emit('atualizar_status_geral_tropa');
-        res.json({ success: true, message: `Adicionado com sucesso ${duracaoFormatada} para o operacional ${resultado.nickname}! Horas computadas no ranking e elegibilidade do sorteio.` });
+        res.json({ success: true, message: `Adicionado com sucesso ${duracaoFormatada} para ${resultado.nickname}! Computado no ranking e sorteio.` });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro interno ao adicionar tempo.' });
     }
@@ -367,11 +331,7 @@ app.put('/api/membro/status-plantao', async (req, res) => {
         const { nickname, emPlantao } = req.body;
         if (!nickname) return res.status(400).json({ success: false, message: 'Nickname obrigatório.' });
 
-        await User.updateOne(
-            { nickname: new RegExp('^' + nickname + '$', 'i') },
-            { $set: { emPlantao: !!emPlantao } }
-        );
-
+        await User.updateOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, { $set: { emPlantao: !!emPlantao } });
         io.emit('atualizar_status_geral_tropa');
         res.json({ success: true, message: 'Status de plantão atualizado!' });
     } catch (e) {
@@ -379,50 +339,123 @@ app.put('/api/membro/status-plantao', async (req, res) => {
     }
 });
 
-// --- ROTA DE REGISTAR/FINALIZAR TURNO (100% BLINDADA CONTRA CLONAGEM E FARME DE AURA) ---
+// --- ROTA DE REGISTAR TURNO (Sem limite máximo travado) ---
 app.post('/api/membro/turno', async (req, res) => {
     try {
         const { nickname, duracao, fotoComprovante } = req.body;
-        if (!nickname) {
-            return res.status(400).json({ success: false, message: 'Nickname não fornecido.' });
-        }
+        if (!nickname) return res.status(400).json({ success: false, message: 'Nickname não fornecido.' });
 
         if (!duracao || typeof duracao !== 'string' || !duracao.match(/^\d{2}:\d{2}:\d{2}$/)) {
             return res.status(400).json({ success: false, message: 'Duração de turno inválida.' });
         }
 
         const segundosEnviados = converterDuracaoParaSegundos(duracao);
-
-        if (segundosEnviados < 5) {
-            return res.status(400).json({ success: false, message: 'Turno muito curto para ser registado.' });
-        }
-
-        if (segundosEnviados > 28800) {
-            return res.status(400).json({ success: false, message: 'Duração excede o limite máximo permitido por turno.' });
-        }
+        if (segundosEnviados < 5) return res.status(400).json({ success: false, message: 'Turno muito curto para ser registado.' });
 
         const novoTurno = {
             data: new Date(),
-            duracao: converterSegundosParaDuracao(segundosEnviados),
+            duracao: duracao, // Salva exatamente a duração cumprida pelo membro sem cortes
             fotoComprovante: fotoComprovante || 'Sem foto'
         };
 
         const resultado = await User.updateOne(
             { nickname: new RegExp('^' + nickname + '$', 'i') },
-            { 
-                $push: { historicoTurnos: novoTurno },
-                $set: { emPlantao: false }
-            }
+            { $push: { historicoTurnos: novoTurno }, $set: { emPlantao: false } }
         );
 
-        if (resultado.matchedCount === 0) {
-            return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
-        }
+        if (resultado.matchedCount === 0) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
         io.emit('atualizar_status_geral_tropa');
         res.json({ success: true, message: 'Turno validado e registado com sucesso!' });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro ao guardar turno.' });
+    }
+});
+
+// --- SISTEMA DE PROVAS BASEADO NA BÍBLIA RP RIO RISE / EXÉRCITO BRASILEIRO ---
+app.get('/api/membro/provas/status/:nickname', async (req, res) => {
+    try {
+        const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }).lean();
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        const turnosValidos = (membro.historicoTurnos || []).filter(t => turnoEstaNoHorarioPermitido(t.data));
+        const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+        const totalHoras = totalSegundos / 3600;
+
+        const cargoAtual = membro.cargo || 'Soldado';
+        let provaDisponivelPara = null;
+        let horasNecessarias = 0;
+
+        if (cargoAtual === 'Soldado' || cargoAtual === 'Privado') {
+            horasNecessarias = 10;
+            if (totalHoras >= 10) provaDisponivelPara = 'Sargento';
+        } else if (cargoAtual === 'Sargento') {
+            horasNecessarias = 25;
+            if (totalHoras >= 25) provaDisponivelPara = 'Tenente';
+        } else if (cargoAtual === 'Tenente') {
+            horasNecessarias = 50;
+            if (totalHoras >= 50) provaDisponivelPara = 'Major';
+        }
+
+        const horasFaltando = Math.max(0, (horasNecessarias - totalHoras).toFixed(1));
+
+        res.json({
+            success: true,
+            totalHoras: totalHoras.toFixed(1),
+            cargoAtual,
+            provaDisponivelPara,
+            horasFaltando
+        });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao verificar status de provas.' });
+    }
+});
+
+app.post('/api/membro/provas/submeter', async (req, res) => {
+    try {
+        const { nickname, cargoAlvo, respostas } = req.body;
+        let gabarito = {};
+
+        if (cargoAlvo === 'Sargento') {
+            gabarito = { q1: 'a', q2: 'b', q3: 'b' };
+        } else if (cargoAlvo === 'Tenente') {
+            gabarito = { q1: 'a', q2: 'b', q3: 'b' };
+        } else if (cargoAlvo === 'Major') {
+            gabarito = { q1: 'a', q2: 'a', q3: 'c' };
+        }
+
+        let acertos = 0;
+        let totalPerguntas = Object.keys(gabarito).length;
+
+        if (respostas.q1 === gabarito.q1) acertos++;
+        if (respostas.q2 === gabarito.q2) acertos++;
+        if (respostas.q3 === gabarito.q3) acertos++;
+
+        const aprovado = (acertos / totalPerguntas) >= 0.7;
+
+        const membro = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        if (aprovado) {
+            membro.cargo = cargoAlvo;
+            membro.historicoPromocoes.push({ novoCargo: cargoAlvo, data: new Date() });
+            membro.provasRealizadas.push({ cargoAlvo, status: 'aprovado', data: new Date() });
+            membro.caixaEntrada.push({
+                titulo: '🎉 Aprovado na Prova!',
+                mensagem: `Parabéns! Foste aprovado na prova do Exército Brasileiro e promovido para <b>${cargoAlvo}</b>!`,
+                data: new Date()
+            });
+
+            await membro.save();
+            io.emit('atualizar_status_geral_tropa');
+            res.json({ success: true, aprovado: true, message: `Parabéns! Passaste na prova com ${acertos}/${totalPerguntas} acertos e foste promovido a ${cargoAlvo}!` });
+        } else {
+            membro.provasRealizadas.push({ cargoAlvo, status: 'reprovado', data: new Date() });
+            await membro.save();
+            res.json({ success: true, aprovado: false, message: `Infelizmente obtiviste ${acertos}/${totalPerguntas} acertos. Precisas de pelo menos 70% para passar na Bíblia RP.` });
+        }
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao processar prova.' });
     }
 });
 
@@ -443,7 +476,7 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
       const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoEhDeHoje(t.data));
       const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
-      return totalSegundosHoje >= 7200; // 2 horas mínimas
+      return totalSegundosHoje >= 7200;
     });
     const listaElegiveis = elegiveis.map(m => ({
       id: m._id,
@@ -491,7 +524,6 @@ async function executarSorteioAutomatico() {
 
             if (elegiveis.length > 0) {
                 const premiosLista = config.premios ? config.premios.split(',').map(p => p.trim()) : ['Prêmio Especial'];
-                
                 for (let i = 0; i < Math.min(config.qtdGanhadores || 1, elegiveis.length); i++) {
                   const randomIndex = Math.floor(Math.random() * elegiveis.length);
                   const escolhido = elegiveis.splice(randomIndex, 1)[0];
@@ -508,23 +540,12 @@ async function executarSorteioAutomatico() {
                       hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
                   });
                 }
-            } else {
-                io.to('sala_geral_salazar').emit('receber_mensagem', {
-                    nickname: 'SORTEIO OFICIAL',
-                    cargo: 'Comando',
-                    mensagem: `⚠️ O horário do sorteio agendado (${config.horarioAlvo}) chegou, mas nenhum operacional acumulou 2h de plantão HOJE.`,
-                    hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-                });
             }
-
             config.executado = true;
             await config.save();
         }
-    } catch (e) {
-        console.error(e);
-    }
+    } catch (e) { console.error(e); }
 }
-
 setInterval(executarSorteioAutomatico, 10000);
 
 app.post('/api/admin/sorteio/realizar', async (req, res) => {
@@ -539,7 +560,7 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
     });
 
     if (elegiveis.length === 0) {
-      return res.json({ success: false, message: 'Não há operacionais elegíveis com 2h+ cumpridas HOJE para realizar o sorteio.' });
+      return res.json({ success: false, message: 'Não há operacionais elegíveis com 2h+ cumpridas HOJE.' });
     }
 
     const premiosLista = premios ? premios.split(',').map(p => p.trim()) : ['Prêmio Especial'];
@@ -549,16 +570,8 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
       const randomIndex = Math.floor(Math.random() * elegiveis.length);
       const escolhido = elegiveis.splice(randomIndex, 1)[0];
       const premioSorteado = premiosLista[i % premiosLista.length];
-
-      ganhadores.push({
-        nickname: escolhido.nickname,
-        cargo: escolhido.cargo || 'Soldado',
-        premio: premioSorteado
-      });
-
-      await User.findByIdAndUpdate(escolhido._id, {
-        $push: { historicoSorteios: { descricaoPremio: premioSorteado, status: 'Contemplado', data: new Date() } }
-      });
+      ganhadores.push({ nickname: escolhido.nickname, cargo: escolhido.cargo || 'Soldado', premio: premioSorteado });
+      await User.findByIdAndUpdate(escolhido._id, { $push: { historicoSorteios: { descricaoPremio: premioSorteado, status: 'Contemplado', data: new Date() } } });
     }
 
     res.json({ success: true, ganhadores });
@@ -580,16 +593,13 @@ io.on('connection', (socket) => {
     atualizarEstadoOperacional(salaId);
   });
 
-  socket.on('chat_mensagem', (data) => {
-    io.to(data.salaId).emit('receber_mensagem', data);
-  });
+  socket.on('chat_mensagem', (data) => { io.to(data.salaId).emit('receber_mensagem', data); });
 
   socket.on('disconnect', () => {
     const user = usuariosOnline[socket.id];
     if (user) {
-      const salaId = user.salaId;
       delete usuariosOnline[socket.id];
-      atualizarEstadoOperacional(salaId);
+      atualizarEstadoOperacional(user.salaId);
     }
   });
 });
@@ -599,12 +609,11 @@ function atualizarEstadoOperacional(salaId) {
   const unicosMap = {};
   conexõesNaSala.forEach(u => { unicosMap[u.nickname] = u; });
   const listaFormatada = Object.values(unicosMap);
-
   io.to(salaId).emit('atualizar_usuarios_online', listaFormatada);
   io.emit('atualizar_status_adm', listaFormatada);
 }
 
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor rodando na porta ${PORT} 🚀 (Blindado e Integrado)`);
+  console.log(`Servidor rodando na porta ${PORT} 🚀 (Bíblia RP Rio Rise Ativa)`);
 });
