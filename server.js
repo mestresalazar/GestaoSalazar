@@ -99,7 +99,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-// --- HISTÓRICO DO MEMBRO ---
+// --- HISTÓRICO DO MEMBRO (COM SINCRONIZAÇÃO MULTI-DISPOSITIVO) ---
 app.get('/api/membro/historico/:nickname', async (req, res) => {
     try {
         const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }, '-password').lean();
@@ -115,6 +115,8 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
                 nickname: membro.nickname,
                 cargo: membro.cargo || 'Soldado',
                 status: membro.status || 'Ativo',
+                emPlantao: !!membro.emPlantao,
+                inicioPlantao: membro.inicioPlantao || null,
                 ultimoPlantao: ultimoTurno ? `Duração: ${ultimoTurno.duracao} em ${new Date(ultimoTurno.data).toLocaleDateString()}` : 'Nenhum plantão registado'
             },
             historicoTurnos: membro.historicoTurnos || [],
@@ -193,7 +195,7 @@ app.put('/api/admin/membro/:id', async (req, res) => {
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
         
         if (cargo) {
-            await User.findByIdAndUpdate(id, { $push: { historicoPromocoes: { novoCargo: cargo, data: new Date() } } });
+            await User.updateOne({ _id: id }, { $push: { historicoPromocoes: { novoCargo: cargo, data: new Date() } } });
         }
 
         io.emit('atualizar_status_geral_tropa');
@@ -278,7 +280,6 @@ app.post('/api/admin/notificar/ranking', async (req, res) => {
     }
 });
 
-// --- ROTA EXCLUSIVA DO MESTRE: INJEÇÃO DE TEMPO MANUAL ---
 app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
     try {
         const { adminNickname, targetNickname, horas, minutos, segundos, motivo } = req.body;
@@ -315,36 +316,42 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
             data: new Date()
         };
 
-        const resultado = await User.findOneAndUpdate(
+        const resultado = await User.updateOne(
             { nickname: new RegExp('^' + targetNickname.trim() + '$', 'i') },
-            { $push: { historicoTurnos: novoTurnoManual, caixaEntrada: notif } },
-            { new: true }
+            { $push: { historicoTurnos: novoTurnoManual, caixaEntrada: notif } }
         );
 
-        if (!resultado) return res.status(404).json({ success: false, message: 'Membro alvo não encontrado na base de dados.' });
+        if (resultado.matchedCount === 0) return res.status(404).json({ success: false, message: 'Membro alvo não encontrado na base de dados.' });
 
         io.emit('atualizar_status_geral_tropa');
-        res.json({ success: true, message: `Adicionado com sucesso ${duracaoFormatada} para ${resultado.nickname}! Computado no ranking e sorteio.` });
+        res.json({ success: true, message: `Adicionado com sucesso ${duracaoFormatada} para o alvo! Computado no ranking e sorteio.` });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Erro interno ao adicionar tempo.' });
+        console.error("ERRO AO ADICIONAR TEMPO:", error);
+        res.status(500).json({ success: false, message: 'Erro interno ao adicionar tempo: ' + error.message });
     }
 });
 
-// --- ROTA DE STATUS DE PLANTÃO ---
+// --- ROTA DE STATUS DE PLANTÃO COM SALVAMENTO DE INÍCIO NO SERVIDOR ---
 app.put('/api/membro/status-plantao', async (req, res) => {
     try {
-        const { nickname, emPlantao } = req.body;
+        const { nickname, emPlantao, inicioPlantao } = req.body;
         if (!nickname) return res.status(400).json({ success: false, message: 'Nickname obrigatório.' });
 
-        await User.updateOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, { $set: { emPlantao: !!emPlantao } });
+        const updateData = { emPlantao: !!emPlantao };
+        if (emPlantao) {
+            updateData.inicioPlantao = inicioPlantao ? new Date(inicioPlantao) : new Date();
+        } else {
+            updateData.inicioPlantao = null;
+        }
+
+        await User.updateOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, { $set: updateData });
         io.emit('atualizar_status_geral_tropa');
-        res.json({ success: true, message: 'Status de plantão atualizado!' });
+        res.json({ success: true, message: 'Status de plantão sincronizado com o servidor!' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao atualizar status.' });
     }
 });
 
-// --- ROTA DE REGISTAR TURNO ---
 app.post('/api/membro/turno', async (req, res) => {
     try {
         const { nickname, duracao, fotoComprovante } = req.body;
@@ -365,7 +372,7 @@ app.post('/api/membro/turno', async (req, res) => {
 
         const resultado = await User.updateOne(
             { nickname: new RegExp('^' + nickname + '$', 'i') },
-            { $push: { historicoTurnos: novoTurno }, $set: { emPlantao: false } }
+            { $push: { historicoTurnos: novoTurno }, $set: { emPlantao: false, inicioPlantao: null } }
         );
 
         if (resultado.matchedCount === 0) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
@@ -377,7 +384,6 @@ app.post('/api/membro/turno', async (req, res) => {
     }
 });
 
-// --- SISTEMA DE PROVAS COM VERIFICAÇÃO RIGOROSA DE COOLDOWN ---
 app.get('/api/membro/provas/status/:nickname', async (req, res) => {
     try {
         const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }).lean();
@@ -390,7 +396,7 @@ app.get('/api/membro/provas/status/:nickname', async (req, res) => {
                 const horasRestantes = Math.ceil((dataCooldown - agora) / (1000 * 60 * 60));
                 return res.json({
                     success: true,
-                    bloqueadoPorCooldown: true,
+                    bloqueadoByCooldown: true,
                     horasRestantes,
                     message: `Estás em cooldown devido a uma reprovação recente. Podes tentar novamente em cerca de ${horasRestantes} hora(s).`
                 });
@@ -507,7 +513,6 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
     }
 });
 
-// --- SORTEIOS E AGENDAMENTO ---
 app.get('/api/admin/sorteio/status', async (req, res) => {
   try {
     const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' }).lean();
@@ -523,7 +528,6 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
     const membros = await User.find({}, '-password').lean();
     
     const elegiveis = membros.filter(m => {
-      // Se tiver marcação de exclusão ativa e for de hoje, ignora
       if (m.sorteioExcluidoAte) {
         const dataExclusao = new Date(m.sorteioExcluidoAte);
         if (dataExclusao.getDate() === agora.getDate() &&
@@ -555,7 +559,6 @@ app.post('/api/admin/sorteio/agendar', async (req, res) => {
   try {
     const { dataAlvo, horarioAlvo, qtdGanhadores, premios } = req.body;
     
-    // Limpa a exclusão de todos ao agendar um novo sorteio
     await User.updateMany({}, { $set: { sorteioExcluidoAte: null } });
 
     await ConfigSorteio.findOneAndUpdate(
@@ -579,7 +582,6 @@ app.post('/api/admin/sorteio/agendar', async (req, res) => {
   }
 });
 
-// --- ROTA ADMIN: RESETAR ELEGÍVEIS (MARCA OS ATUAIS COMO EXCLUÍDOS DO CICLO SEM MEXER NAS HORAS) ---
 app.put('/api/admin/sorteio/resetar-elegiveis', async (req, res) => {
     try {
         const membros = await User.find({}, '-password').lean();
@@ -596,7 +598,6 @@ app.put('/api/admin/sorteio/resetar-elegiveis', async (req, res) => {
             }
         });
 
-        // Marca todos os elegíveis atuais com a data de hoje para sumirem instantaneamente da lista
         await User.updateMany(
             { _id: { $in: idsParaExcluir } },
             { $set: { sorteioExcluidoAte: agora } }
@@ -656,7 +657,7 @@ async function executarSorteioAutomatico() {
                   const escolhido = elegiveis.splice(randomIndex, 1)[0];
                   const premioSorteado = premiosLista[i % premiosLista.length];
 
-                  await User.findByIdAndUpdate(escolhido._id, {
+                  await User.updateOne({ _id: escolhido._id }, {
                     $push: { historicoSorteios: { descricaoPremio: premioSorteado, status: 'venceu', data: new Date() } }
                   });
 
@@ -708,7 +709,7 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
       const escolhido = elegiveis.splice(randomIndex, 1)[0];
       const premioSorteado = premiosLista[i % premiosLista.length];
       ganhadores.push({ nickname: escolhido.nickname, cargo: escolhido.cargo || 'Privado', premio: premioSorteado });
-      await User.findByIdAndUpdate(escolhido._id, { $push: { historicoSorteios: { descricaoPremio: premioSorteado, status: 'venceu', data: new Date() } } });
+      await User.updateOne({ _id: escolhido._id }, { $push: { historicoSorteios: { descricaoPremio: premioSorteado, status: 'venceu', data: new Date() } } });
     }
 
     res.json({ success: true, ganhadores });
@@ -717,7 +718,6 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
   }
 });
 
-// --- WEBSOCKETS ---
 const usuariosOnline = {}; 
 io.on('connection', (socket) => {
   socket.on('entrar_sala', (data) => {
@@ -752,5 +752,5 @@ function atualizarEstadoOperacional(salaId) {
 
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor rodando na porta ${PORT} 🚀 (Bíblia RP Rio Rise Ativa)`);
+  console.log(`Servidor rodando na porta ${PORT} 🚀`);
 });

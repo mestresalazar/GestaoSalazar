@@ -566,34 +566,6 @@
             cargo: user.cargo || 'Soldado'
         });
 
-        // Ouve se o Admin finalizou o turno deste membro à força (Com verificação segura)
-        socket.on('forcar_parar_turno', (data) => {
-            if (data && data.nickname && data.nickname.toLowerCase() === user.nickname.toLowerCase()) {
-                if (timerInterval) {
-                    clearInterval(timerInterval);
-                    timerInterval = null;
-                }
-                estadoTurno = 'parado';
-                
-                localStorage.removeItem(`turno_segundos_${user.nickname}`);
-                localStorage.removeItem(`turno_estado_${user.nickname}`);
-                localStorage.removeItem(`turno_foto_${user.nickname}`);
-                localStorage.removeItem(`turno_inicio_${user.nickname}`);
-                localStorage.removeItem(`turno_segundos_acumulados_${user.nickname}`);
-
-                const btnPausar = document.getElementById('btnPausar');
-                if (btnPausar) btnPausar.style.display = 'none';
-
-                const timerDisplay = document.getElementById('timerDisplay');
-                if (timerDisplay) timerDisplay.innerText = '00:00:00';
-                
-                mostrarModalCustomizado('Turno Encerrado', 'O Comando encerrou o teu plantão ativo no painel administrativo. O tempo foi computado no teu histórico.');
-                carregarCaixaEntrada();
-                verificarProgressoProvas();
-                carregarRanking();
-            }
-        });
-
         function carregarHistoricoChatLocal() {
             const chatBox = document.getElementById('chatBox');
             const mensagensSalvas = JSON.parse(localStorage.getItem('chat_historico_salazar')) || [];
@@ -745,7 +717,7 @@
         let timerInterval = null;
         let estadoTurno = localStorage.getItem(`turno_estado_${user.nickname}`) || 'parado';
 
-        // --- CÁLCULO SEGURO BASEADO NO TEMPO REAL DO RELÓGIO (TIMESTAMP) ---
+        // --- CÁLCULO SEGURO BASEADO NO TIMESTAMP DO SERVIDOR E DO DISPOSITIVO ---
         function calcularSegundosTotais() {
             if (estadoTurno === 'ativo') {
                 const timestampInicio = parseInt(localStorage.getItem(`turno_inicio_${user.nickname}`));
@@ -794,7 +766,27 @@
             }
         });
 
-        function restaurarEstadoTurno() {
+        async function restaurarEstadoTurno() {
+            try {
+                // Sincroniza o estado ativo diretamente com o servidor (para funcionar entre dispositivos diferentes)
+                const res = await fetch(`/api/membro/historico/${encodeURIComponent(user.nickname)}`);
+                const data = await res.json();
+
+                if (data.success && data.membro) {
+                    if (data.membro.emPlantao && data.membro.inicioPlantao) {
+                        estadoTurno = 'ativo';
+                        localStorage.setItem(`turno_estado_${user.nickname}`, 'ativo');
+                        localStorage.setItem(`turno_inicio_${user.nickname}`, new Date(data.membro.inicioPlantao).getTime());
+                    } else if (estadoTurno !== 'pausado') {
+                        estadoTurno = 'parado';
+                        localStorage.setItem(`turno_estado_${user.nickname}`, 'parado');
+                        localStorage.removeItem(`turno_inicio_${user.nickname}`);
+                    }
+                }
+            } catch (e) {
+                console.error('Erro ao sincronizar turno com o servidor:', e);
+            }
+
             atualizarDisplayTimer();
             const btnPausar = document.getElementById('btnPausar');
             const statusAnexo = document.getElementById('statusAnexo');
@@ -811,7 +803,6 @@
                     btnPausar.style.backgroundColor = 'rgba(234, 179, 8, 0.9)';
                     btnPausar.style.color = '#000';
                 }
-                
                 iniciarLoopTimer();
             } else if (estadoTurno === 'pausado') {
                 if (btnPausar) {
@@ -859,16 +850,21 @@
                 reader.readAsDataURL(file);
             }
 
+            const agoraTimestamp = Date.now();
             estadoTurno = 'ativo';
             localStorage.setItem(`turno_estado_${user.nickname}`, 'ativo');
-            localStorage.setItem(`turno_inicio_${user.nickname}`, Date.now());
+            localStorage.setItem(`turno_inicio_${user.nickname}`, agoraTimestamp);
             localStorage.setItem(`turno_segundos_acumulados_${user.nickname}`, 0);
 
             try {
                 await fetch('/api/membro/status-plantao', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nickname: user.nickname, emPlantao: true })
+                    body: JSON.stringify({ 
+                        nickname: user.nickname, 
+                        emPlantao: true,
+                        inicioPlantao: agoraTimestamp 
+                    })
                 });
             } catch (e) {
                 console.error('Erro ao atualizar status de plantão:', e);
@@ -916,15 +912,20 @@
                 }
                 mostrarModalCustomizado('Turno Pausado', 'O cronômetro foi congelado e o plantão pausado.');
             } else {
+                const agoraTimestamp = Date.now();
                 estadoTurno = 'ativo';
                 localStorage.setItem(`turno_estado_${user.nickname}`, 'ativo');
-                localStorage.setItem(`turno_inicio_${user.nickname}`, Date.now());
+                localStorage.setItem(`turno_inicio_${user.nickname}`, agoraTimestamp);
 
                 try {
                     await fetch('/api/membro/status-plantao', {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ nickname: user.nickname, emPlantao: true })
+                        body: JSON.stringify({ 
+                            nickname: user.nickname, 
+                            emPlantao: true,
+                            inicioPlantao: agoraTimestamp 
+                        })
                     });
                 } catch (e) {
                     console.error(e);
@@ -951,7 +952,7 @@
             const imagemBase64 = localStorage.getItem(`turno_foto_${user.nickname}`);
 
             if (!imagemBase64 || !imagemBase64.startsWith('data:image')) {
-                mostrarModalCustomizado('Atenção', 'Nenhum comprovante válido encontrado. Anexe o print novamente.');
+                mostrarModalCustomizado('Atenção', 'Nenhum comprovante válido encontrado neste dispositivo. Anexe o print novamente.');
                 return;
             }
             
