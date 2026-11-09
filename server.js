@@ -519,12 +519,20 @@ app.get('/api/admin/sorteio/status', async (req, res) => {
 
 app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
   try {
-    const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' }).lean();
-    const exluidosIds = (config && config.excluidosHoje) ? config.excluidosHoje.map(id => id.toString()) : [];
-
+    const agora = new Date();
     const membros = await User.find({}, '-password').lean();
+    
     const elegiveis = membros.filter(m => {
-      if (exluidosIds.includes(m._id.toString())) return false; 
+      // Se tiver marcação de exclusão ativa e for de hoje, ignora
+      if (m.sorteioExcluidoAte) {
+        const dataExclusao = new Date(m.sorteioExcluidoAte);
+        if (dataExclusao.getDate() === agora.getDate() &&
+            dataExclusao.getMonth() === agora.getMonth() &&
+            dataExclusao.getFullYear() === agora.getFullYear()) {
+          return false;
+        }
+      }
+
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
       const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoEhDeHoje(t.data));
       const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
@@ -547,9 +555,12 @@ app.post('/api/admin/sorteio/agendar', async (req, res) => {
   try {
     const { dataAlvo, horarioAlvo, qtdGanhadores, premios } = req.body;
     
+    // Limpa a exclusão de todos ao agendar um novo sorteio
+    await User.updateMany({}, { $set: { sorteioExcluidoAte: null } });
+
     await ConfigSorteio.findOneAndUpdate(
       { chave: 'sorteio_ativo' },
-      { dataAlvo, horarioAlvo, qtdGanhadores: parseInt(qtdGanhadores) || 1, premios: premios || 'Prêmio Especial', executado: false, excluidosHoje: [] },
+      { dataAlvo, horarioAlvo, qtdGanhadores: parseInt(qtdGanhadores) || 1, premios: premios || 'Prêmio Especial', executado: false },
       { upsert: true, new: true }
     );
 
@@ -568,11 +579,12 @@ app.post('/api/admin/sorteio/agendar', async (req, res) => {
   }
 });
 
-// --- ROTA ADMIN: RESETAR ELEGÍVEIS (EXCLUI OS ATUAIS DO CICLO SEM MEXER NAS HORAS DO RANKING) ---
+// --- ROTA ADMIN: RESETAR ELEGÍVEIS (MARCA OS ATUAIS COMO EXCLUÍDOS DO CICLO SEM MEXER NAS HORAS) ---
 app.put('/api/admin/sorteio/resetar-elegiveis', async (req, res) => {
     try {
         const membros = await User.find({}, '-password').lean();
         const idsParaExcluir = [];
+        const agora = new Date();
 
         membros.forEach(m => {
             if (m.historicoTurnos && m.historicoTurnos.length > 0) {
@@ -584,12 +596,15 @@ app.put('/api/admin/sorteio/resetar-elegiveis', async (req, res) => {
             }
         });
 
+        // Marca todos os elegíveis atuais com a data de hoje para sumirem instantaneamente da lista
+        await User.updateMany(
+            { _id: { $in: idsParaExcluir } },
+            { $set: { sorteioExcluidoAte: agora } }
+        );
+
         await ConfigSorteio.findOneAndUpdate(
             { chave: 'sorteio_ativo' },
-            { 
-                $set: { executado: false },
-                $addToSet: { excluidosHoje: { $each: idsParaExcluir } }
-            },
+            { $set: { executado: false } },
             { upsert: true, new: true }
         );
 
@@ -601,7 +616,7 @@ app.put('/api/admin/sorteio/resetar-elegiveis', async (req, res) => {
         await User.updateMany({}, { $push: { caixaEntrada: notif } });
 
         io.emit('atualizar_status_geral_tropa');
-        res.json({ success: true, message: 'Elegíveis deste ciclo limpos com sucesso! O ranking e as horas da tropa foram totalmente preservados.' });
+        res.json({ success: true, message: 'Elegíveis deste ciclo removidos com sucesso! O ranking e as horas da tropa foram totalmente preservados.' });
     } catch (e) {
         console.error("Erro ao resetar elegíveis:", e);
         res.status(500).json({ success: false, message: 'Erro ao resetar elegíveis do sorteio.' });
@@ -618,10 +633,16 @@ async function executarSorteioAutomatico() {
         const horaAtualStr = String(horaLocal.getHours()).padStart(2, '0') + ':' + String(horaLocal.getMinutes()).padStart(2, '0');
         
         if (horaAtualStr === config.horarioAlvo) {
-            const exluidosIds = (config.excluidosHoje) ? config.excluidosHoje.map(id => id.toString()) : [];
             const membros = await User.find({}, '-password').lean();
             const elegiveis = membros.filter(m => {
-              if (exluidosIds.includes(m._id.toString())) return false;
+              if (m.sorteioExcluidoAte) {
+                const dataExclusao = new Date(m.sorteioExcluidoAte);
+                if (dataExclusao.getDate() === agora.getDate() &&
+                    dataExclusao.getMonth() === agora.getMonth() &&
+                    dataExclusao.getFullYear() === agora.getFullYear()) {
+                  return false;
+                }
+              }
               if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
               const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoEhDeHoje(t.data));
               const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
@@ -657,12 +678,18 @@ setInterval(executarSorteioAutomatico, 10000);
 app.post('/api/admin/sorteio/realizar', async (req, res) => {
   try {
     const { qtdGanhadores, premios } = req.body;
-    const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' }).lean();
-    const exluidosIds = (config && config.excluidosHoje) ? config.excluidosHoje.map(id => id.toString()) : [];
-
+    const agora = new Date();
     const membros = await User.find({}, '-password').lean();
+    
     const elegiveis = membros.filter(m => {
-      if (exluidosIds.includes(m._id.toString())) return false;
+      if (m.sorteioExcluidoAte) {
+        const dataExclusao = new Date(m.sorteioExcluidoAte);
+        if (dataExclusao.getDate() === agora.getDate() &&
+            dataExclusao.getMonth() === agora.getMonth() &&
+            dataExclusao.getFullYear() === agora.getFullYear()) {
+          return false;
+        }
+      }
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
       const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoEhDeHoje(t.data));
       const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);

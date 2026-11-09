@@ -300,9 +300,7 @@
     </div>
 
     <div class="grid-container">
-        <!-- COLUNA ESQUERDA -->
         <div>
-            <!-- MÓDULO DE PROVAS EXÉRCITO BRASILEIRO (RIO RISE) -->
             <div class="card" id="cardModuloProvas" style="border: 2px dashed #38bdf8; display: none;">
                 <h3>🎓 Exame Oficial Exército Brasileiro (Rio Rise)</h3>
                 <p id="infoStatusProva" style="color: #e2e8f0; font-size: 13px; margin-bottom: 12px;">A verificar progresso...</p>
@@ -335,7 +333,6 @@
             </div>
         </div>
 
-        <!-- COLUNA DIREITA -->
         <div>
             <div class="card">
                 <h3>📥 Caixa de Entrada & Notificações</h3>
@@ -386,7 +383,6 @@
         </div>
     </div>
 
-    <!-- MODAL DE PROVA DINÂMICO (EXÉRCITO BRASILEIRO RIO RISE) -->
     <div id="modalProva" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 10000;">
         <div style="background: rgba(18, 31, 51, 0.98); width: 90%; max-width: 600px; border-radius: 8px; padding: 25px; border: 1px solid #38bdf8; max-height: 85vh; overflow-y: auto;">
             <h3 id="tituloModalProva" style="color: #38bdf8; margin-bottom: 15px;">Avaliação Oficial</h3>
@@ -447,7 +443,6 @@
                     const btn = document.getElementById('btnIniciarProva');
                     card.style.display = 'block';
 
-                    // Se estiver em cooldown, bloqueia e esconde o botão totalmente
                     if (data.bloqueadoPorCooldown) {
                         info.innerHTML = `⏳ <span style="color: #ef4444; font-weight: bold;">${data.message}</span>`;
                         btn.style.display = 'none';
@@ -480,66 +475,21 @@
             
             if (cargoDestinoAtual === 'Sargento') {
                 container.innerHTML = `
-                    <div style="margin-bottom: 15px;">
-                        <label style="font-size: 13px; color: #e2e8f0;">1. Qual é o canal padrão de rádio para comunicação de patrulha e operações táticas?</label><br>
-                        <input type="radio" name="q1" value="a" required> A) Canal Geral / Tático da Tropa<br>
-                        <input type="radio" name="q1" value="b"> B) Chat privado de amigos<br>
-                        <input type="radio" name="q1" value="c"> C) Megafone da cidade
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <label style="font-size: 13px; color: #e2e8f0;">2. Como deve proceder um Sargento ao identificar um elemento suspeito invadindo o perímetro da base do Rio Rise?</label><br>
-                        <input type="radio" name="q2" value="a" required> A) Ficar em silêncio e fugir<br>
-                        <input type="radio" name="q2" value="b"> B) Alertar via rádio tático, isolar a área e acionar o comando imediatamente<br>
-                        <input type="radio" name="q2" value="c"> C) Convidar o invasor para tomar café
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <label style="font-size: 13px; color: #e2e8f0;">3. Qual é a postura exigida ao reportar-se a um Oficial Superior (Tenente/Major/General)?</label><br>
-                        <input type="radio" name="q3" value="a" required> A) Tratar de igual para igual sem respeito<br>
-                        <input type="radio" name="q3" value="b"> B) Respeito absoluto, continência e uso da subordinação hierárquica correta<br>
-                        <input type="radio" name="q3" value="c"> C) Ignorar ordens directas
-                    </div>
+                    <div style="margin-bottom: 15px;"><label style="font-size: 13px; color: #e2e8f0;">1. Qual é o canal padrão de rádio para comunicação de patrulha e operações táticas?</label><br><input type="radio" name="q1" value="a" required> A) Canal Geral / Tático da Tropa<br><input type="radio" name="q1" value="b"> B) Chat privado de amigos<br><input type="radio" name="q1" value="c"> C) Megafone da cidade</div>
+                    <div style="margin-bottom: 15px;"><label style="font-size: 13px; color: #e2e8f0;">2. Como deve proceder um Sargento ao identificar um elemento suspeito invadindo o perímetro da base do Rio Rise?</label><br><input type="radio" name="q2" value="a" required> A) Ficar em silêncio e fugir<br><input type="radio" name="q2" value="b"> B) Alertar via rádio tático, isolar a área e acionar o comando imediatamente<br><input type="radio" name="q2" value="c"> C) Convidar o invasor para tomar café</div>
+                    <div style="margin-bottom: 15px;"><label style="font-size: 13px; color: #e2e8f0;">3. Qual é a postura exigida ao reportar-se a um Oficial Superior (Tenente/Major/General)?</label><br><input type="radio" name="q3" value="a" required> A) Tratar de igual para igual sem respeito<br><input type="radio" name="q3" value="b"> B) Respeito absoluto, continência e uso da subordinação hierárquica correta<br><input type="radio" name="q3" value="c"> C) Ignorar ordens directas</div>
                 `;
             } else if (cargoDestinoAtual === 'Tenente') {
                 container.innerHTML = `
-                    <div style="margin-bottom: 15px;">
-                        <label style="font-size: 13px; color: #e2e8f0;">1. Qual é a responsabilidade primária de um Tenente ao assumir o comando do quartel durante o turno?</label><br>
-                        <input type="radio" name="q1" value="a" required> A) Organizar a tropa, supervisionar os plantões e manter a disciplina<br>
-                        <input type="radio" name="q1" value="b"> B) Dormir no alojamento<br>
-                        <input type="radio" name="q1" value="c"> C) Fazer corridas ilegais com viaturas
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <label style="font-size: 13px; color: #e2e8f0;">2. Em caso de conflito direto ou megabatalha na cidade, qual é a diretriz de mobilização do Exército no Rio Rise?</label><br>
-                        <input type="radio" name="q2" value="a" required> A) Deserção em massa<br>
-                        <input type="radio" name="q2" value="b"> B) Organizar comboio blindado, garantir apoio logístico e seguir ordens do Estado-Maior<br>
-                        <input type="radio" name="q2" value="c"> C) Ignorar o conflito e pescar
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <label style="font-size: 13px; color: #e2e8f0;">3. Como o Tenente deve agir se detetar um subordinado a burlar o sistema de turnos (afk em plantão)?</label><br>
-                        <input type="radio" name="q3" value="a" required> A) Ocultar a infração para proteger amigo<br>
-                        <input type="radio" name="q3" value="b"> B) Registrar a infração, reportar ao comando para sanção e zerar o turno irregular<br>
-                        <input type="radio" name="q3" value="c"> C) Promover o subordinado por solidariedade
-                    </div>
+                    <div style="margin-bottom: 15px;"><label style="font-size: 13px; color: #e2e8f0;">1. Qual é a responsabilidade primária de um Tenente ao assumir o comando do quartel durante o turno?</label><br><input type="radio" name="q1" value="a" required> A) Organizar a tropa, supervisionar os plantões e manter a disciplina<br><input type="radio" name="q1" value="b"> B) Dormir no alojamento<br><input type="radio" name="q1" value="c"> C) Fazer corridas ilegais com viaturas</div>
+                    <div style="margin-bottom: 15px;"><label style="font-size: 13px; color: #e2e8f0;">2. Em caso de conflito direto ou megabatalha na cidade, qual é a diretriz de mobilização do Exército no Rio Rise?</label><br><input type="radio" name="q2" value="a" required> A) Deserção em massa<br><input type="radio" name="q2" value="b"> B) Organizar comboio blindado, garantir apoio logístico e seguir ordens do Estado-Maior<br><input type="radio" name="q2" value="c"> C) Ignorar o conflito e pescar</div>
+                    <div style="margin-bottom: 15px;"><label style="font-size: 13px; color: #e2e8f0;">3. Como o Tenente deve agir se detetar um subordinado a burlar o sistema de turnos (afk em plantão)?</label><br><input type="radio" name="q3" value="a" required> A) Ocultar a infração para proteger amigo<br><input type="radio" name="q3" value="b"> B) Registrar a infração, reportar ao comando para sanção e zerar o turno irregular<br><input type="radio" name="q3" value="c"> C) Promover o subordinado por solidariedade</div>
                 `;
             } else if (cargoDestinoAtual === 'Major') {
                 container.innerHTML = `
-                    <div style="margin-bottom: 15px;">
-                        <label style="font-size: 13px; color: #e2e8f0;">1. Quais são as atribuições estratégicas de um Major perante o Conselho de Oficiais e Generalato?</label><br>
-                        <input type="radio" name="q1" value="a" required> A) Participar das decisões de efetivo, promoções e planeamento tático da facção/organização<br>
-                        <input type="radio" name="q1" value="b"> B) Vender armas no mercado negro<br>
-                        <input type="radio" name="q1" value="c"> C) Limpar o quartel sozinho
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <label style="font-size: 13px; color: #e2e8f0;">2. Qual o procedimento para aplicação de sanções administrativas graves (demissão/exclusão) de membros da tropa?</label><br>
-                        <input type="radio" name="q2" value="a" required> A) Análise de histórico operacional completo e aval do comando superior<br>
-                        <input type="radio" name="q2" value="b"> B) Decisão impulsiva sem provas<br>
-                        <input type="radio" name="q2" value="c"> C) Banimento arbitrário sem justificativa
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <label style="font-size: 13px; color: #e2e8f0;">3. Como assegurar que os sorteios e métricas de horas do Exército no Rio Rise decorram sem fraudes?</label><br>
-                        <input type="radio" name="q3" value="a" required> A) Permitir clonagem de relógios<br>
-                        <input type="radio" name="q3" value="b"> B) Ignorar manipulações de tempo<br>
-                        <input type="radio" name="q3" value="c"> C) Auditoria rigorosa de prints, horários regulamentares e bloqueio de exploits
-                    </div>
+                    <div style="margin-bottom: 15px;"><label style="font-size: 13px; color: #e2e8f0;">1. Quais são as atribuições estratégicas de um Major perante o Conselho de Oficiais e Generalato?</label><br><input type="radio" name="q1" value="a" required> A) Participar das decisões de efetivo, promoções e planeamento tático da facção/organização<br><input type="radio" name="q1" value="b"> B) Vender armas no mercado negro<br><input type="radio" name="q1" value="c"> C) Limpar o quartel sozinho</div>
+                    <div style="margin-bottom: 15px;"><label style="font-size: 13px; color: #e2e8f0;">2. Qual o procedimento para aplicação de sanções administrativas graves (demissão/exclusão) de membros da tropa?</label><br><input type="radio" name="q2" value="a" required> A) Análise de histórico operacional completo e aval do comando superior<br><input type="radio" name="q2" value="b"> B) Decisão impulsiva sem provas<br><input type="radio" name="q2" value="c"> C) Banimento arbitrário sem justificativa</div>
+                    <div style="margin-bottom: 15px;"><label style="font-size: 13px; color: #e2e8f0;">3. Como assegurar que os sorteios e métricas de horas do Exército no Rio Rise decorram sem fraudes?</label><br><input type="radio" name="q3" value="a" required> A) Permitir clonagem de relógios<br><input type="radio" name="q3" value="b"> B) Ignorar manipulações de tempo<br><input type="radio" name="q3" value="c"> C) Auditoria rigorosa de prints, horários regulamentares e bloqueio de exploits</div>
                 `;
             }
         }
@@ -566,7 +516,6 @@
                             localStorage.setItem('user', JSON.stringify(user));
                             window.location.reload();
                         } else {
-                            // Atualiza a tela para sumir com o botão e mostrar o cooldown
                             verificarProgressoProvas();
                         }
                     });
@@ -615,6 +564,34 @@
             salaId: 'sala_geral_salazar', 
             nickname: user.nickname, 
             cargo: user.cargo || 'Soldado'
+        });
+
+        // Ouve se o Admin finalizou o turno deste membro à força (Com verificação segura)
+        socket.on('forcar_parar_turno', (data) => {
+            if (data && data.nickname && data.nickname.toLowerCase() === user.nickname.toLowerCase()) {
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
+                estadoTurno = 'parado';
+                
+                localStorage.removeItem(`turno_segundos_${user.nickname}`);
+                localStorage.removeItem(`turno_estado_${user.nickname}`);
+                localStorage.removeItem(`turno_foto_${user.nickname}`);
+                localStorage.removeItem(`turno_inicio_${user.nickname}`);
+                localStorage.removeItem(`turno_segundos_acumulados_${user.nickname}`);
+
+                const btnPausar = document.getElementById('btnPausar');
+                if (btnPausar) btnPausar.style.display = 'none';
+
+                const timerDisplay = document.getElementById('timerDisplay');
+                if (timerDisplay) timerDisplay.innerText = '00:00:00';
+                
+                mostrarModalCustomizado('Turno Encerrado', 'O Comando encerrou o teu plantão ativo no painel administrativo. O tempo foi computado no teu histórico.');
+                carregarCaixaEntrada();
+                verificarProgressoProvas();
+                carregarRanking();
+            }
         });
 
         function carregarHistoricoChatLocal() {
@@ -781,7 +758,8 @@
             const horas = String(Math.floor(segundosTotais / 3600)).padStart(2, '0');
             const minutos = String(Math.floor((segundosTotais % 3600) / 60)).padStart(2, '0');
             const segundos = String(segundosTotais % 60).padStart(2, '0');
-            document.getElementById('timerDisplay').innerText = `${horas}:${minutos}:${segundos}`;
+            const display = document.getElementById('timerDisplay');
+            if (display) display.innerText = `${horas}:${minutos}:${segundos}`;
             return segundosTotais;
         }
 
@@ -791,23 +769,27 @@
             const statusAnexo = document.getElementById('statusAnexo');
             const fotoSalva = localStorage.getItem(`turno_foto_${user.nickname}`);
 
-            if (fotoSalva) {
+            if (fotoSalva && statusAnexo) {
                 statusAnexo.innerText = '✅ Print protegido e pronto na memória!';
             }
 
             if (estadoTurno === 'ativo') {
-                btnPausar.style.display = 'block';
-                btnPausar.innerText = 'Pausar Turno';
-                btnPausar.style.backgroundColor = 'rgba(234, 179, 8, 0.9)';
-                btnPausar.style.color = '#000';
+                if (btnPausar) {
+                    btnPausar.style.display = 'block';
+                    btnPausar.innerText = 'Pausar Turno';
+                    btnPausar.style.backgroundColor = 'rgba(234, 179, 8, 0.9)';
+                    btnPausar.style.color = '#000';
+                }
                 
                 timerInterval = setInterval(() => {
                     atualizarDisplayTimer();
                 }, 1000);
             } else if (estadoTurno === 'pausado') {
-                btnPausar.style.display = 'block';
-                btnPausar.innerText = 'Retomar Turno';
-                btnPausar.style.backgroundColor = 'rgba(34, 197, 94, 0.9)';
+                if (btnPausar) {
+                    btnPausar.style.display = 'block';
+                    btnPausar.innerText = 'Retomar Turno';
+                    btnPausar.style.backgroundColor = 'rgba(34, 197, 94, 0.9)';
+                }
             }
         }
         restaurarEstadoTurno();
@@ -818,10 +800,8 @@
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     localStorage.setItem(`turno_foto_${user.nickname}`, e.target.result);
-                    document.getElementById('statusAnexo').innerHTML = `✅ Print carregado: <b>${file.name || 'Imagem'}</b>`;
-                };
-                reader.onerror = function() {
-                    document.getElementById('statusAnexo').innerHTML = `<span style="color: #ef4444;">Erro ao processar imagem.</span>`;
+                    const statusAnexo = document.getElementById('statusAnexo');
+                    if (statusAnexo) statusAnexo.innerHTML = `✅ Print carregado: <b>${file.name || 'Imagem'}</b>`;
                 };
                 reader.readAsDataURL(file);
             }
@@ -836,12 +816,12 @@
             const fotoSalva = localStorage.getItem(`turno_foto_${user.nickname}`);
             const fileInput = document.getElementById('fotoComprovante');
 
-            if (!fotoSalva && fileInput.files.length === 0) {
+            if (!fotoSalva && (!fileInput || fileInput.files.length === 0)) {
                 mostrarModalCustomizado('Atenção', 'É obrigatório anexar a foto ou print do seu turno antes de iniciar!');
                 return;
             }
 
-            if (!fotoSalva && fileInput.files.length > 0) {
+            if (!fotoSalva && fileInput && fileInput.files.length > 0) {
                 const file = fileInput.files[0];
                 const reader = new FileReader();
                 reader.onload = function(e) {
@@ -866,17 +846,19 @@
             }
 
             const btnPausar = document.getElementById('btnPausar');
-            btnPausar.style.display = 'block';
-            btnPausar.innerText = 'Pausar Turno';
-            btnPausar.style.backgroundColor = 'rgba(234, 179, 8, 0.9)';
-            btnPausar.style.color = '#000';
+            if (btnPausar) {
+                btnPausar.style.display = 'block';
+                btnPausar.innerText = 'Pausar Turno';
+                btnPausar.style.backgroundColor = 'rgba(234, 179, 8, 0.9)';
+                btnPausar.style.color = '#000';
+            }
 
             clearInterval(timerInterval);
             timerInterval = setInterval(() => {
                 atualizarDisplayTimer();
             }, 1000);
             
-            mostrarModalCustomizado('Sucesso', 'Check-in registado! Estás de plantão oficial (status 🟡 visível no painel ADM).');
+            mostrarModalCustomizado('Sucesso', 'Check-in registado! Estás de plantão oficial.');
         }
 
         async function alternarPausa() {
@@ -905,8 +887,10 @@
                     console.error(e);
                 }
 
-                btnPausar.innerText = 'Retomar Turno';
-                btnPausar.style.backgroundColor = 'rgba(34, 197, 94, 0.9)';
+                if (btnPausar) {
+                    btnPausar.innerText = 'Retomar Turno';
+                    btnPausar.style.backgroundColor = 'rgba(34, 197, 94, 0.9)';
+                }
                 mostrarModalCustomizado('Turno Pausado', 'O cronômetro foi congelado e o plantão pausado.');
             } else {
                 estadoTurno = 'ativo';
@@ -923,9 +907,11 @@
                     console.error(e);
                 }
 
-                btnPausar.innerText = 'Pausar Turno';
-                btnPausar.style.backgroundColor = 'rgba(234, 179, 8, 0.9)';
-                btnPausar.style.color = '#000';
+                if (btnPausar) {
+                    btnPausar.innerText = 'Pausar Turno';
+                    btnPausar.style.backgroundColor = 'rgba(234, 179, 8, 0.9)';
+                    btnPausar.style.color = '#000';
+                }
                 
                 timerInterval = setInterval(() => {
                     atualizarDisplayTimer();
@@ -950,9 +936,11 @@
             
             clearInterval(timerInterval);
             timerInterval = null;
-            document.getElementById('btnPausar').style.display = 'none';
+            const btnPausar = document.getElementById('btnPausar');
+            if (btnPausar) btnPausar.style.display = 'none';
 
-            const tempoFinal = document.getElementById('timerDisplay').innerText;
+            const display = document.getElementById('timerDisplay');
+            const tempoFinal = display ? display.innerText : '00:00:00';
 
             try {
                 const response = await fetch('/api/membro/turno', {
@@ -979,8 +967,10 @@
                     
                     estadoTurno = 'parado';
 
-                    document.getElementById('fotoComprovante').value = '';
-                    document.getElementById('statusAnexo').innerText = '';
+                    const fotoComp = document.getElementById('fotoComprovante');
+                    const statusAnexo = document.getElementById('statusAnexo');
+                    if (fotoComp) fotoComp.value = '';
+                    if (statusAnexo) statusAnexo.innerText = '';
                     atualizarDisplayTimer();
                 } else {
                     mostrarModalCustomizado('Erro', 'Erro ao gravar no histórico: ' + data.message);
