@@ -303,7 +303,7 @@
                 <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                     <button class="btn-action" style="background-color: rgba(2, 132, 199, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="salvarConfiguracaoSorteio()">💾 Salvar Agendamento</button>
                     <button class="btn-action" style="background-color: rgba(22, 163, 74, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="executarSorteioImediato()">🎲 Forçar Sorteio Imediato</button>
-                    <button class="btn-action" style="background-color: rgba(220, 38, 38, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="resetarElegiveisSorteio()">🔄 Resetar Elegíveis (Limpar Turnos de Hoje)</button>
+                    <button class="btn-action" style="background-color: rgba(220, 38, 38, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="resetarElegiveisSorteio()">🔄 Resetar Elegíveis deste Ciclo</button>
                 </div>
 
                 <div style="margin-top: 15px; border-top: 1px solid rgba(56, 189, 248, 0.2); padding-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
@@ -600,7 +600,7 @@
 
         async function carregarElegiveisSorteio() {
             try {
-                const res = await fetch('/api/admin/sorteio/elegiveis');
+                const res = await fetch('/api/admin/sorteio/elegiveis?_=' + new Date().getTime());
                 const data = await res.json();
                 const container = document.getElementById('listaElegiveisSorteio');
                 container.innerHTML = '';
@@ -614,7 +614,7 @@
                         container.appendChild(div);
                     });
                 } else {
-                    container.innerHTML = `<span style="color: #ef4444;">Nenhum operacional elegível com 2h+ cumpridas HOJE.</span>`;
+                    container.innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível com 2h+ cumpridas HOJE neste ciclo.</span>`;
                 }
             } catch (e) {
                 console.error(e);
@@ -724,10 +724,13 @@
         async function resetarElegiveisSorteio() {
             mostrarModalCustomizado(
                 'Confirmação de Reset de Elegíveis',
-                'Tem a certeza que deseja limpar os turnos de hoje? Isto vai remover todos da lista de elegíveis do sorteio diário para que possam recomeçar a contagem do dia.',
+                'Tem a certeza que deseja limpar os elegíveis deste ciclo? Os nomes vão sair da lista instantaneamente, mantendo as horas do ranking intactas.',
                 'confirmacao',
                 async () => {
                     try {
+                        // Limpa imediatamente na tela para feedback visual instantâneo
+                        document.getElementById('listaElegiveisSorteio').innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível com 2h+ cumpridas HOJE neste ciclo.</span>`;
+
                         const res = await fetch('/api/admin/sorteio/resetar-elegiveis', { method: 'PUT' });
                         const data = await res.json();
                         if (data.success) {
