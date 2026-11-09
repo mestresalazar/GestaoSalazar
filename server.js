@@ -377,21 +377,24 @@ app.post('/api/membro/turno', async (req, res) => {
     }
 });
 
-// --- SISTEMA DE PROVAS COM COOLDOWN DE 24 HORAS SEGURO ---
+// --- SISTEMA DE PROVAS COM VERIFICAÇÃO RIGOROSA DE COOLDOWN ---
 app.get('/api/membro/provas/status/:nickname', async (req, res) => {
     try {
         const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }).lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
-        // Validação estrita de cooldown de 24 horas
-        if (membro.cooldownProvaAte && new Date() < new Date(membro.cooldownProvaAte)) {
-            const horasRestantes = Math.ceil((new Date(membro.cooldownProvaAte) - new Date()) / (1000 * 60 * 60));
-            return res.json({
-                success: true,
-                bloqueadoPorCooldown: true,
-                horasRestantes,
-                message: `Estás em cooldown devido a uma reprovação recente. Podes tentar novamente em cerca de ${horasRestantes} hora(s).`
-            });
+        if (membro.cooldownProvaAte) {
+            const dataCooldown = new Date(membro.cooldownProvaAte);
+            const agora = new Date();
+            if (agora < dataCooldown) {
+                const horasRestantes = Math.ceil((dataCooldown - agora) / (1000 * 60 * 60));
+                return res.json({
+                    success: true,
+                    bloqueadoPorCooldown: true,
+                    horasRestantes,
+                    message: `Estás em cooldown devido a uma reprovação recente. Podes tentar novamente em cerca de ${horasRestantes} hora(s).`
+                });
+            }
         }
 
         const turnosValidos = (membro.historicoTurnos || []).filter(t => turnoEstaNoHorarioPermitido(t.data));
@@ -435,9 +438,11 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
         const membro = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
-        // Validação defensiva no backend para impedir submissão durante o cooldown
-        if (membro.cooldownProvaAte && new Date() < new Date(membro.cooldownProvaAte)) {
-            return res.status(400).json({ success: false, message: 'Tentativa bloqueada. Estás no período de cooldown de 24 horas.' });
+        if (membro.cooldownProvaAte) {
+            const dataCooldown = new Date(membro.cooldownProvaAte);
+            if (new Date() < dataCooldown) {
+                return res.status(400).json({ success: false, message: 'Tentativa bloqueada. Estás no período de cooldown de 24 horas.' });
+            }
         }
 
         let gabarito = {};
@@ -536,15 +541,57 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
 app.post('/api/admin/sorteio/agendar', async (req, res) => {
   try {
     const { dataAlvo, horarioAlvo, qtdGanhadores, premios } = req.body;
+    
     await ConfigSorteio.findOneAndUpdate(
       { chave: 'sorteio_ativo' },
       { dataAlvo, horarioAlvo, qtdGanhadores: parseInt(qtdGanhadores) || 1, premios: premios || 'Prêmio Especial', executado: false },
       { upsert: true, new: true }
     );
-    res.json({ success: true, message: 'Sorteio agendado com sucesso!' });
+
+    const notifSorteio = {
+      titulo: '🎁 Novo Sorteio Agendado!',
+      mensagem: `O Comando agendou um novo sorteio para hoje às <b>${horarioAlvo}</b>.<br><b>Prémios:</b> ${premios || 'Prêmio Especial'}<br>Cumpre pelo menos 2h de plantão HOJE para participar automaticamente!`,
+      data: new Date()
+    };
+
+    await User.updateMany({}, { $push: { caixaEntrada: notifSorteio } });
+
+    res.json({ success: true, message: 'Sorteio agendado com sucesso e notificação enviada à tropa!' });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Erro ao salvar agendamento.' });
+    console.error("Erro ao agendar sorteio:", err);
+    res.status(500).json({ success: false, message: 'Erro ao salvar agendamento e notificar.' });
   }
+});
+
+// --- ROTA ADMIN: RESETAR APENAS OS TURNOS DE HOJE PARA LIMPAR ELEGÍVEIS ---
+app.put('/api/admin/sorteio/resetar-elegiveis', async (req, res) => {
+    try {
+        const membros = await User.find({});
+        for (let m of membros) {
+            // Filtra e mantém apenas os turnos que NÃO são de hoje
+            const turnosAntigos = (m.historicoTurnos || []).filter(t => !turnoEhDeHoje(t.data));
+            await User.findByIdAndUpdate(m._id, { $set: { historicoTurnos: turnosAntigos } });
+        }
+
+        await ConfigSorteio.findOneAndUpdate(
+            { chave: 'sorteio_ativo' },
+            { $set: { executado: false } },
+            { upsert: true }
+        );
+
+        const notif = {
+            titulo: '🔄 Sorteio Diário Reiniciado',
+            mensagem: 'O Comando limpou os turnos de hoje para iniciar uma nova contagem para o sorteio.',
+            data: new Date()
+        };
+        await User.updateMany({}, { $push: { caixaEntrada: notif } });
+
+        io.emit('atualizar_status_geral_tropa');
+        res.json({ success: true, message: 'Turnos de hoje limpos! Lista de elegíveis reiniciada com sucesso.' });
+    } catch (e) {
+        console.error("Erro ao resetar elegíveis de hoje:", e);
+        res.status(500).json({ success: false, message: 'Erro ao resetar elegíveis do dia.' });
+    }
 });
 
 async function executarSorteioAutomatico() {
@@ -573,13 +620,13 @@ async function executarSorteioAutomatico() {
                   const premioSorteado = premiosLista[i % premiosLista.length];
 
                   await User.findByIdAndUpdate(escolhido._id, {
-                    $push: { historicoSorteios: { descricaoPremio: premioSorteado, status: 'Contemplado', data: new Date() } }
+                    $push: { historicoSorteios: { descricaoPremio: premioSorteado, status: 'venceu', data: new Date() } }
                   });
 
                   io.to('sala_geral_salazar').emit('receber_mensagem', {
                       nickname: 'SORTEIO OFICIAL',
                       cargo: 'Comando',
-                      mensagem: `🏆 O operacional ${escolhido.nickname} (${escolhido.cargo || 'Soldado'}) cumpriu 2h+ HOJE e ganhou o sorteio: ${premioSorteado}!`,
+                      mensagem: `🏆 O operacional ${escolhido.nickname} (${escolhido.cargo || 'Privado'}) cumpriu 2h+ HOJE e ganhou o sorteio: ${premioSorteado}!`,
                       hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
                   });
                 }
@@ -613,8 +660,8 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
       const randomIndex = Math.floor(Math.random() * elegiveis.length);
       const escolhido = elegiveis.splice(randomIndex, 1)[0];
       const premioSorteado = premiosLista[i % premiosLista.length];
-      ganhadores.push({ nickname: escolhido.nickname, cargo: escolhido.cargo || 'Soldado', premio: premioSorteado });
-      await User.findByIdAndUpdate(escolhido._id, { $push: { historicoSorteios: { descricaoPremio: premioSorteado, status: 'Contemplado', data: new Date() } } });
+      ganhadores.push({ nickname: escolhido.nickname, cargo: escolhido.cargo || 'Privado', premio: premioSorteado });
+      await User.findByIdAndUpdate(escolhido._id, { $push: { historicoSorteios: { descricaoPremio: premioSorteado, status: 'venceu', data: new Date() } } });
     }
 
     res.json({ success: true, ganhadores });
@@ -629,7 +676,7 @@ io.on('connection', (socket) => {
   socket.on('entrar_sala', (data) => {
     let salaId = typeof data === 'string' ? data : (data.salaId || 'sala_geral_salazar');
     let nickname = typeof data === 'string' ? 'Operacional' : (data.nickname || 'Operacional');
-    let cargo = typeof data === 'string' ? 'Soldado' : (data.cargo || 'Soldado');
+    let cargo = typeof data === 'string' ? 'Privado' : (data.cargo || 'Privado');
 
     socket.join(salaId);
     usuariosOnline[socket.id] = { nickname, cargo, salaId };
@@ -658,5 +705,5 @@ function atualizarEstadoOperacional(salaId) {
 
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor rodando na porta ${PORT} 🚀 (Bíblia RP Rio Rise Ativa com Cooldown 24h Blindado)`);
+  console.log(`Servidor rodando na porta ${PORT} 🚀 (Bíblia RP Rio Rise Ativa)`);
 });

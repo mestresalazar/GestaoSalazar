@@ -253,7 +253,6 @@
                 <h3>👥 Gerenciamento de Efetivo, Históricos e Promoções</h3>
                 <p style="color: #e2e8f0; margin-bottom: 15px; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Consulte os plantões recentes, histórico operacional completo e faça alterações hierárquicas.</p>
                 
-                <!-- Container com altura máxima e scroll vertical -->
                 <div style="max-height: 320px; overflow-y: auto; border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; background: rgba(15, 23, 42, 0.5);">
                     <table>
                         <thead>
@@ -304,6 +303,7 @@
                 <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                     <button class="btn-action" style="background-color: rgba(2, 132, 199, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="salvarConfiguracaoSorteio()">💾 Salvar Agendamento</button>
                     <button class="btn-action" style="background-color: rgba(22, 163, 74, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="executarSorteioImediato()">🎲 Forçar Sorteio Imediato</button>
+                    <button class="btn-action" style="background-color: rgba(220, 38, 38, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="resetarElegiveisSorteio()">🔄 Resetar Elegíveis (Limpar Turnos de Hoje)</button>
                 </div>
 
                 <div style="margin-top: 15px; border-top: 1px solid rgba(56, 189, 248, 0.2); padding-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
@@ -716,6 +716,30 @@
                     } catch (e) {
                         console.error(e);
                         mostrarModalCustomizado('Erro', 'Erro ao processar o sorteio.');
+                    }
+                }
+            );
+        }
+
+        async function resetarElegiveisSorteio() {
+            mostrarModalCustomizado(
+                'Confirmação de Reset de Elegíveis',
+                'Tem a certeza que deseja limpar os turnos de hoje? Isto vai remover todos da lista de elegíveis do sorteio diário para que possam recomeçar a contagem do dia.',
+                'confirmacao',
+                async () => {
+                    try {
+                        const res = await fetch('/api/admin/sorteio/resetar-elegiveis', { method: 'PUT' });
+                        const data = await res.json();
+                        if (data.success) {
+                            mostrarModalCustomizado('Sucesso', data.message);
+                            carregarElegiveisSorteio();
+                            carregarEfetivo();
+                        } else {
+                            mostrarModalCustomizado('Erro', data.message);
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        mostrarModalCustomizado('Erro', 'Erro de conexão ao resetar elegíveis.');
                     }
                 }
             );
