@@ -25,6 +25,9 @@ const UserSchema = new mongoose.Schema({
     // Cooldown de 24 horas após reprovação na prova
     cooldownProvaAte: { type: Date, default: null },
 
+    // Controlo de elegibilidade do sorteio diário (reseta sem apagar horas do ranking)
+    sorteioExcluidoAte: { type: Date, default: null },
+
     // Personalização de Perfil
     avatarUrl: { type: String, default: '/images/default-avatar.png' },
     emojiStatus: { type: String, default: '🎖️' },
