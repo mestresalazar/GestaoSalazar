@@ -302,7 +302,8 @@
 
                 <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                     <button class="btn-action" style="background-color: rgba(2, 132, 199, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="salvarConfiguracaoSorteio()">💾 Salvar Agendamento</button>
-                    <button class="btn-action" style="background-color: rgba(22, 163, 74, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="executarSorteioImediato()">🎲 Forçar Sorteio Imediato</button>
+                    <button class="btn-action" style="background-color: rgba(22, 163, 74, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="executarSorteioImediato()">🎲 Forçar Sorteio (2h+)</button>
+                    <button class="btn-action" style="background-color: rgba(147, 51, 234, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="executarSorteioGeral()">🎲 Sorteio Geral (1 Turno+)</button>
                     <button class="btn-action" style="background-color: rgba(220, 38, 38, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="resetarElegiveisSorteio()">🔄 Resetar Elegíveis deste Ciclo</button>
                 </div>
 
@@ -368,7 +369,6 @@
         let listaMembrosCache = [];
         let usuariosOnlineSocket = [];
 
-        // Socket.io com reconexão automática e tratamento anti-bfcache
         const socket = io({
             reconnection: true,
             reconnectionAttempts: 10,
@@ -689,8 +689,8 @@
             const premios = document.getElementById('sorteioPremios').value;
 
             mostrarModalCustomizado(
-                'Confirmação de Sorteio Imediato',
-                `Deseja efetuar o sorteio imediato agora para ${qtdGanhadores} ganhador(es) com 2h+ cumpridas HOJE?`,
+                'Confirmação de Sorteio Imediato (2h+)',
+                `Deseja efetuar o sorteio imediato para ${qtdGanhadores} ganhador(es) elegíveis com 2h+ cumpridas?`,
                 'confirmacao',
                 async () => {
                     try {
@@ -702,7 +702,7 @@
                         const data = await res.json();
 
                         if (data.success) {
-                            let resultadoHtml = '🎉 <b>Ganhadores Sorteados (Imediato):</b><br>';
+                            let resultadoHtml = '🎉 <b>Ganhadores Sorteados (Elegíveis 2h+):</b><br>';
                             data.ganhadores.forEach(g => {
                                 resultadoHtml += `• ${g.nickname} (${g.cargo}) levou: <b>${g.premio}</b><br>`;
                                 
@@ -722,6 +722,49 @@
                     } catch (e) {
                         console.error(e);
                         mostrarModalCustomizado('Erro', 'Erro ao processar o sorteio.');
+                    }
+                }
+            );
+        }
+
+        async function executarSorteioGeral() {
+            const qtdGanhadores = document.getElementById('sorteioQtd').value;
+            const premios = document.getElementById('sorteioPremios').value;
+
+            mostrarModalCustomizado(
+                'Confirmação de Sorteio Geral (1 Turno+)',
+                `Deseja efetuar o sorteio geral entre <b>todos</b> que têm pelo menos 1 turno salvo neste ciclo (sem exigência de 2h)?`,
+                'confirmacao',
+                async () => {
+                    try {
+                        const res = await fetch('/api/admin/sorteio/realizar-geral', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ qtdGanhadores, premios })
+                        });
+                        const data = await res.json();
+
+                        if (data.success) {
+                            let resultadoHtml = '🎉 <b>Ganhadores do Sorteio Geral (1 Turno+):</b><br>';
+                            data.ganhadores.forEach(g => {
+                                resultadoHtml += `• ${g.nickname} (${g.cargo}) levou: <b>${g.premio}</b><br>`;
+                                
+                                socket.emit('chat_mensagem', {
+                                    salaId: 'sala_geral_salazar',
+                                    nickname: 'SORTEIO GERAL',
+                                    cargo: 'Comando',
+                                    mensagem: `🏆 O operacional ${g.nickname} (${g.cargo}) foi contemplado no sorteio geral (1 turno+) e ganhou: ${g.premio}!`
+                                });
+                            });
+
+                            document.getElementById('resultadoSorteio').innerHTML = resultadoHtml;
+                            mostrarModalCustomizado('Sucesso', 'Sorteio geral executado com sucesso!');
+                        } else {
+                            mostrarModalCustomizado('Aviso', data.message);
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        mostrarModalCustomizado('Erro', 'Erro ao processar o sorteio geral.');
                     }
                 }
             );

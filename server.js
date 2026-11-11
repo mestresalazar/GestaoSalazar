@@ -39,7 +39,6 @@ function converterSegundosParaDuracao(segundosTotais) {
   return `${horas}:${minutos}:${segundos}`;
 }
 
-// --- VALIDAÇÃO DE HORÁRIO RIGOROSA EM UTC-3 (BRASÍLIA) ---
 function turnoEstaNoHorarioPermitido(dataTurno) {
     if (!dataTurno) return false;
     const d = new Date(dataTurno);
@@ -48,12 +47,9 @@ function turnoEstaNoHorarioPermitido(dataTurno) {
     return (hora >= 17 && hora <= 23) || (hora >= 0 && hora < 2);
 }
 
-// --- NOVO CICLO OPERACIONAL: Considera madrugada (00:00-02:10) como pertencente ao dia anterior ---
 function turnoPertenceAoCicloAtual(dataTurno) {
     if (!dataTurno) return false;
     const d = new Date(dataTurno);
-    
-    // Pega a data e hora atual em Brasília
     const agoraStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
     const agora = new Date(agoraStr);
     const horaAtual = agora.getHours();
@@ -61,7 +57,6 @@ function turnoPertenceAoCicloAtual(dataTurno) {
     const dBrasilStr = d.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
     const dBrasil = new Date(dBrasilStr);
 
-    // Se agora estamos na madrugada (entre 00:00 e 02:10), o dia operacional válido inclui a noite de ontem (17h+) e a madrugada de hoje (<02:10)
     if (horaAtual >= 0 && horaAtual < 3) {
         const ontem = new Date(agora);
         ontem.setDate(ontem.getDate() - 1);
@@ -72,7 +67,6 @@ function turnoPertenceAoCicloAtual(dataTurno) {
 
         return dDataOnly === hojeDataOnly || dDataOnly === ontemDataOnly;
     } else {
-        // Durante o resto do dia, valida estritamente pelo dia civil atual em Brasília
         const dStr = dBrasil.toLocaleDateString("en-US");
         const hojeStr = agora.toLocaleDateString("en-US");
         return dStr === hojeStr;
@@ -696,7 +690,7 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
     });
 
     if (elegiveis.length === 0) {
-      return res.json({ success: false, message: 'Não há operacionais elegíveis disponíveis para este sorteio.' });
+      return res.json({ success: false, message: 'Não há oper oficiales elegíveis disponíveis para este sorteio.' });
     }
 
     const premiosLista = premios ? premios.split(',').map(p => p.trim()) : ['Prêmio Especial'];
@@ -713,6 +707,40 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
     res.json({ success: true, ganhadores });
   } catch (e) {
     res.status(500).json({ success: false, message: 'Erro ao realizar sorteio.' });
+  }
+});
+
+// --- NOVO ENDPOINT: SORTEIO GERAL PARA QUEM TEM PELO MENOS 1 TURNO SALVO HOJE ---
+app.post('/api/admin/sorteio/realizar-geral', async (req, res) => {
+  try {
+    const { qtdGanhadores, premios } = req.body;
+    const membros = await User.find({}, 'nickname cargo historicoTurnos.duracao historicoTurnos.data').lean();
+    
+    // Filtra quem tem pelo menos 1 turno válido no ciclo atual (independente de ter 2h ou não)
+    const participantesGerais = membros.filter(m => {
+      if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
+      const turnosCiclo = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoPertenceAoCicloAtual(t.data));
+      return turnosCiclo.length > 0;
+    });
+
+    if (participantesGerais.length === 0) {
+      return res.json({ success: false, message: 'Não há operacionais com turnos registados neste ciclo para o sorteio geral.' });
+    }
+
+    const premiosLista = premios ? premios.split(',').map(p => p.trim()) : ['Prêmio Especial'];
+    const ganhadores = [];
+
+    for (let i = 0; i < Math.min(parseInt(qtdGanhadores) || 1, participantesGerais.length); i++) {
+      const randomIndex = Math.floor(Math.random() * participantesGerais.length);
+      const escolhido = participantesGerais.splice(randomIndex, 1)[0];
+      const premioSorteado = premiosLista[i % premiosLista.length];
+      ganhadores.push({ nickname: escolhido.nickname, cargo: escolhido.cargo || 'Privado', premio: premioSorteado });
+      await User.updateOne({ _id: escolhido._id }, { $push: { historicoSorteios: { descricaoPremio: premioSorteado, status: 'venceu', data: new Date() } } });
+    }
+
+    res.json({ success: true, ganhadores });
+  } catch (e) {
+    res.status(500).json({ success: false, message: 'Erro ao realizar sorteio geral.' });
   }
 });
 
