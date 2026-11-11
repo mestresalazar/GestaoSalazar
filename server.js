@@ -205,7 +205,6 @@ app.get('/api/admin/membros', async (req, res) => {
   }
 });
 
-// --- ROTA DE ESTATÍSTICAS E CONTAGEM DE MEMBROS ---
 app.get('/api/admin/estatisticas', async (req, res) => {
     try {
         const totalRegistados = await User.countDocuments();
@@ -241,6 +240,34 @@ app.put('/api/admin/membro/:id', async (req, res) => {
         res.json({ success: true, message: 'Membro atualizado com sucesso!', membro });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro ao atualizar membro.' });
+    }
+});
+
+app.put('/api/admin/membro/forcar-fim-turno/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const membro = await User.findById(id);
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        await User.updateOne(
+            { _id: id },
+            { 
+                $set: { 
+                    emPlantao: false, 
+                    estadoTurno: 'parado',
+                    inicioPlantao: null,
+                    segundosAcumulados: 0,
+                    fotoComprovanteAtiva: ''
+                } 
+            }
+        );
+
+        io.emit('atualizar_estado_turno_usuario', { nickname: membro.nickname.toLowerCase() });
+        io.emit('atualizar_status_geral_tropa');
+
+        res.json({ success: true, message: `Turno de ${membro.nickname} encerrado à força com sucesso!` });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao forçar fim de turno.' });
     }
 });
 

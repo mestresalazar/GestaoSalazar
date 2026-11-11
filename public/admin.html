@@ -126,6 +126,7 @@
             font-weight: bold;
             font-size: 12px;
             margin-right: 4px;
+            margin-bottom: 4px;
             transition: opacity 0.2s;
             box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
@@ -135,6 +136,7 @@
         .btn-historico { background-color: rgba(99, 102, 241, 0.9); }
         .btn-reset { background-color: rgba(234, 179, 8, 0.9); color: #000; }
         .btn-demitir { background-color: rgba(220, 38, 38, 0.9); }
+        .btn-parar-turno { background-color: rgba(245, 158, 11, 0.9); color: #000; }
 
         .status-dot-offline { display: inline-block; width: 8px; height: 8px; background: #64748b; border-radius: 50%; margin-right: 5px; }
         .status-dot-online { display: inline-block; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; margin-right: 5px; box-shadow: 0 0 6px #22c55e; }
@@ -271,14 +273,14 @@
 
             <div class="card">
                 <h3>👥 Gerenciamento de Efetivo, Históricos e Promoções</h3>
-                <p style="color: #e2e8f0; margin-bottom: 12px; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Consulte os plantões recentes e faça alterações hierárquicas.</p>
+                <p style="color: #e2e8f0; margin-bottom: 12px; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Ordenação prioritária: Plantão ➔ Online ➔ Offline.</p>
                 
                 <!-- BARRA DE PESQUISA DE MEMBROS -->
                 <div style="margin-bottom: 15px;">
                     <input type="text" id="inputBuscaMembro" placeholder="🔍 Pesquisar operacional por nickname..." oninput="filtrarTabelaEfetivo()" style="width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; font-size: 13px; outline: none;">
                 </div>
 
-                <div style="max-height: 320px; overflow-y: auto; border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; background: rgba(15, 23, 42, 0.5);">
+                <div style="max-height: 350px; overflow-y: auto; border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; background: rgba(15, 23, 42, 0.5);">
                     <table>
                         <thead>
                             <tr>
@@ -569,19 +571,28 @@
             const tabela = document.getElementById('tabelaEfetivo');
             tabela.innerHTML = '';
 
-            if (membrosParaRenderizar.length > 0) {
-                membrosParaRenderizar.forEach(membro => {
+            // ORDENAÇÃO INTELIGENTE: Plantão (1) ➔ Online (2) ➔ Offline (3)
+            const membrosOrdenados = [...membrosParaRenderizar].sort((a, b) => {
+                const aOnline = usuariosOnlineSocket.some(u => u.nickname.toLowerCase() === a.nickname.toLowerCase());
+                const bOnline = usuariosOnlineSocket.some(u => u.nickname.toLowerCase() === b.nickname.toLowerCase());
+
+                const pesoA = a.emPlantao ? 1 : (aOnline ? 2 : 3);
+                const pesoB = b.emPlantao ? 1 : (bOnline ? 2 : 3);
+
+                return pesoA - pesoB;
+            });
+
+            if (membrosOrdenados.length > 0) {
+                membrosOrdenados.forEach(membro => {
                     const tr = document.createElement('tr');
                     
                     let statusOperacionalHtml = `<span class="status-dot-offline"></span> <span style="color:#64748b;">Offline</span>`;
-                    
+                    const isOnline = usuariosOnlineSocket.some(u => u.nickname.toLowerCase() === membro.nickname.toLowerCase());
+
                     if (membro.emPlantao) {
                         statusOperacionalHtml = `<span class="status-dot-plantao"></span> <b style="color:#eab308;">Em Plantão</b>`;
-                    } else {
-                        const userOnlineInfo = usuariosOnlineSocket.find(u => u.nickname.toLowerCase() === membro.nickname.toLowerCase());
-                        if (userOnlineInfo) {
-                            statusOperacionalHtml = `<span class="status-dot-online"></span> <b style="color:#22c55e;">Online</b>`;
-                        }
+                    } else if (isOnline) {
+                        statusOperacionalHtml = `<span class="status-dot-online"></span> <b style="color:#22c55e;">Online</b>`;
                     }
 
                     tr.innerHTML = `
@@ -591,6 +602,7 @@
                         <td style="color: #38bdf8; font-size: 12px;">${membro.ultimoPlantao || 'Nenhum plantão'}</td>
                         <td>
                             ${membro.status !== 'ativo' ? `<button class="btn-action btn-aprovar" style="width:auto;" onclick="atualizarMembro('${membro._id}', 'ativo', 'Soldado')">Aprovar</button>` : ''}
+                            ${membro.emPlantao ? `<button class="btn-action btn-parar-turno" style="width:auto;" onclick="forcarFimTurno('${membro._id}', '${membro.nickname}')">⏹️ Parar Turno</button>` : ''}
                             <button class="btn-action btn-historico" style="width:auto;" onclick="verHistoricoMembro('${membro.nickname}', '${membro._id}')">Ver Histórico</button>
                             <button class="btn-action btn-promover" style="width:auto;" onclick="promoverMembro('${membro._id}', '${membro.cargo}')">Promover</button>
                             <button class="btn-action btn-demitir" style="width:auto;" onclick="demitirMembro('${membro._id}')">Demitir</button>
@@ -607,6 +619,30 @@
             const termo = document.getElementById('inputBuscaMembro').value.toLowerCase().trim();
             const filtrados = listaMembrosCache.filter(m => m.nickname.toLowerCase().includes(termo));
             renderizarTabelaEfetivo(filtrados);
+        }
+
+        async function forcarFimTurno(id, nickname) {
+            mostrarModalCustomizado(
+                'Forçar Fim de Turno',
+                `Tem a certeza que deseja encerrar à força o plantão ativo do operacional <b>${nickname}</b>?`,
+                'confirmacao',
+                async () => {
+                    try {
+                        const res = await fetch(`/api/admin/membro/forcar-fim-turno/${id}`, { method: 'PUT' });
+                        const data = await res.json();
+                        if (data.success) {
+                            mostrarModalCustomizado('Sucesso', data.message);
+                            carregarEfetivo();
+                            carregarEstatisticasMembros();
+                        } else {
+                            mostrarModalCustomizado('Erro', data.message);
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        mostrarModalCustomizado('Erro', 'Erro de conexão ao encerrar turno.');
+                    }
+                }
+            );
         }
 
         let membroIdAtualModal = null;
