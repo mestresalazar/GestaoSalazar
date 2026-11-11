@@ -288,6 +288,8 @@
 </head>
 <body>
 
+    <audio id="audioAlarme" src="/alarm.mp3" preload="auto"></audio>
+
     <div class="navbar">
         <div class="nav-brand">Gestão Salazar</div>
         <div class="nav-links">
@@ -297,6 +299,13 @@
             <span id="userBadgeInfo" style="font-size: 13px; color: #e2e8f0; margin-left: 10px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);"></span>
             <button class="logout-btn" onclick="logout()">Sair</button>
         </div>
+    </div>
+
+    <!-- BANNER DE ATIVAÇÃO DE NOTIFICAÇÕES PUSH (APARECE ATÉ O MEMBRO ATIVAR) -->
+    <div id="bannerPush" class="card" style="border: 2px solid #22c55e; background: rgba(34, 197, 94, 0.08); display: none; text-align: center; margin-bottom: 20px;">
+        <h3 style="color: #22c55e; border: none; margin-bottom: 8px;">🔔 Ativar Alertas no Telemóvel / PC</h3>
+        <p style="color: #e2e8f0; font-size: 13px; margin-bottom: 15px;">Para receber os alarmes de AÇÃO diretamente na barra de notificações do seu telemóvel (mesmo com o site fechado), clique no botão abaixo e permita as notificações.</p>
+        <button class="btn-action" style="background-color: rgba(34, 197, 94, 0.9); width: auto; display: inline-block; padding: 10px 25px; margin-top: 0;" onclick="ativarNotificacoesPush()">✅ Ativar Notificações Push Agora</button>
     </div>
 
     <div class="grid-container">
@@ -383,6 +392,7 @@
         </div>
     </div>
 
+    <!-- Modais -->
     <div id="modalProva" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 10000;">
         <div style="background: rgba(18, 31, 51, 0.98); width: 90%; max-width: 600px; border-radius: 8px; padding: 25px; border: 1px solid #38bdf8; max-height: 85vh; overflow-y: auto;">
             <h3 id="tituloModalProva" style="color: #38bdf8; margin-bottom: 15px;">Avaliação Oficial</h3>
@@ -430,6 +440,55 @@
 
         if (user.role === 'admin' || user.cargo === 'General' || user.cargo === 'Coronel') {
             document.getElementById('navAdminLink').style.display = 'inline-block';
+        }
+
+        // --- VERIFICAÇÃO DE PERMISSÃO PUSH ---
+        async function verificarEstadoPush() {
+            if ('serviceWorker' in navigator && 'PushManager' in window) {
+                const permission = Notification.permission;
+                if (permission !== 'granted') {
+                    document.getElementById('bannerPush').style.display = 'block';
+                } else {
+                    document.getElementById('bannerPush').style.display = 'none';
+                }
+            }
+        }
+        verificarEstadoPush();
+
+        async function ativarNotificacoesPush() {
+            if ('serviceWorker' in navigator && 'PushManager' in window) {
+                try {
+                    const registration = await navigator.serviceWorker.register('/sw.js');
+                    const permissao = await Notification.requestPermission();
+                    
+                    if (permissao === 'granted') {
+                        const publicVapidKey = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYTU5Njh3U';
+                        const subscription = await registration.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: publicVapidKey
+                        });
+
+                        const res = await fetch('/api/membro/salvar-subscricao-push', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ nickname: user.nickname, subscription })
+                        });
+
+                        const data = await res.json();
+                        if (data.success) {
+                            document.getElementById('bannerPush').style.display = 'none';
+                            mostrarModalCustomizado('Sucesso', 'Notificações push ativadas com sucesso! Agora receberá os alertas na barrinha.');
+                        }
+                    } else {
+                        mostrarModalCustomizado('Atenção', 'Negou a permissão de notificações. Para receber os alertas, ative nas definições do seu navegador.');
+                    }
+                } catch (e) {
+                    console.error('Erro ao ativar Push:', e);
+                    mostrarModalCustomizado('Erro', 'Erro ao registrar notificações.');
+                }
+            } else {
+                mostrarModalCustomizado('Indisponível', 'O seu navegador não suporta notificações push.');
+            }
         }
 
         let cargoDestinoAtual = '';
@@ -566,7 +625,14 @@
             cargo: user.cargo || 'Soldado'
         });
 
-        // --- SINCRONIZAÇÃO EM TEMPO REAL ENTRE DISPOSITIVOS (SEM F5) ---
+        socket.on('tocar_alarme_acao', (data) => {
+            const audio = document.getElementById('audioAlarme');
+            if (audio) {
+                audio.play().catch(err => console.log("Bloqueio de autoplay do navegador:", err));
+            }
+            mostrarModalCustomizado(`🚨 ${data.titulo}`, data.descricao, 'alerta');
+        });
+
         socket.on('atualizar_estado_turno_usuario', async (data) => {
             if (data && data.nickname && user && data.nickname.toLowerCase() === user.nickname.toLowerCase()) {
                 await restaurarEstadoTurno();
