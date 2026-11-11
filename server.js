@@ -4,6 +4,7 @@ const { Server } = require('socket.io');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const webpush = require('web-push');
+const path = require('path');
 const conectarDB = require('./config/db');
 const User = require('./models/User');
 const ConfigSorteio = require('./models/ConfigSorteio');
@@ -34,6 +35,11 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(cors());
 app.use(express.static('public'));
+
+// Rota explícita para garantir que o sw.js na pasta public é lido perfeitamente
+app.get('/sw.js', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'sw.js'));
+});
 
 function converterDuracaoParaSegundos(duracaoStr) {
   if (!duracaoStr) return 0;
@@ -418,7 +424,7 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
     }
 });
 
-// --- ROTAS DE PUSH NOTIFICATION & DISPARO DE AÇÃO ---
+// --- ROTAS DE PUSH NOTIFICATION & DISPARO DE AÇÃO (PARA TODOS REGISTADOS) ---
 app.post('/api/membro/salvar-subscricao-push', async (req, res) => {
     try {
         const { nickname, subscription } = req.body;
@@ -444,16 +450,17 @@ app.post('/api/admin/disparar-acao', async (req, res) => {
             return res.status(403).json({ success: false, message: 'Acesso negado. Apenas Comando pode disparar ações.' });
         }
 
-        const membros = await User.find({ pushSubscription: { $exists: true, $ne: null } }).lean();
+        // Busca TODOS os operacionais que já aceitaram e subescreveram as notificações push
+        const membrosComPush = await User.find({ pushSubscription: { $exists: true, $ne: null } }).lean();
 
         const payload = JSON.stringify({
             title: `🚨 AÇÃO: ${tituloAcao || 'Convocação Geral'}`,
-            body: descricaoAcao || 'O Comando decretou AÇÃO! Todos os operacionais em prontidão.',
+            body: descricaoAcao || 'O Comando decretou AÇÃO! Apresente-se imediatamente.',
             url: '/dashboard.html'
         });
 
         let enviados = 0;
-        for (const membro of membros) {
+        for (const membro of membrosComPush) {
             if (membro.pushSubscription) {
                 try {
                     await webpush.sendNotification(membro.pushSubscription, payload);
@@ -464,6 +471,7 @@ app.post('/api/admin/disparar-acao', async (req, res) => {
             }
         }
 
+        // Grava a notificação na Caixa de Entrada de TODOS os utilizadores registados (offline ou online)
         const notifGeral = {
             titulo: `🚨 ALERTA DE AÇÃO: ${tituloAcao}`,
             mensagem: descricaoAcao,
@@ -471,9 +479,10 @@ app.post('/api/admin/disparar-acao', async (req, res) => {
         };
         await User.updateMany({}, { $push: { caixaEntrada: notifGeral } });
 
+        // Toca o alarme em tempo real para quem estiver com o site aberto
         io.emit('tocar_alarme_acao', { titulo: tituloAcao, descricao: descricaoAcao });
 
-        res.json({ success: true, message: `Alerta de ação disparado para ${enviados} operacionais com sucesso!` });
+        res.json({ success: true, message: `Alerta de ação disparado via Push para ${enviados} operacional(is) e guardado para toda a tropa!` });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao disparar ação: ' + e.message });
     }
