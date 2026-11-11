@@ -53,7 +53,6 @@ function turnoEhDeHoje(dataTurno) {
            d.getFullYear() === hoje.getFullYear();
 }
 
-// --- AUTENTICAÇÃO (LOGIN) ---
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { nickname, senha, password } = req.body;
@@ -75,7 +74,6 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// --- AUTENTICAÇÃO (REGISTO) ---
 app.post('/api/auth/register', async (req, res) => {
     try {
         const { nickname, senha, password } = req.body;
@@ -99,7 +97,6 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-// --- HISTÓRICO E ESTADO ATUAL DO MEMBRO ---
 app.get('/api/membro/historico/:nickname', async (req, res) => {
     try {
         const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }, '-password').lean();
@@ -132,7 +129,6 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
     }
 });
 
-// --- HISTÓRICO ADMIN ---
 app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
     try {
         const nickname = req.params.nickname;
@@ -165,10 +161,10 @@ app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
     }
 });
 
-// --- LISTAGEM DE EFETIVO ADMIN (GARANTE QUE TODOS OS MEMBROS APARECEM) ---
+// --- ROTA OTIMIZADA: EXCLUI FOTOS PESADAS PARA A LISTAGEM VOAR ---
 app.get('/api/admin/membros', async (req, res) => {
   try {
-    const membros = await User.find({}, '-password -historicoTurnos.fotoComprovante').lean(); 
+    const membros = await User.find({}, 'nickname cargo status emPlantao historicoTurnos.duracao historicoTurnos.data').lean(); 
     const membrosFormatados = membros.map(m => {
       const totalSegundosAcumulados = (m.historicoTurnos || []).reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
       const totalHorasFormatado = converterSegundosParaDuracao(totalSegundosAcumulados);
@@ -233,7 +229,6 @@ app.delete('/api/admin/membro/:id', async (req, res) => {
     }
 });
 
-// --- RANKINGS ---
 app.get('/api/admin/ranking/turnos', async (req, res) => {
     try {
         const membros = await User.find({}, 'nickname cargo historicoTurnos').lean();
@@ -330,12 +325,10 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
         io.emit('atualizar_status_geral_tropa');
         res.json({ success: true, message: `Adicionado com sucesso ${duracaoFormatada} para o alvo! Computado no ranking e sorteio.` });
     } catch (error) {
-        console.error("ERRO AO ADICIONAR TEMPO:", error);
         res.status(500).json({ success: false, message: 'Erro interno ao adicionar tempo: ' + error.message });
     }
 });
 
-// --- ATUALIZAR ESTADO DO PLANTÃO / TURNO NA CONTA (TEMPO REAL) ---
 app.put('/api/membro/status-plantao', async (req, res) => {
     try {
         const { nickname, emPlantao, estadoTurno, inicioPlantao, segundosAcumulados, fotoComprovanteAtiva } = req.body;
@@ -361,7 +354,6 @@ app.put('/api/membro/status-plantao', async (req, res) => {
     }
 });
 
-// --- FINALIZAR TURNO (TEMPO REAL) ---
 app.post('/api/membro/turno', async (req, res) => {
     try {
         const { nickname, duracao, fotoComprovante } = req.body;
@@ -529,7 +521,6 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
             res.json({ success: true, aprovado: false, message: `Infelizmente obtiviste ${acertos}/${totalPerguntas} acertos. Foste reprovado e terás um cooldown de 24 horas para tentar novamente.` });
         }
     } catch (e) {
-        console.error("Erro na prova:", e);
         res.status(500).json({ success: false, message: 'Erro interno ao processar prova.' });
     }
 });
@@ -598,7 +589,6 @@ app.post('/api/admin/sorteio/agendar', async (req, res) => {
 
     res.json({ success: true, message: 'Sorteio agendado com sucesso e notificação enviada à tropa!' });
   } catch (err) {
-    console.error("Erro ao agendar sorteio:", err);
     res.status(500).json({ success: false, message: 'Erro ao salvar agendamento e notificar.' });
   }
 });
@@ -640,62 +630,9 @@ app.put('/api/admin/sorteio/resetar-elegiveis', async (req, res) => {
         io.emit('atualizar_status_geral_tropa');
         res.json({ success: true, message: 'Elegíveis deste ciclo removidos com sucesso! O ranking e as horas da tropa foram totalmente preservados.' });
     } catch (e) {
-        console.error("Erro ao resetar elegíveis:", e);
         res.status(500).json({ success: false, message: 'Erro ao resetar elegíveis do sorteio.' });
     }
 });
-
-async function executarSorteioAutomatico() {
-    try {
-        const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' });
-        if (!config || config.executado) return;
-
-        const agora = new Date();
-        const horaLocal = new Date(agora.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
-        const horaAtualStr = String(horaLocal.getHours()).padStart(2, '0') + ':' + String(horaLocal.getMinutes()).padStart(2, '0');
-        
-        if (horaAtualStr === config.horarioAlvo) {
-            const membros = await User.find({}, '-password').lean();
-            const elegiveis = membros.filter(m => {
-              if (m.sorteioExcluidoAte) {
-                const dataExclusao = new Date(m.sorteioExcluidoAte);
-                if (dataExclusao.getDate() === agora.getDate() &&
-                    dataExclusao.getMonth() === agora.getMonth() &&
-                    dataExclusao.getFullYear() === agora.getFullYear()) {
-                  return false;
-                }
-              }
-              if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
-              const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoEhDeHoje(t.data));
-              const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
-              return totalSegundosHoje >= 7200;
-            });
-
-            if (elegiveis.length > 0) {
-                const premiosLista = config.premios ? config.premios.split(',').map(p => p.trim()) : ['Prêmio Especial'];
-                for (let i = 0; i < Math.min(config.qtdGanhadores || 1, elegiveis.length); i++) {
-                  const randomIndex = Math.floor(Math.random() * elegiveis.length);
-                  const escolhido = elegiveis.splice(randomIndex, 1)[0];
-                  const premioSorteado = premiosLista[i % premiosLista.length];
-
-                  await User.updateOne({ _id: escolhido._id }, {
-                    $push: { historicoSorteios: { descricaoPremio: premioSorteado, status: 'venceu', data: new Date() } }
-                  });
-
-                  io.to('sala_geral_salazar').emit('receber_mensagem', {
-                      nickname: 'SORTEIO OFICIAL',
-                      cargo: 'Comando',
-                      mensagem: `🏆 O operacional ${escolhido.nickname} (${escolhido.cargo || 'Privado'}) cumpriu 2h+ HOJE e ganhou o sorteio: ${premioSorteado}!`,
-                      hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-                  });
-                }
-            }
-            config.executado = true;
-            await config.save();
-        }
-    } catch (e) { console.error(e); }
-}
-setInterval(executarSorteioAutomatico, 10000);
 
 app.post('/api/admin/sorteio/realizar', async (req, res) => {
   try {

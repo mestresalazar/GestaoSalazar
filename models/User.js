@@ -8,7 +8,7 @@ const caixaEntradaSchema = new mongoose.Schema({
 });
 
 const UserSchema = new mongoose.Schema({
-    nickname: { type: String, required: true, unique: true },
+    nickname: { type: String, required: true, unique: true, index: true },
     password: { type: String, required: true },
     cargo: { 
         type: String, 
@@ -16,29 +16,23 @@ const UserSchema = new mongoose.Schema({
         default: 'Privado' 
     },
     role: { type: String, enum: ['member', 'sub_admin', 'admin'], default: 'member' },
-    status: { type: String, enum: ['pendente', 'ativo', 'inativo', 'demitido'], default: 'pendente' },
+    status: { type: String, enum: ['pendente', 'ativo', 'inativo', 'demitido'], default: 'pendente', index: true },
     dataEntrada: { type: Date, default: Date.now },
     
-    // Status de plantão persistente (cronômetro e multi-dispositivo)
     emPlantao: { type: Boolean, default: false },
     estadoTurno: { type: String, enum: ['ativo', 'pausado', 'parado'], default: 'parado' },
     inicioPlantao: { type: Date, default: null },
     segundosAcumulados: { type: Number, default: 0 },
-    fotoComprovanteAtiva: { type: String, default: '' }, // Guarda o print na conta
+    fotoComprovanteAtiva: { type: String, default: '' },
 
-    // Cooldown de 24 horas após reprovação na prova
     cooldownProvaAte: { type: Date, default: null },
-
-    // Controlo de elegibilidade do sorteio diário (reseta sem apagar horas do ranking)
     sorteioExcluidoAte: { type: Date, default: null },
 
-    // Personalização de Perfil
     avatarUrl: { type: String, default: '/images/default-avatar.png' },
     emojiStatus: { type: String, default: '🎖️' },
     simbolo: { type: String, default: '' },
     bio: { type: String, maxLength: 120 },
 
-    // Histórico do Membro
     historicoTurnos: [{
         data: { type: Date, default: Date.now },
         duracao: String,
@@ -57,6 +51,8 @@ const UserSchema = new mongoose.Schema({
     }],
     caixaEntrada: [caixaEntradaSchema]
 });
+
+UserSchema.index({ nickname: 1 });
 
 UserSchema.set('toJSON', { virtuals: true });
 UserSchema.set('toObject', { virtuals: true });
