@@ -286,6 +286,7 @@ app.post('/api/admin/notificar/ranking', async (req, res) => {
     }
 });
 
+// --- ROTA DE INJEÇÃO MANUAL CORRIGIDA PARA ALINHAR COM O FUSO DE BRASÍLIA E O DIA ATUAL ---
 app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
     try {
         const { adminNickname, targetNickname, horas, minutos, segundos, motivo } = req.body;
@@ -307,7 +308,10 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
         }
 
         const duracaoFormatada = converterSegundosParaDuracao(totalSegundos);
-        const dataInjecao = new Date();
+
+        // Gera a data considerando o dia corrente rigorosamente no fuso horário de Brasília (18:00)
+        const agoraBrasilStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+        const dataInjecao = new Date(agoraBrasilStr);
         dataInjecao.setHours(18, 0, 0, 0);
 
         const novoTurnoManual = {
@@ -543,12 +547,12 @@ app.get('/api/admin/sorteio/status', async (req, res) => {
 
 app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
   try {
-    const agora = new Date();
     const membros = await User.find({}, 'nickname cargo sorteioExcluidoAte historicoTurnos.duracao historicoTurnos.data').lean();
     
     const elegiveis = membros.filter(m => {
       if (m.sorteioExcluidoAte) {
         const dataExclusao = new Date(m.sorteioExcluidoAte);
+        const agora = new Date();
         if (dataExclusao.getDate() === agora.getDate() &&
             dataExclusao.getMonth() === agora.getMonth() &&
             dataExclusao.getFullYear() === agora.getFullYear()) {
