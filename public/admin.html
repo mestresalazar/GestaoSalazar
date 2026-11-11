@@ -218,6 +218,24 @@
 
     <div class="grid-container">
         <div>
+            <!-- PAINEL DE DISPARAR AÇÃO (EXCLUSIVO ADM / CORONEL) -->
+            <div class="card" style="border: 2px dashed #ef4444; background: rgba(239, 68, 68, 0.05);">
+                <h3 style="color: #ef4444;">🚨 Central de Disparo de Ações (Alarme Geral)</h3>
+                <p style="color: #e2e8f0; margin-bottom: 15px; font-size: 13px;">Dispare uma notificação push imediata para o telemóvel/PC de todos os operacionais (mesmo com o navegador fechado) e toque o alarme tático.</p>
+                
+                <div style="margin-bottom: 12px;">
+                    <label style="font-size: 12px; color: #38bdf8;">Título da Ação (Ex: Invasão na Favela / Defesa):</label>
+                    <input type="text" id="acaoTitulo" placeholder="Ex: Ação Urgente na Favela BMRP" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px;">
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="font-size: 12px; color: #38bdf8;">Descrição / Instruções:</label>
+                    <textarea id="acaoDescricao" rows="3" placeholder="Ex: Todos os soldados equipados no QG principal. Comparecer em 5 minutos!" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px; resize: none;"></textarea>
+                </div>
+
+                <button class="btn-action" style="background-color: rgba(239, 68, 68, 0.95); color: white; font-size: 14px; padding: 12px 20px; width: 100%; font-weight: bold;" onclick="dispararAlertaAcao()">🚨 DISPARAR ALERTA DE AÇÃO PARA A TROPA</button>
+            </div>
+
             <!-- PAINEL EXCLUSIVO DO MESTRE: ADICIONAR TEMPO MANUALMENTE -->
             <div class="card" id="cardInjecaoMestre" style="display: none; border: 2px dashed #eab308; background: rgba(234, 179, 8, 0.05);">
                 <h3 style="color: #eab308;">👑 Painel Exclusivo do Mestre: Adicionar Tempo Manual</h3>
@@ -433,6 +451,46 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         });
 
+        async function dispararAlertaAcao() {
+            const tituloAcao = document.getElementById('acaoTitulo').value.trim();
+            const descricaoAcao = document.getElementById('acaoDescricao').value.trim();
+
+            if (!tituloAcao || !descricaoAcao) {
+                mostrarModalCustomizado('Atenção', 'Preencha o título e a descrição da ação.');
+                return;
+            }
+
+            mostrarModalCustomizado(
+                'Confirmação de Alerta de Ação',
+                `Tem a certeza que deseja disparar o alerta geral de ação <b>"${tituloAcao}"</b> para toda a tropa?`,
+                'confirmacao',
+                async () => {
+                    try {
+                        const res = await fetch('/api/admin/disparar-acao', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                adminNickname: user.nickname,
+                                tituloAcao,
+                                descricaoAcao
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            mostrarModalCustomizado('Sucesso', data.message);
+                            document.getElementById('acaoTitulo').value = '';
+                            document.getElementById('acaoDescricao').value = '';
+                        } else {
+                            mostrarModalCustomizado('Erro', data.message);
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        mostrarModalCustomizado('Erro', 'Erro de conexão ao disparar ação.');
+                    }
+                }
+            );
+        }
+
         function enviarMensagem() {
             const input = document.getElementById('chatInput');
             const mensagem = input.value.trim();
@@ -571,7 +629,6 @@
             const tabela = document.getElementById('tabelaEfetivo');
             tabela.innerHTML = '';
 
-            // ORDENAÇÃO INTELIGENTE: Plantão (1) ➔ Online (2) ➔ Offline (3)
             const membrosOrdenados = [...membrosParaRenderizar].sort((a, b) => {
                 const aOnline = usuariosOnlineSocket.some(u => u.nickname.toLowerCase() === a.nickname.toLowerCase());
                 const bOnline = usuariosOnlineSocket.some(u => u.nickname.toLowerCase() === b.nickname.toLowerCase());

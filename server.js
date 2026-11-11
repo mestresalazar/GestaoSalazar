@@ -3,12 +3,23 @@ const http = require('http');
 const { Server } = require('socket.io');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const webpush = require('web-push');
 const conectarDB = require('./config/db');
 const User = require('./models/User');
 const ConfigSorteio = require('./models/ConfigSorteio');
 
 dotenv.config();
 conectarDB();
+
+// Configuração das Chaves VAPID para Web Push Notifications
+const publicVapidKey = process.env.VAPID_PUBLIC_KEY || 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYTU5Njh3U';
+const privateVapidKey = process.env.VAPID_PRIVATE_KEY || 'your_private_vapid_key_here';
+
+try {
+    webpush.setVapidDetails('mailto:rafael.limaaypa@gmail.com', publicVapidKey, privateVapidKey);
+} catch (e) {
+    console.log("Erro ao configurar VAPID keys");
+}
 
 const app = express();
 const server = http.createServer(app);
@@ -404,6 +415,67 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
         res.json({ success: true, message: `Adicionado com sucesso ${duracaoFormatada} para o alvo! Computado no ranking e sorteio.` });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro interno ao adicionar tempo: ' + error.message });
+    }
+});
+
+// --- ROTAS DE PUSH NOTIFICATION & DISPARO DE AÇÃO ---
+app.post('/api/membro/salvar-subscricao-push', async (req, res) => {
+    try {
+        const { nickname, subscription } = req.body;
+        if (!nickname || !subscription) return res.status(400).json({ success: false });
+
+        await User.updateOne(
+            { nickname: new RegExp('^' + nickname.trim() + '$', 'i') },
+            { $set: { pushSubscription: subscription } }
+        );
+
+        res.json({ success: true, message: 'Subscrição push guardada com sucesso!' });
+    } catch (e) {
+        res.status(500).json({ success: false });
+    }
+});
+
+app.post('/api/admin/disparar-acao', async (req, res) => {
+    try {
+        const { adminNickname, tituloAcao, descricaoAcao } = req.body;
+        
+        const adminUser = await User.findOne({ nickname: new RegExp('^' + adminNickname + '$', 'i') }).lean();
+        if (!adminUser || (adminUser.role !== 'admin' && adminUser.cargo !== 'General' && adminUser.cargo !== 'Coronel')) {
+            return res.status(403).json({ success: false, message: 'Acesso negado. Apenas Comando pode disparar ações.' });
+        }
+
+        const membros = await User.find({ pushSubscription: { $exists: true, $ne: null } }).lean();
+
+        const payload = JSON.stringify({
+            title: `🚨 AÇÃO: ${tituloAcao || 'Convocação Geral'}`,
+            body: descricaoAcao || 'O Comando decretou AÇÃO! Todos os operacionais em prontidão.',
+            url: '/dashboard.html'
+        });
+
+        let enviados = 0;
+        for (const membro of membros) {
+            if (membro.pushSubscription) {
+                try {
+                    await webpush.sendNotification(membro.pushSubscription, payload);
+                    enviados++;
+                } catch (err) {
+                    console.error('Erro ao enviar push para:', membro.nickname, err);
+                }
+            }
+        }
+
+        const notifGeral = {
+            titulo: `🚨 ALERTA DE AÇÃO: ${tituloAcao}`,
+            mensagem: descricaoAcao,
+            data: new Date()
+        };
+        await User.updateMany({}, { $push: { caixaEntrada: notifGeral } });
+
+        io.emit('tocar_alarme_acao', { titulo: tituloAcao, descricao: descricaoAcao });
+
+        res.json({ success: true, message: `Alerta de ação disparado para ${enviados} operacionais com sucesso!` });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao disparar ação: ' + e.message });
     }
 });
 
