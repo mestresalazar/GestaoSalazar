@@ -368,7 +368,22 @@
         let listaMembrosCache = [];
         let usuariosOnlineSocket = [];
 
-        const socket = io();
+        // Socket.io com reconexão automática e tratamento anti-bfcache
+        const socket = io({
+            reconnection: true,
+            reconnectionAttempts: 10,
+            reconnectionDelay: 1000,
+            transports: ['websocket', 'polling']
+        });
+
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) {
+                if (!socket.connected) {
+                    socket.connect();
+                }
+            }
+        });
+
         socket.emit('entrar_sala', { salaId: 'sala_geral_salazar', nickname: user.nickname, cargo: user.cargo || 'Comando' });
 
         socket.on('atualizar_status_adm', (listaOnline) => {
@@ -573,25 +588,16 @@
                                 <div style="background: rgba(30, 41, 59, 0.5); padding: 8px; border-radius: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
                                     <div>
                                         <p style="margin-bottom: 2px;">• Duração: <b>${t.duracao}</b> (${new Date(t.data).toLocaleDateString()})</p>
-                                        <p style="font-size: 11px; color: #94a3b8;">${t.fotoComprovante && t.fotoComprovante.startsWith('data:image') ? 'Comprovante com print' : t.fotoComprovante}</p>
+                                        <p style="font-size: 11px; color: #94a3b8;">${t.fotoComprovante || 'Sem foto registada'}</p>
                                     </div>
-                                    ${t.fotoComprovante && t.fotoComprovante.startsWith('data:image') ? `<button class="btn-action btn-aprovar" style="padding: 4px 8px; font-size: 11px; width: auto; margin-top: 0;" onclick="preVisualizarFoto(${index})">Ver Print 🖼️</button>` : ''}
                                 </div>
                             `).join('') : '<p style="color: #94a3b8;">Nenhum turno registado.</p>'}
                         </div>
                     `;
-                    window.dadosHistoricoAtual = data.historicoTurnos;
                 }
             } catch (e) {
                 console.error(e);
             }
-        }
-
-        function preVisualizarFoto(index) {
-            const turno = window.dadosHistoricoAtual && window.dadosHistoricoAtual[index];
-            if (!turno || !turno.fotoComprovante) return;
-            const win = window.open();
-            win.document.write(`<body style="margin:0; background:#0b131e; display:flex; justify-content:center; align-items:center; height:100vh;"><img src="${turno.fotoComprovante}" style="max-width:100%; max-height:100%; border:2px solid #38bdf8; border-radius:6px;" /></body>`);
         }
 
         function fecharHistoricoAdmin() {
