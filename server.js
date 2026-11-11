@@ -286,7 +286,7 @@ app.post('/api/admin/notificar/ranking', async (req, res) => {
     }
 });
 
-// --- ROTA DE INJEÇÃO MANUAL CORRIGIDA PARA ALINHAR COM O FUSO DE BRASÍLIA E O DIA ATUAL ---
+// --- ROTA DE INJEÇÃO MANUAL COM DATA ISO CORRETA (-03:00) ---
 app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
     try {
         const { adminNickname, targetNickname, horas, minutos, segundos, motivo } = req.body;
@@ -309,10 +309,20 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
 
         const duracaoFormatada = converterSegundosParaDuracao(totalSegundos);
 
-        // Gera a data considerando o dia corrente rigorosamente no fuso horário de Brasília (18:00)
-        const agoraBrasilStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
-        const dataInjecao = new Date(agoraBrasilStr);
-        dataInjecao.setHours(18, 0, 0, 0);
+        // Extrai o ano, mês e dia correntes no fuso de Brasília e fixa às 18:00 com fuso -03:00
+        const partesData = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/Sao_Paulo',
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric',
+            hour12: false
+        }).formatToParts(new Date());
+
+        const ano = partesData.find(p => p.type === 'year').value;
+        const mes = partesData.find(p => p.type === 'month').value;
+        const dia = partesData.find(p => p.type === 'day').value;
+
+        const dataInjecao = new Date(`${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}T18:00:00-03:00`);
 
         const novoTurnoManual = {
             data: dataInjecao,
