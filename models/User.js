@@ -8,7 +8,7 @@ const caixaEntradaSchema = new mongoose.Schema({
 });
 
 const UserSchema = new mongoose.Schema({
-    nickname: { type: String, required: true, unique: true, index: true },
+    nickname: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     cargo: { 
         type: String, 
@@ -51,8 +51,6 @@ const UserSchema = new mongoose.Schema({
     }],
     caixaEntrada: [caixaEntradaSchema]
 });
-
-UserSchema.index({ nickname: 1 });
 
 UserSchema.set('toJSON', { virtuals: true });
 UserSchema.set('toObject', { virtuals: true });
