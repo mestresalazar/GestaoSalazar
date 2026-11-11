@@ -48,13 +48,35 @@ function turnoEstaNoHorarioPermitido(dataTurno) {
     return (hora >= 17 && hora <= 23) || (hora >= 0 && hora < 2);
 }
 
-function turnoEhDeHoje(dataTurno) {
+// --- NOVO CICLO OPERACIONAL: Considera madrugada (00:00-02:10) como pertencente ao dia anterior ---
+function turnoPertenceAoCicloAtual(dataTurno) {
     if (!dataTurno) return false;
     const d = new Date(dataTurno);
-    const hoje = new Date();
-    const dStr = d.toLocaleDateString("en-US", { timeZone: "America/Sao_Paulo" });
-    const hojeStr = hoje.toLocaleDateString("en-US", { timeZone: "America/Sao_Paulo" });
-    return dStr === hojeStr;
+    
+    // Pega a data e hora atual em Brasília
+    const agoraStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+    const agora = new Date(agoraStr);
+    const horaAtual = agora.getHours();
+
+    const dBrasilStr = d.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+    const dBrasil = new Date(dBrasilStr);
+
+    // Se agora estamos na madrugada (entre 00:00 e 02:10), o dia operacional válido inclui a noite de ontem (17h+) e a madrugada de hoje (<02:10)
+    if (horaAtual >= 0 && horaAtual < 3) {
+        const ontem = new Date(agora);
+        ontem.setDate(ontem.getDate() - 1);
+        
+        const dDataOnly = dBrasil.toISOString().split('T')[0];
+        const hojeDataOnly = agora.toISOString().split('T')[0];
+        const ontemDataOnly = ontem.toISOString().split('T')[0];
+
+        return dDataOnly === hojeDataOnly || dDataOnly === ontemDataOnly;
+    } else {
+        // Durante o resto do dia, valida estritamente pelo dia civil atual em Brasília
+        const dStr = dBrasil.toLocaleDateString("en-US");
+        const hojeStr = agora.toLocaleDateString("en-US");
+        return dStr === hojeStr;
+    }
 }
 
 app.post('/api/auth/login', async (req, res) => {
@@ -164,7 +186,6 @@ app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
     }
 });
 
-// --- ROTA OTIMIZADA: EXCLUI FOTOS PESADAS PARA A LISTAGEM VOAR ---
 app.get('/api/admin/membros', async (req, res) => {
   try {
     const membros = await User.find({}, 'nickname cargo status emPlantao historicoTurnos.duracao historicoTurnos.data').lean(); 
@@ -286,7 +307,6 @@ app.post('/api/admin/notificar/ranking', async (req, res) => {
     }
 });
 
-// --- ROTA DE INJEÇÃO MANUAL COM DATA ISO CORRETA (-03:00) ---
 app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
     try {
         const { adminNickname, targetNickname, horas, minutos, segundos, motivo } = req.body;
@@ -309,7 +329,6 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
 
         const duracaoFormatada = converterSegundosParaDuracao(totalSegundos);
 
-        // Extrai o ano, mês e dia correntes no fuso de Brasília e fixa às 18:00 com fuso -03:00
         const partesData = new Intl.DateTimeFormat('en-US', {
             timeZone: 'America/Sao_Paulo',
             year: 'numeric',
@@ -571,7 +590,7 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
       }
 
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
-      const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoEhDeHoje(t.data));
+      const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoPertenceAoCicloAtual(t.data));
       const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
       return totalSegundosHoje >= 7200;
     });
@@ -622,7 +641,7 @@ app.put('/api/admin/sorteio/resetar-elegiveis', async (req, res) => {
 
         membros.forEach(m => {
             if (m.historicoTurnos && m.historicoTurnos.length > 0) {
-                const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoEhDeHoje(t.data));
+                const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoPertenceAoCicloAtual(t.data));
                 const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
                 if (totalSegundosHoje >= 7200) {
                     idsParaExcluir.push(m._id);
@@ -671,7 +690,7 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
         }
       }
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
-      const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoEhDeHoje(t.data));
+      const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoPertenceAoCicloAtual(t.data));
       const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
       return totalSegundosHoje >= 7200;
     });
