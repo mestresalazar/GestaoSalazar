@@ -12,14 +12,19 @@ const ConfigSorteio = require('./models/ConfigSorteio');
 dotenv.config();
 conectarDB();
 
-// Configuração das Chaves VAPID para Web Push Notifications
-const publicVapidKey = process.env.VAPID_PUBLIC_KEY || 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYTU5Njh3U';
-const privateVapidKey = process.env.VAPID_PRIVATE_KEY || 'your_private_vapid_key_here';
+// Configuração das Chaves VAPID Oficiais Geradas
+const publicVapidKey = process.env.VAPID_PUBLIC_KEY || 'BE5CpajXiRi74CjMe6B0ooSqHupNpbsu1otJVlH5t0t5h6tVJmL8PTVGlkSTPWIdAlIwra6WjFsTcy9sBgii8wQ';
+const privateVapidKey = process.env.VAPID_PRIVATE_KEY || 'zpTFhXUSrW9O8iuzIMZ_-_322JymestIXnunAraP65M';
 
 try {
-    webpush.setVapidDetails('mailto:rafael.limaaypa@gmail.com', publicVapidKey, privateVapidKey);
+    webpush.setVapidDetails(
+        'mailto:rafael.limaaypa@gmail.com', 
+        publicVapidKey, 
+        privateVapidKey
+    );
+    console.log("Chaves VAPID configuradas com sucesso!");
 } catch (e) {
-    console.log("Erro ao configurar VAPID keys");
+    console.error("Erro ao configurar VAPID keys:", e);
 }
 
 const app = express();
@@ -31,12 +36,12 @@ const io = new Server(server, {
   }
 });
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors());
 app.use(express.static('public'));
 
-// Rota explícita para garantir que o sw.js na pasta public é lido perfeitamente
+// Rota explícita para o Service Worker
 app.get('/sw.js', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'sw.js'));
 });
@@ -90,6 +95,7 @@ function turnoPertenceAoCicloAtual(dataTurno) {
     }
 }
 
+// --- ROTAS DE AUTENTICAÇÃO ---
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { nickname, senha, password } = req.body;
@@ -134,6 +140,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
+// --- ROTAS DO MEMBRO ---
 app.get('/api/membro/historico/:nickname', async (req, res) => {
     try {
         const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }, '-password -historicoTurnos.fotoComprovante').lean();
@@ -166,6 +173,150 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
     }
 });
 
+// SUBSCRIÇÃO PUSH
+app.post('/api/membro/salvar-subscricao-push', async (req, res) => {
+    try {
+        const { nickname, subscription } = req.body;
+        if (!nickname || !subscription) return res.status(400).json({ success: false, message: 'Dados incompletos.' });
+
+        await User.updateOne(
+            { nickname: new RegExp('^' + nickname.trim() + '$', 'i') },
+            { $set: { pushSubscription: subscription } }
+        );
+
+        console.log(`Subscrição Push guardada com sucesso para: ${nickname}`);
+        res.json({ success: true, message: 'Subscrição push guardada com sucesso!' });
+    } catch (e) {
+        console.error("Erro ao salvar subscrição push:", e);
+        res.status(500).json({ success: false, message: 'Erro no servidor.' });
+    }
+});
+
+// DISPARO DE AÇÃO DE EMERGÊNCIA (COM PUSH EM MASSA E SOCKET.IO)
+app.post('/api/admin/disparar-acao', async (req, res) => {
+    try {
+        const { adminNickname, tituloAcao, descricaoAcao, titulo, descricao } = req.body;
+        
+        const tituloFinal = tituloAcao || titulo || 'ALERTA DE AÇÃO';
+        const descricaoFinal = descricaoAcao || descricao || 'Convocação urgente do Comando! Apresente-se imediatamente.';
+
+        if (adminNickname) {
+            const adminUser = await User.findOne({ nickname: new RegExp('^' + adminNickname + '$', 'i') }).lean();
+            if (!adminUser || (adminUser.role !== 'admin' && adminUser.cargo !== 'General' && adminUser.cargo !== 'Coronel')) {
+                return res.status(403).json({ success: false, message: 'Acesso negado. Apenas o Comando pode disparar ações.' });
+            }
+        }
+
+        const membrosComPush = await User.find({ pushSubscription: { $exists: true, $ne: null } }).lean();
+
+        const payload = JSON.stringify({
+            title: `🚨 AÇÃO: ${tituloFinal}`,
+            body: descricaoFinal,
+            url: '/dashboard.html'
+        });
+
+        let enviados = 0;
+        for (const membro of membrosComPush) {
+            if (membro.pushSubscription && membro.pushSubscription.endpoint) {
+                try {
+                    await webpush.sendNotification(membro.pushSubscription, payload);
+                    enviados++;
+                } catch (err) {
+                    console.error('Erro ao enviar push para:', membro.nickname, err.message);
+                }
+            }
+        }
+
+        const notifGeral = {
+            titulo: `🚨 ALERTA DE AÇÃO: ${tituloFinal}`,
+            mensagem: descricaoFinal,
+            data: new Date()
+        };
+        await User.updateMany({}, { $push: { caixaEntrada: notifGeral } });
+
+        io.emit('tocar_alarme_acao', { titulo: tituloFinal, descricao: descricaoFinal });
+        io.emit('atualizar_status_geral_tropa');
+
+        res.json({ 
+            success: true, 
+            message: `Alerta de ação disparado via Push para ${enviados} operacional(is) e gravado para toda a tropa!`,
+            enviados
+        });
+    } catch (e) {
+        console.error("Erro ao disparar ação:", e);
+        res.status(500).json({ success: false, message: 'Erro ao disparar ação: ' + e.message });
+    }
+});
+
+app.put('/api/membro/status-plantao', async (req, res) => {
+    try {
+        const { nickname, emPlantao, estadoTurno, inicioPlantao, segundosAcumulados, fotoComprovanteAtiva } = req.body;
+        if (!nickname) return res.status(400).json({ success: false, message: 'Nickname obrigatório.' });
+
+        const updateData = {
+            emPlantao: !!emPlantao,
+            estadoTurno: estadoTurno || 'parado'
+        };
+
+        if (inicioPlantao !== undefined) updateData.inicioPlantao = inicioPlantao ? new Date(inicioPlantao) : null;
+        if (segundosAcumulados !== undefined) updateData.segundosAcumulados = segundosAcumulados;
+        if (fotoComprovanteAtiva !== undefined) updateData.fotoComprovanteAtiva = fotoComprovanteAtiva;
+
+        await User.updateOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, { $set: updateData });
+
+        io.emit('atualizar_estado_turno_usuario', { nickname: nickname.toLowerCase() });
+        io.emit('atualizar_status_geral_tropa');
+
+        res.json({ success: true, message: 'Estado do turno sincronizado com sucesso!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao atualizar status na conta.' });
+    }
+});
+
+app.post('/api/membro/turno', async (req, res) => {
+    try {
+        const { nickname, duracao, fotoComprovante } = req.body;
+        if (!nickname) return res.status(400).json({ success: false, message: 'Nickname não fornecido.' });
+
+        if (!duracao || typeof duracao !== 'string' || !duracao.match(/^\d{2}:\d{2}:\d{2}$/)) {
+            return res.status(400).json({ success: false, message: 'Duração de turno inválida.' });
+        }
+
+        const segundosEnviados = converterDuracaoParaSegundos(duracao);
+        if (segundosEnviados < 5) return res.status(400).json({ success: false, message: 'Turno muito curto para ser registado.' });
+
+        const novoTurno = {
+            data: new Date(),
+            duracao: duracao,
+            fotoComprovante: fotoComprovante || 'Sem foto'
+        };
+
+        const resultado = await User.updateOne(
+            { nickname: new RegExp('^' + nickname + '$', 'i') },
+            { 
+                $push: { historicoTurnos: novoTurno }, 
+                $set: { 
+                    emPlantao: false, 
+                    estadoTurno: 'parado',
+                    inicioPlantao: null,
+                    segundosAcumulados: 0,
+                    fotoComprovanteAtiva: ''
+                } 
+            }
+        );
+
+        if (resultado.matchedCount === 0) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        io.emit('atualizar_estado_turno_usuario', { nickname: nickname.toLowerCase() });
+        io.emit('atualizar_status_geral_tropa');
+
+        res.json({ success: true, message: 'Turno validado e registado com sucesso!' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao guardar turno.' });
+    }
+});
+
+// --- ROTAS DO ADMINISTRADOR ---
 app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
     try {
         const nickname = req.params.nickname;
@@ -424,138 +575,7 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
     }
 });
 
-// --- ROTAS DE PUSH NOTIFICATION & DISPARO DE AÇÃO (PARA TODOS REGISTADOS) ---
-app.post('/api/membro/salvar-subscricao-push', async (req, res) => {
-    try {
-        const { nickname, subscription } = req.body;
-        if (!nickname || !subscription) return res.status(400).json({ success: false });
-
-        await User.updateOne(
-            { nickname: new RegExp('^' + nickname.trim() + '$', 'i') },
-            { $set: { pushSubscription: subscription } }
-        );
-
-        res.json({ success: true, message: 'Subscrição push guardada com sucesso!' });
-    } catch (e) {
-        res.status(500).json({ success: false });
-    }
-});
-
-app.post('/api/admin/disparar-acao', async (req, res) => {
-    try {
-        const { adminNickname, tituloAcao, descricaoAcao } = req.body;
-        
-        const adminUser = await User.findOne({ nickname: new RegExp('^' + adminNickname + '$', 'i') }).lean();
-        if (!adminUser || (adminUser.role !== 'admin' && adminUser.cargo !== 'General' && adminUser.cargo !== 'Coronel')) {
-            return res.status(403).json({ success: false, message: 'Acesso negado. Apenas Comando pode disparar ações.' });
-        }
-
-        // Busca TODOS os operacionais que já aceitaram e subescreveram as notificações push
-        const membrosComPush = await User.find({ pushSubscription: { $exists: true, $ne: null } }).lean();
-
-        const payload = JSON.stringify({
-            title: `🚨 AÇÃO: ${tituloAcao || 'Convocação Geral'}`,
-            body: descricaoAcao || 'O Comando decretou AÇÃO! Apresente-se imediatamente.',
-            url: '/dashboard.html'
-        });
-
-        let enviados = 0;
-        for (const membro of membrosComPush) {
-            if (membro.pushSubscription) {
-                try {
-                    await webpush.sendNotification(membro.pushSubscription, payload);
-                    enviados++;
-                } catch (err) {
-                    console.error('Erro ao enviar push para:', membro.nickname, err);
-                }
-            }
-        }
-
-        // Grava a notificação na Caixa de Entrada de TODOS os utilizadores registados (offline ou online)
-        const notifGeral = {
-            titulo: `🚨 ALERTA DE AÇÃO: ${tituloAcao}`,
-            mensagem: descricaoAcao,
-            data: new Date()
-        };
-        await User.updateMany({}, { $push: { caixaEntrada: notifGeral } });
-
-        // Toca o alarme em tempo real para quem estiver com o site aberto
-        io.emit('tocar_alarme_acao', { titulo: tituloAcao, descricao: descricaoAcao });
-
-        res.json({ success: true, message: `Alerta de ação disparado via Push para ${enviados} operacional(is) e guardado para toda a tropa!` });
-    } catch (e) {
-        res.status(500).json({ success: false, message: 'Erro ao disparar ação: ' + e.message });
-    }
-});
-
-app.put('/api/membro/status-plantao', async (req, res) => {
-    try {
-        const { nickname, emPlantao, estadoTurno, inicioPlantao, segundosAcumulados, fotoComprovanteAtiva } = req.body;
-        if (!nickname) return res.status(400).json({ success: false, message: 'Nickname obrigatório.' });
-
-        const updateData = {
-            emPlantao: !!emPlantao,
-            estadoTurno: estadoTurno || 'parado'
-        };
-
-        if (inicioPlantao !== undefined) updateData.inicioPlantao = inicioPlantao ? new Date(inicioPlantao) : null;
-        if (segundosAcumulados !== undefined) updateData.segundosAcumulados = segundosAcumulados;
-        if (fotoComprovanteAtiva !== undefined) updateData.fotoComprovanteAtiva = fotoComprovanteAtiva;
-
-        await User.updateOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, { $set: updateData });
-
-        io.emit('atualizar_estado_turno_usuario', { nickname: nickname.toLowerCase() });
-        io.emit('atualizar_status_geral_tropa');
-
-        res.json({ success: true, message: 'Estado do turno sincronizado com sucesso!' });
-    } catch (e) {
-        res.status(500).json({ success: false, message: 'Erro ao atualizar status na conta.' });
-    }
-});
-
-app.post('/api/membro/turno', async (req, res) => {
-    try {
-        const { nickname, duracao, fotoComprovante } = req.body;
-        if (!nickname) return res.status(400).json({ success: false, message: 'Nickname não fornecido.' });
-
-        if (!duracao || typeof duracao !== 'string' || !duracao.match(/^\d{2}:\d{2}:\d{2}$/)) {
-            return res.status(400).json({ success: false, message: 'Duração de turno inválida.' });
-        }
-
-        const segundosEnviados = converterDuracaoParaSegundos(duracao);
-        if (segundosEnviados < 5) return res.status(400).json({ success: false, message: 'Turno muito curto para ser registado.' });
-
-        const novoTurno = {
-            data: new Date(),
-            duracao: duracao,
-            fotoComprovante: fotoComprovante || 'Sem foto'
-        };
-
-        const resultado = await User.updateOne(
-            { nickname: new RegExp('^' + nickname + '$', 'i') },
-            { 
-                $push: { historicoTurnos: novoTurno }, 
-                $set: { 
-                    emPlantao: false, 
-                    estadoTurno: 'parado',
-                    inicioPlantao: null,
-                    segundosAcumulados: 0,
-                    fotoComprovanteAtiva: ''
-                } 
-            }
-        );
-
-        if (resultado.matchedCount === 0) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
-
-        io.emit('atualizar_estado_turno_usuario', { nickname: nickname.toLowerCase() });
-        io.emit('atualizar_status_geral_tropa');
-
-        res.json({ success: true, message: 'Turno validado e registado com sucesso!' });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Erro ao guardar turno.' });
-    }
-});
-
+// --- ROTAS DE PROVAS E EXAMES ---
 app.get('/api/membro/provas/status/:nickname', async (req, res) => {
     try {
         const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }).lean();
@@ -568,7 +588,7 @@ app.get('/api/membro/provas/status/:nickname', async (req, res) => {
                 const horasRestantes = Math.ceil((dataCooldown - agora) / (1000 * 60 * 60));
                 return res.json({
                     success: true,
-                    bloqueadoByCooldown: true,
+                    bloqueadoPorCooldown: true,
                     horasRestantes,
                     message: `Estás em cooldown devido a uma reprovação recente. Podes tentar novamente em cerca de ${horasRestantes} hora(s).`
                 });
@@ -684,6 +704,7 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
     }
 });
 
+// --- ROTAS DO SORTEIO DIÁRIO ---
 app.get('/api/admin/sorteio/status', async (req, res) => {
   try {
     const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' }).lean();
@@ -867,6 +888,7 @@ app.post('/api/admin/sorteio/realizar-geral', async (req, res) => {
   }
 });
 
+// --- CONTROLO DE SOCKET.IO ---
 const usuariosOnline = {}; 
 io.on('connection', (socket) => {
   socket.on('entrar_sala', (data) => {

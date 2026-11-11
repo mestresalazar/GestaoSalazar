@@ -451,6 +451,7 @@
         }
         verificarEstadoPush();
 
+        // ATIVAÇÃO PUSH COM A CHAVE VAPID PÚBLICA OFICIAL GERADA
         async function ativarNotificacoesPush() {
             if ('serviceWorker' in navigator && 'PushManager' in window) {
                 try {
@@ -460,7 +461,7 @@
                     const permissao = await Notification.requestPermission();
                     
                     if (permissao === 'granted') {
-                        const publicVapidKey = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYTU5Njh3U';
+                        const publicVapidKey = 'BE5CpajXiRi74CjMe6B0ooSqHupNpbsu1otJVlH5t0t5h6tVJmL8PTVGlkSTPWIdAlIwra6WjFsTcy9sBgii8wQ';
                         const convertedVapidKey = urlBase64ToUint8Array(publicVapidKey);
 
                         const subscription = await registration.pushManager.subscribe({
@@ -631,19 +632,19 @@
         carregarCaixaEntrada();
         setInterval(carregarCaixaEntrada, 6000);
 
-        // FUNÇÃO DE ALARME SINTETIZADO (NÃO DEPENDE DE FICHEIRO MP3 EXTERNO)
+        // ALARME SINTETIZADO SEM DEPENDÊNCIA DE MP3
         function tocarAlarmeSonoro() {
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(880, audioCtx.currentTime); // Tom de alarme
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime);
                 gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
                 osc.start();
-                osc.stop(audioCtx.currentTime + 0.5); // Toca por meio segundo
+                osc.stop(audioCtx.currentTime + 0.5);
             } catch (e) {
                 console.log("Erro ao reproduzir som sintetizado:", e);
             }
