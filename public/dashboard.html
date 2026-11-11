@@ -288,8 +288,6 @@
 </head>
 <body>
 
-    <audio id="audioAlarme" src="/alarm.mp3" preload="auto"></audio>
-
     <div class="navbar">
         <div class="nav-brand">Gestão Salazar</div>
         <div class="nav-links">
@@ -301,10 +299,10 @@
         </div>
     </div>
 
-    <!-- BANNER DE ATIVAÇÃO DE NOTIFICAÇÕES PUSH (APARECE ATÉ O MEMBRO ATIVAR) -->
+    <!-- BANNER DE ATIVAÇÃO DE NOTIFICAÇÕES PUSH -->
     <div id="bannerPush" class="card" style="border: 2px solid #22c55e; background: rgba(34, 197, 94, 0.08); display: none; text-align: center; margin-bottom: 20px;">
         <h3 style="color: #22c55e; border: none; margin-bottom: 8px;">🔔 Ativar Alertas no Telemóvel / PC</h3>
-        <p style="color: #e2e8f0; font-size: 13px; margin-bottom: 15px;">Para receber os alarmes de AÇÃO diretamente na barra de notificações do seu telemóvel (mesmo com o site fechado), clique no botão abaixo e permita as notificações.</p>
+        <p style="color: #e2e8f0; font-size: 13px; margin-bottom: 15px;">Para receber os alarmes de AÇÃO diretamente na barra de notificações, clique no botão abaixo e permita as notificações.</p>
         <button class="btn-action" style="background-color: rgba(34, 197, 94, 0.9); width: auto; display: inline-block; padding: 10px 25px; margin-top: 0;" onclick="ativarNotificacoesPush()">✅ Ativar Notificações Push Agora</button>
     </div>
 
@@ -442,11 +440,9 @@
             document.getElementById('navAdminLink').style.display = 'inline-block';
         }
 
-        // --- VERIFICAÇÃO DE PERMISSÃO PUSH ---
         async function verificarEstadoPush() {
             if ('serviceWorker' in navigator && 'PushManager' in window) {
-                const permission = Notification.permission;
-                if (permission !== 'granted') {
+                if (Notification.permission !== 'granted') {
                     document.getElementById('bannerPush').style.display = 'block';
                 } else {
                     document.getElementById('bannerPush').style.display = 'none';
@@ -459,13 +455,17 @@
             if ('serviceWorker' in navigator && 'PushManager' in window) {
                 try {
                     const registration = await navigator.serviceWorker.register('/sw.js');
+                    await navigator.serviceWorker.ready;
+
                     const permissao = await Notification.requestPermission();
                     
                     if (permissao === 'granted') {
                         const publicVapidKey = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYTU5Njh3U';
+                        const convertedVapidKey = urlBase64ToUint8Array(publicVapidKey);
+
                         const subscription = await registration.pushManager.subscribe({
                             userVisibleOnly: true,
-                            applicationServerKey: publicVapidKey
+                            applicationServerKey: convertedVapidKey
                         });
 
                         const res = await fetch('/api/membro/salvar-subscricao-push', {
@@ -477,18 +477,31 @@
                         const data = await res.json();
                         if (data.success) {
                             document.getElementById('bannerPush').style.display = 'none';
-                            mostrarModalCustomizado('Sucesso', 'Notificações push ativadas com sucesso! Agora receberá os alertas na barrinha.');
+                            mostrarModalCustomizado('Sucesso', 'Notificações push ativadas com sucesso! Agora o seu dispositivo está registado na base de dados.');
+                        } else {
+                            mostrarModalCustomizado('Erro', 'O servidor não conseguiu guardar a subscrição.');
                         }
                     } else {
-                        mostrarModalCustomizado('Atenção', 'Negou a permissão de notificações. Para receber os alertas, ative nas definições do seu navegador.');
+                        mostrarModalCustomizado('Atenção', 'A permissão de notificações foi negada. Ative nas definições do seu navegador.');
                     }
                 } catch (e) {
-                    console.error('Erro ao ativar Push:', e);
-                    mostrarModalCustomizado('Erro', 'Erro ao registrar notificações.');
+                    console.error('Erro detalhado ao ativar Push:', e);
+                    mostrarModalCustomizado('Erro', 'Falha ao registar push: ' + e.message);
                 }
             } else {
                 mostrarModalCustomizado('Indisponível', 'O seu navegador não suporta notificações push.');
             }
+        }
+
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
         }
 
         let cargoDestinoAtual = '';
@@ -618,6 +631,24 @@
         carregarCaixaEntrada();
         setInterval(carregarCaixaEntrada, 6000);
 
+        // FUNÇÃO DE ALARME SINTETIZADO (NÃO DEPENDE DE FICHEIRO MP3 EXTERNO)
+        function tocarAlarmeSonoro() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime); // Tom de alarme
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.5); // Toca por meio segundo
+            } catch (e) {
+                console.log("Erro ao reproduzir som sintetizado:", e);
+            }
+        }
+
         const socket = io();
         socket.emit('entrar_sala', { 
             salaId: 'sala_geral_salazar', 
@@ -626,10 +657,7 @@
         });
 
         socket.on('tocar_alarme_acao', (data) => {
-            const audio = document.getElementById('audioAlarme');
-            if (audio) {
-                audio.play().catch(err => console.log("Bloqueio de autoplay do navegador:", err));
-            }
+            tocarAlarmeSonoro();
             mostrarModalCustomizado(`🚨 ${data.titulo}`, data.descricao, 'alerta');
         });
 
