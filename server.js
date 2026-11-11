@@ -1,887 +1,721 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestão Salazar - Central de Comando (ADM)</title>
-    <script src="/socket.io/socket.io.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        body {
-            background-image: linear-gradient(rgba(11, 19, 30, 0.2), rgba(11, 19, 30, 0.2)), url('/background.jpg');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-            background-color: #0b131e;
-            color: #ffffff;
-            padding: 20px;
-        }
-        .navbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background-color: rgba(18, 31, 51, 0.35);
-            backdrop-filter: blur(8px);
-            padding: 15px 25px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-            border: 1px solid rgba(56, 189, 248, 0.2);
-        }
-        .nav-brand {
-            color: #38bdf8;
-            font-size: 20px;
-            font-weight: bold;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
-        }
-        .nav-links {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-        .nav-links a {
-            color: #e2e8f0;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 14px;
-            padding: 8px 12px;
-            border-radius: 6px;
-            transition: background 0.2s, color 0.2s;
-        }
-        .nav-links a:hover, .nav-links a.active {
-            background-color: rgba(30, 41, 59, 0.6);
-            color: #38bdf8;
-        }
-        .logout-btn {
-            background-color: rgba(239, 68, 68, 0.85);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 13px;
-            transition: background 0.2s;
-        }
-        .logout-btn:hover {
-            background-color: #dc2626;
-        }
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const dotenv = require('dotenv');
+const cors = require('cors');
+const conectarDB = require('./config/db');
+const User = require('./models/User');
+const ConfigSorteio = require('./models/ConfigSorteio');
 
-        .grid-container {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 20px;
-        }
-        @media(max-width: 1024px) {
-            .grid-container {
-                grid-template-columns: 1fr;
-            }
-        }
-        .card {
-            background-color: rgba(18, 31, 51, 0.4);
-            backdrop-filter: blur(8px);
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-            margin-bottom: 20px;
-            border: 1px solid rgba(56, 189, 248, 0.25);
-        }
-        .card h3 {
-            color: #38bdf8;
-            margin-bottom: 15px;
-            font-size: 18px;
-            border-bottom: 1px solid rgba(56, 189, 248, 0.2);
-            padding-bottom: 10px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            padding: 10px;
-            text-align: left;
-            border-bottom: 1px solid rgba(56, 189, 248, 0.15);
-            font-size: 13px;
-        }
-        th {
-            background-color: rgba(15, 23, 42, 0.9);
-            color: #38bdf8;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
-            position: sticky;
-            top: 0;
-            z-index: 2;
-        }
-        .btn-action {
-            padding: 5px 10px;
-            border: none;
-            border-radius: 4px;
-            color: white;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 12px;
-            margin-right: 4px;
-            transition: opacity 0.2s;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-        }
-        .btn-action:hover { opacity: 0.85; }
-        .btn-aprovar { background-color: rgba(22, 163, 74, 0.9); }
-        .btn-promover { background-color: rgba(2, 132, 199, 0.9); }
-        .btn-historico { background-color: rgba(99, 102, 241, 0.9); }
-        .btn-reset { background-color: rgba(234, 179, 8, 0.9); color: #000; }
-        .btn-demitir { background-color: rgba(220, 38, 38, 0.9); }
+dotenv.config();
+conectarDB();
 
-        .status-dot-offline { display: inline-block; width: 8px; height: 8px; background: #64748b; border-radius: 50%; margin-right: 5px; }
-        .status-dot-online { display: inline-block; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; margin-right: 5px; box-shadow: 0 0 6px #22c55e; }
-        .status-dot-plantao { display: inline-block; width: 8px; height: 8px; background: #eab308; border-radius: 50%; margin-right: 5px; box-shadow: 0 0 6px #eab308; animation: pulse-yellow 1.5s infinite; }
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE"]
+  }
+});
 
-        @keyframes pulse-yellow {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.7); }
-            70% { transform: scale(1.1); box-shadow: 0 0 0 5px rgba(234, 179, 8, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(234, 179, 8, 0); }
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(cors());
+app.use(express.static('public'));
+
+function converterDuracaoParaSegundos(duracaoStr) {
+  if (!duracaoStr) return 0;
+  const partes = duracaoStr.split(':');
+  if (partes.length !== 3) return 0;
+  return (parseInt(partes[0]) * 3600) + (parseInt(partes[1]) * 60) + parseInt(partes[2]);
+}
+
+function converterSegundosParaDuracao(segundosTotais) {
+  const segundosSeguros = Math.max(0, parseInt(segundosTotais) || 0);
+  const horas = String(Math.floor(segundosSeguros / 3600)).padStart(2, '0');
+  const minutos = String(Math.floor((segundosSeguros % 3600) / 60)).padStart(2, '0');
+  const segundos = String(segundosSeguros % 60).padStart(2, '0');
+  return `${horas}:${minutos}:${segundos}`;
+}
+
+// --- VALIDAÇÃO DE HORÁRIO RIGOROSA EM UTC-3 (BRASÍLIA) ---
+function turnoEstaNoHorarioPermitido(dataTurno) {
+    if (!dataTurno) return false;
+    const d = new Date(dataTurno);
+    const horaStr = d.toLocaleString("en-US", { timeZone: "America/Sao_Paulo", hour: 'numeric', hour12: false });
+    const hora = parseInt(horaStr, 10);
+    return (hora >= 17 && hora <= 23) || (hora >= 0 && hora < 2);
+}
+
+function turnoEhDeHoje(dataTurno) {
+    if (!dataTurno) return false;
+    const d = new Date(dataTurno);
+    const hoje = new Date();
+    const dStr = d.toLocaleDateString("en-US", { timeZone: "America/Sao_Paulo" });
+    const hojeStr = hoje.toLocaleDateString("en-US", { timeZone: "America/Sao_Paulo" });
+    return dStr === hojeStr;
+}
+
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { nickname, senha, password } = req.body;
+        const passFinal = senha || password;
+        if (!nickname || !passFinal) return res.status(400).json({ success: false, message: 'Preencha os campos.' });
+        
+        const user = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') }).select('-historicoTurnos.fotoComprovante').lean();
+        if (!user) return res.status(400).json({ success: false, message: 'Utilizador não encontrado.' });
+        if (user.password && user.password !== passFinal) {
+            return res.status(400).json({ success: false, message: 'Senha incorreta.' });
+        }
+        if (user.status === 'pendente') {
+            return res.status(403).json({ success: false, message: 'A sua conta aguarda aprovação do Comando para ter acesso ao site.' });
         }
 
-        #chatBox {
-            height: 250px;
-            background: rgba(15, 23, 42, 0.75);
-            border: 1px solid rgba(56, 189, 248, 0.25);
-            border-radius: 6px;
-            padding: 10px;
-            overflow-y: auto;
-            margin-bottom: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .chat-msg {
-            font-size: 13px;
-            background: rgba(30, 41, 59, 0.65);
-            padding: 8px;
-            border-radius: 6px;
-            border-left: 3px solid #38bdf8;
-        }
-        .chat-msg span.autor {
-            font-weight: bold;
-            color: #38bdf8;
-        }
+        res.json({ success: true, message: 'Login bem-sucedido', user: { nickname: user.nickname, cargo: user.cargo, role: user.role, status: user.status } });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro no servidor.' });
+    }
+});
 
-        #modalAdminHistorico {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7);
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .modal-content {
-            background: rgba(18, 31, 51, 0.95);
-            width: 90%;
-            max-width: 650px;
-            max-height: 85vh;
-            border-radius: 8px;
-            padding: 25px;
-            overflow-y: auto;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.8);
-            border: 1px solid #38bdf8;
-        }
-        .close-modal {
-            float: right;
-            background: #ef4444;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-    </style>
-</head>
-<body>
+app.post('/api/auth/register', async (req, res) => {
+    try {
+        const { nickname, senha, password } = req.body;
+        const passFinal = senha || password;
+        if (!nickname || !passFinal) return res.status(400).json({ success: false, message: 'Preencha o nickname e a senha.' });
 
-    <div class="navbar">
-        <div class="nav-brand">Gestão Salazar - Comando</div>
-        <div class="nav-links">
-            <a href="dashboard.html">Painel de Turnos</a>
-            <a href="admin.html" class="active" style="background: rgba(3, 105, 161, 0.8); color: #fff;">Painel ADM</a>
-            <span id="userBadgeInfo" style="font-size: 13px; color: #e2e8f0; margin-left: 10px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);"></span>
-            <button class="logout-btn" onclick="logout()">Sair</button>
-        </div>
-    </div>
+        const userExiste = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') });
+        if (userExiste) return res.status(400).json({ success: false, message: 'Este nickname já está registado.' });
 
-    <div class="grid-container">
-        <div>
-            <!-- PAINEL EXCLUSIVO DO MESTRE: ADICIONAR TEMPO MANUALMENTE -->
-            <div class="card" id="cardInjecaoMestre" style="display: none; border: 2px dashed #eab308; background: rgba(234, 179, 8, 0.05);">
-                <h3 style="color: #eab308;">👑 Painel Exclusivo do Mestre: Adicionar Tempo Manual</h3>
-                <p style="color: #e2e8f0; margin-bottom: 15px; font-size: 13px;">Injete horas de plantão para operacionais cujo tempo não salvou.</p>
-                
-                <div style="margin-bottom: 12px;">
-                    <label style="font-size: 12px; color: #38bdf8;">Nickname do Operacional:</label>
-                    <input type="text" id="mestreTargetNickname" placeholder="Ex: Mestre, teste..." style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px;">
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px;">
-                    <div>
-                        <label style="font-size: 12px; color: #38bdf8;">Horas:</label>
-                        <input type="number" id="mestreHoras" value="0" min="0" max="10" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px;">
-                    </div>
-                    <div>
-                        <label style="font-size: 12px; color: #38bdf8;">Minutos:</label>
-                        <input type="number" id="mestreMinutos" value="30" min="0" max="59" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px;">
-                    </div>
-                    <div>
-                        <label style="font-size: 12px; color: #38bdf8;">Segundos:</label>
-                        <input type="number" id="mestreSegundos" value="0" min="0" max="59" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px;">
-                    </div>
-                </div>
-
-                <div style="margin-bottom: 15px;">
-                    <label style="font-size: 12px; color: #38bdf8;">Motivo / Justificativa:</label>
-                    <input type="text" id="mestreMotivo" value="Queda de conexão / Turno não salvou" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px;">
-                </div>
-
-                <button class="btn-action" style="background-color: rgba(234, 179, 8, 0.9); color: #000; font-size: 13px; padding: 10px 18px; width: auto;" onclick="mestreAdicionarTempo()">⚡ Injetar Tempo no Histórico</button>
-            </div>
-
-            <div class="card">
-                <h3>👥 Gerenciamento de Efetivo, Históricos e Promoções</h3>
-                <p style="color: #e2e8f0; margin-bottom: 15px; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Consulte os plantões recentes, histórico operacional completo e faça alterações hierárquicas.</p>
-                
-                <div style="max-height: 320px; overflow-y: auto; border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; background: rgba(15, 23, 42, 0.5);">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Nickname</th>
-                                <th>Cargo</th>
-                                <th>Status Operacional</th>
-                                <th>Último Plantão</th>
-                                <th>Ações de Comando</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabelaEfetivo">
-                            <tr>
-                                <td colspan="5" style="text-align: center; color: #94a3b8;">A carregar efetivo...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="card">
-                <h3>🎁 Central de Sorteios Diários (Mínimo de 2h de Plantão HOJE)</h3>
-                <p style="color: #e2e8f0; margin-bottom: 15px; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Apenas operacionais com 2 horas ou mais acumuladas no dia atual participam automaticamente.</p>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px;">
-                    <div>
-                        <label style="font-size: 12px; color: #38bdf8;">Horário Previsto:</label>
-                        <input type="time" id="sorteioHorario" value="20:00" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px;">
-                    </div>
-                    <div>
-                        <label style="font-size: 12px; color: #38bdf8;">Qtd. de Ganhadores:</label>
-                        <input type="number" id="sorteioQtd" value="1" min="1" max="10" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px;">
-                    </div>
-                </div>
-
-                <div style="margin-bottom: 15px;">
-                    <label style="font-size: 12px; color: #38bdf8;">Prêmios (separados por vírgula):</label>
-                    <input type="text" id="sorteioPremios" value="R$ 100.000 no Jogo, Viatura Blindada" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px;">
-                </div>
-
-                <div style="margin-bottom: 15px;">
-                    <h4 style="color: #38bdf8; font-size: 14px; margin-bottom: 8px;">🛡️ Operacionais Elegíveis (Com 2h+ HOJE):</h4>
-                    <div id="listaElegiveisSorteio" style="max-height: 220px; overflow-y: auto; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; padding: 10px; font-size: 12px; color: #cbd5e1;">
-                        A carregar elegíveis...
-                    </div>
-                </div>
-
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                    <button class="btn-action" style="background-color: rgba(2, 132, 199, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="salvarConfiguracaoSorteio()">💾 Salvar Agendamento</button>
-                    <button class="btn-action" style="background-color: rgba(22, 163, 74, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="executarSorteioImediato()">🎲 Forçar Sorteio Imediato</button>
-                    <button class="btn-action" style="background-color: rgba(220, 38, 38, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="resetarElegiveisSorteio()">🔄 Resetar Elegíveis deste Ciclo</button>
-                </div>
-
-                <div style="margin-top: 15px; border-top: 1px solid rgba(56, 189, 248, 0.2); padding-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="btn-action" style="background-color: rgba(99, 102, 241, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="enviarNotificacaoRanking()">📊 Enviar Notificação de Ranking</button>
-                    <button class="btn-action" style="background-color: rgba(220, 38, 38, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="resetarRankingSemanal()">🔄 Resetar Ranking da Semana</button>
-                </div>
-
-                <div id="statusConfigSorteio" style="margin-top: 10px; font-size: 12px; color: #38bdf8; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">⚠️ Configuração pendente de salvamento para agendamento automático.</div>
-                <div id="resultadoSorteio" style="margin-top: 15px; font-weight: bold; color: #eab308; text-shadow: 0 1px 2px rgba(0,0,0,0.8); font-size: 13px;"></div>
-            </div>
-        </div>
-
-        <div>
-            <div class="card">
-                <h3>💬 Rádio Tático da Tropa</h3>
-                <div id="chatBox">
-                    <div class="chat-msg"><span class="autor">Sistema (Rádio):</span> Canal de rádio seguro conectado.</div>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <input type="text" id="chatInput" placeholder="Digite sua mensagem..." style="flex: 1; padding: 10px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; color: white; font-size: 13px;">
-                    <button class="btn-action btn-promover" style="margin-top: 0; width: auto; padding: 10px 15px;" onclick="enviarMensagem()">Transmitir</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Histórico -->
-    <div id="modalAdminHistorico">
-        <div class="modal-content">
-            <button class="close-modal" onclick="fecharHistoricoAdmin()">X</button>
-            <h3 id="tituloModalHistorico" style="color: #38bdf8; margin-bottom: 15px;">📜 Histórico de Membro</h3>
-            <div id="conteudoAdminHistorico" style="font-size: 13px; color: #e2e8f0; display: flex; flex-direction: column; gap: 15px;">
-                <p>A carregar dados...</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Profissional -->
-    <div id="customModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(4px);">
-        <div style="background: rgba(18, 31, 51, 0.95); width: 90%; max-width: 400px; border-radius: 8px; padding: 25px; box-shadow: 0 4px 25px rgba(0,0,0,0.9); border: 1px solid #38bdf8; text-align: center;">
-            <h3 id="modalCustomTitle" style="color: #38bdf8; margin-bottom: 12px; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">Gestão Salazar</h3>
-            <p id="modalCustomMessage" style="color: #e2e8f0; font-size: 14px; margin-bottom: 20px; line-height: 1.4; text-shadow: 0 1px 2px rgba(0,0,0,0.8);"></p>
-            <div id="modalCustomButtons" style="display: flex; gap: 10px; justify-content: center;"></div>
-        </div>
-    </div>
-
-    <script>
-        const userStr = localStorage.getItem('user');
-        if (!userStr) { window.location.href = 'index.html'; }
-
-        const user = JSON.parse(userStr);
-        if (user.role !== 'admin' && user.cargo !== 'General' && user.cargo !== 'Coronel') {
-            mostrarModalCustomizado('Acesso Restrito', 'Acesso restrito a administradores.', 'alerta', () => { window.location.href = 'dashboard.html'; });
-        }
-
-        document.getElementById('userBadgeInfo').innerText = `${user.nickname} (${user.cargo || 'General'})`;
-
-        if (user.nickname && user.nickname.toLowerCase().trim() === 'mestre') {
-            document.getElementById('cardInjecaoMestre').style.display = 'block';
-        }
-
-        let listaMembrosCache = [];
-        let usuariosOnlineSocket = [];
-
-        // Socket.io com reconexão automática e tratamento anti-bfcache
-        const socket = io({
-            reconnection: true,
-            reconnectionAttempts: 10,
-            reconnectionDelay: 1000,
-            transports: ['websocket', 'polling']
+        const novoUtilizador = new User({
+            nickname: nickname.trim(),
+            password: passFinal,
+            cargo: 'Soldado',
+            status: 'pendente'
         });
 
-        window.addEventListener('pageshow', (event) => {
-            if (event.persisted) {
-                if (!socket.connected) {
-                    socket.connect();
-                }
-            }
+        await novoUtilizador.save();
+        res.json({ success: true, message: 'Conta registada com sucesso! Aguarde aprovação.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao registar conta na base de dados.' });
+    }
+});
+
+app.get('/api/membro/historico/:nickname', async (req, res) => {
+    try {
+        const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }, '-password -historicoTurnos.fotoComprovante').lean();
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        const ultimoTurno = membro.historicoTurnos && membro.historicoTurnos.length > 0 
+            ? membro.historicoTurnos[membro.historicoTurnos.length - 1] 
+            : null;
+
+        res.json({
+            success: true,
+            membro: {
+                nickname: membro.nickname,
+                cargo: membro.cargo || 'Soldado',
+                status: membro.status || 'Ativo',
+                emPlantao: !!membro.emPlantao,
+                estadoTurno: membro.estadoTurno || 'parado',
+                inicioPlantao: membro.inicioPlantao || null,
+                segundosAcumulados: membro.segundosAcumulados || 0,
+                fotoComprovanteAtiva: membro.fotoComprovanteAtiva || '',
+                ultimoPlantao: ultimoTurno ? `Duração: ${ultimoTurno.duracao} em ${new Date(ultimoTurno.data).toLocaleDateString()}` : 'Nenhum plantão registado'
+            },
+            historicoTurnos: membro.historicoTurnos || [],
+            historicoPromocoes: membro.historicoPromocoes || [],
+            historicoSorteios: membro.historicoSorteios || [],
+            caixaEntrada: membro.caixaEntrada || []
         });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao carregar histórico.' });
+    }
+});
 
-        socket.emit('entrar_sala', { salaId: 'sala_geral_salazar', nickname: user.nickname, cargo: user.cargo || 'Comando' });
+app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
+    try {
+        const nickname = req.params.nickname;
+        let query = { nickname: new RegExp('^' + decodeURIComponent(nickname) + '$', 'i') };
+        if (nickname.match(/^[0-9a-fA-F]{24}$/)) {
+            query = { $or: [{ nickname: new RegExp('^' + nickname + '$', 'i') }, { _id: nickname }] };
+        }
 
-        socket.on('atualizar_status_adm', (listaOnline) => {
-            usuariosOnlineSocket = listaOnline || [];
-            renderizarTabelaEfetivo();
+        let membro = await User.findOne(query, '-password -historicoTurnos.fotoComprovante').lean();
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        const ultimoTurno = membro.historicoTurnos && membro.historicoTurnos.length > 0 ? membro.historicoTurnos[membro.historicoTurnos.length - 1] : null;
+
+        res.json({
+            success: true,
+            membro: {
+                nickname: membro.nickname,
+                cargo: membro.cargo || 'Soldado',
+                status: membro.status || 'Ativo',
+                ultimoPlantao: ultimoTurno ? `${ultimoTurno.duracao} (${new Date(ultimoTurno.data).toLocaleDateString()})` : 'Nenhum plantão'
+            },
+            historicoTurnos: membro.historicoTurnos || [],
+            historicoPromocoes: membro.historicoPromocoes || [],
+            historicoSorteios: membro.historicoSorteios || [],
+            caixaEntrada: membro.caixaEntrada || []
         });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro no servidor.' });
+    }
+});
 
-        socket.on('atualizar_status_geral_tropa', () => {
-            carregarEfetivo();
-            carregarElegiveisSorteio();
-        });
+// --- ROTA OTIMIZADA: EXCLUI FOTOS PESADAS PARA A LISTAGEM VOAR ---
+app.get('/api/admin/membros', async (req, res) => {
+  try {
+    const membros = await User.find({}, 'nickname cargo status emPlantao historicoTurnos.duracao historicoTurnos.data').lean(); 
+    const membrosFormatados = membros.map(m => {
+      const totalSegundosAcumulados = (m.historicoTurnos || []).reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+      const totalHorasFormatado = converterSegundosParaDuracao(totalSegundosAcumulados);
+      
+      const ultimoTurno = m.historicoTurnos && m.historicoTurnos.length > 0 ? m.historicoTurnos[m.historicoTurnos.length - 1] : null;
+      return {
+        _id: m._id,
+        nickname: m.nickname,
+        cargo: m.cargo || 'Soldado',
+        status: m.status || 'ativo',
+        emPlantao: !!m.emPlantao,
+        ultimoPlantao: totalSegundosAcumulados > 0 
+          ? `Total: ${totalHorasFormatado} (${m.historicoTurnos.length} turnos)` 
+          : (ultimoTurno ? `${ultimoTurno.duracao} (${new Date(ultimoTurno.data).toLocaleDateString()})` : 'Nenhum plantão registado')
+      };
+    });
+    res.json({ success: true, membros: membrosFormatados });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Erro ao carregar efetivo.' });
+  }
+});
 
-        socket.on('receber_mensagem', (data) => {
-            const chatBox = document.getElementById('chatBox');
-            const div = document.createElement('div');
-            div.className = 'chat-msg';
-            div.innerHTML = `<span class="autor">${data.nickname} (${data.cargo}):</span> ${data.mensagem}`;
-            chatBox.appendChild(div);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        });
+app.put('/api/admin/membro/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, cargo } = req.body;
+        const updateData = {};
+        if (status) updateData.status = status;
+        if (cargo) updateData.cargo = cargo;
 
-        function enviarMensagem() {
-            const input = document.getElementById('chatInput');
-            const mensagem = input.value.trim();
-            if (!mensagem) return;
-
-            socket.emit('chat_mensagem', {
-                salaId: 'sala_geral_salazar',
-                nickname: user.nickname,
-                cargo: user.cargo || 'Comando',
-                mensagem: mensagem
-            });
-            input.value = '';
+        const membro = await User.findByIdAndUpdate(id, { $set: updateData }, { new: true });
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+        
+        if (cargo) {
+            await User.updateOne({ _id: id }, { $push: { historicoPromocoes: { novoCargo: cargo, data: new Date() } } });
         }
 
-        document.getElementById('chatInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') enviarMensagem();
-        });
+        io.emit('atualizar_status_geral_tropa');
+        res.json({ success: true, message: 'Membro atualizado com sucesso!', membro });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao atualizar membro.' });
+    }
+});
 
-        async function mestreAdicionarTempo() {
-            const targetNickname = document.getElementById('mestreTargetNickname').value.trim();
-            const horas = document.getElementById('mestreHoras').value;
-            const minutos = document.getElementById('mestreMinutos').value;
-            const segundos = document.getElementById('mestreSegundos').value;
-            const motivo = document.getElementById('mestreMotivo').value.trim();
+app.put('/api/admin/membro/resetar-turnos/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const membro = await User.findByIdAndUpdate(id, { $set: { historicoTurnos: [] } }, { new: true });
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+        io.emit('atualizar_status_geral_tropa');
+        res.json({ success: true, message: 'Turnos resetados com sucesso!' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao resetar turnos.' });
+    }
+});
 
-            if (!targetNickname) {
-                mostrarModalCustomizado('Atenção', 'Digite o nickname do operacional.');
-                return;
-            }
+app.delete('/api/admin/membro/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const membro = await User.findByIdAndDelete(id);
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+        io.emit('atualizar_status_geral_tropa');
+        res.json({ success: true, message: 'Membro demitido/removido com sucesso!' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao remover membro.' });
+    }
+});
 
-            mostrarModalCustomizado(
-                'Confirmação de Injeção de Tempo',
-                `Deseja adicionar ${horas}h ${minutos}m ${segundos}s para o operacional <b>${targetNickname}</b>?`,
-                'confirmacao',
-                async () => {
-                    try {
-                        const res = await fetch('/api/admin/mestre/adicionar-tempo', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                adminNickname: user.nickname,
-                                targetNickname,
-                                horas,
-                                minutos,
-                                segundos,
-                                motivo
-                            })
-                        });
-                        const data = await res.json();
-                        if (data.success) {
-                            mostrarModalCustomizado('Sucesso', data.message);
-                            carregarEfetivo();
-                            carregarElegiveisSorteio();
-                        } else {
-                            mostrarModalCustomizado('Erro', data.message);
-                        }
-                    } catch (e) {
-                        console.error(e);
-                        mostrarModalCustomizado('Erro', 'Erro de conexão ao injetar tempo.');
-                    }
-                }
-            );
-        }
-
-        function mostrarModalCustomizado(titulo, mensagem, tipo = 'alerta', callbackConfirmar = null) {
-            const modal = document.getElementById('customModal');
-            document.getElementById('modalCustomTitle').innerText = titulo;
-            document.getElementById('modalCustomMessage').innerHTML = mensagem;
-            const btnContainer = document.getElementById('modalCustomButtons');
-            btnContainer.innerHTML = '';
-
-            if (tipo === 'alerta') {
-                const btnOk = document.createElement('button');
-                btnOk.innerText = 'OK';
-                btnOk.className = 'btn-action btn-aprovar';
-                btnOk.style.padding = '8px 25px';
-                btnOk.onclick = () => { 
-                    modal.style.display = 'none'; 
-                    if (callbackConfirmar) callbackConfirmar();
-                };
-                btnContainer.appendChild(btnOk);
-            } else if (tipo === 'confirmacao') {
-                const btnCancelar = document.createElement('button');
-                btnCancelar.innerText = 'Cancelar';
-                btnCancelar.className = 'btn-action btn-demitir';
-                btnCancelar.style.padding = '8px 20px';
-                btnCancelar.onclick = () => { modal.style.display = 'none'; };
-
-                const btnConfirmar = document.createElement('button');
-                btnConfirmar.innerText = 'Confirmar';
-                btnConfirmar.className = 'btn-action btn-aprovar';
-                btnConfirmar.style.padding = '8px 20px';
-                btnConfirmar.onclick = () => {
-                    modal.style.display = 'none';
-                    if (callbackConfirmar) callbackConfirmar();
-                };
-
-                btnContainer.appendChild(btnCancelar);
-                btnContainer.appendChild(btnConfirmar);
-            }
-            modal.style.display = 'flex';
-        }
-
-        async function carregarEfetivo() {
-            try {
-                const response = await fetch('/api/admin/membros');
-                const data = await response.json();
-
-                if (data.success) {
-                    listaMembrosCache = data.membros;
-                    renderizarTabelaEfetivo();
-                }
-            } catch (error) {
-                console.error(error);
-            }
-        }
-
-        function renderizarTabelaEfetivo() {
-            const tabela = document.getElementById('tabelaEfetivo');
-            tabela.innerHTML = '';
-
-            if (listaMembrosCache.length > 0) {
-                listaMembrosCache.forEach(membro => {
-                    const tr = document.createElement('tr');
-                    
-                    let statusOperacionalHtml = `<span class="status-dot-offline"></span> <span style="color:#64748b;">Offline</span>`;
-                    
-                    if (membro.emPlantao) {
-                        statusOperacionalHtml = `<span class="status-dot-plantao"></span> <b style="color:#eab308;">Em Plantão</b>`;
-                    } else {
-                        const userOnlineInfo = usuariosOnlineSocket.find(u => u.nickname.toLowerCase() === membro.nickname.toLowerCase());
-                        if (userOnlineInfo) {
-                            statusOperacionalHtml = `<span class="status-dot-online"></span> <b style="color:#22c55e;">Online</b>`;
-                        }
-                    }
-
-                    tr.innerHTML = `
-                        <td><b>${membro.nickname}</b></td>
-                        <td>${membro.cargo || 'Privado'}</td>
-                        <td>${statusOperacionalHtml}</td>
-                        <td style="color: #38bdf8; font-size: 12px;">${membro.ultimoPlantao || 'Nenhum plantão'}</td>
-                        <td>
-                            ${membro.status !== 'ativo' ? `<button class="btn-action btn-aprovar" style="width:auto;" onclick="atualizarMembro('${membro._id}', 'ativo', 'Soldado')">Aprovar</button>` : ''}
-                            <button class="btn-action btn-historico" style="width:auto;" onclick="verHistoricoMembro('${membro.nickname}', '${membro._id}')">Ver Histórico</button>
-                            <button class="btn-action btn-promover" style="width:auto;" onclick="promoverMembro('${membro._id}', '${membro.cargo}')">Promover</button>
-                            <button class="btn-action btn-demitir" style="width:auto;" onclick="demitirMembro('${membro._id}')">Demitir</button>
-                        </td>
-                    `;
-                    tabela.appendChild(tr);
-                });
-            } else {
-                tabela.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #94a3b8;">Nenhum membro encontrado.</td></tr>`;
-            }
-        }
-
-        let membroIdAtualModal = null;
-
-        async function verHistoricoMembro(nickname, id) {
-            membroIdAtualModal = id;
-            document.getElementById('modalAdminHistorico').style.display = 'flex';
-            document.getElementById('tituloModalHistorico').innerText = `📜 Histórico Operacional: ${nickname}`;
-            const container = document.getElementById('conteudoAdminHistorico');
-            container.innerHTML = '<p>A carregar dados...</p>';
-
-            try {
-                const res = await fetch(`/api/admin/membro/historico/${encodeURIComponent(nickname)}`);
-                const data = await res.json();
-
-                if (data.success) {
-                    container.innerHTML = `
-                        <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2); display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <p><b>Status Atual:</b> ${data.membro.status.toUpperCase()} | <b>Cargo:</b> ${data.membro.cargo}</p>
-                                <p style="margin-top: 5px; color: #38bdf8;"><b>Último Plantão:</b> ${data.membro.ultimoPlantao}</p>
-                            </div>
-                            <button class="btn-action btn-reset" style="padding: 8px 12px;" onclick="resetarTurnosMembro('${membroIdAtualModal}')">🗑️ Resetar Turnos</button>
-                        </div>
-                        <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2);">
-                            <h4 style="color: #38bdf8; margin-bottom: 8px;">🛡️ Turnos Cumpridos (${data.historicoTurnos.length})</h4>
-                            ${data.historicoTurnos.length > 0 ? data.historicoTurnos.map((t, index) => `
-                                <div style="background: rgba(30, 41, 59, 0.5); padding: 8px; border-radius: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
-                                    <div>
-                                        <p style="margin-bottom: 2px;">• Duração: <b>${t.duracao}</b> (${new Date(t.data).toLocaleDateString()})</p>
-                                        <p style="font-size: 11px; color: #94a3b8;">${t.fotoComprovante || 'Sem foto registada'}</p>
-                                    </div>
-                                </div>
-                            `).join('') : '<p style="color: #94a3b8;">Nenhum turno registado.</p>'}
-                        </div>
-                    `;
-                }
-            } catch (e) {
-                console.error(e);
-            }
-        }
-
-        function fecharHistoricoAdmin() {
-            document.getElementById('modalAdminHistorico').style.display = 'none';
-        }
-
-        async function carregarElegiveisSorteio() {
-            try {
-                const res = await fetch('/api/admin/sorteio/elegiveis?_=' + new Date().getTime());
-                const data = await res.json();
-                const container = document.getElementById('listaElegiveisSorteio');
-                container.innerHTML = '';
-
-                if (data.success && data.elegiveis.length > 0) {
-                    data.elegiveis.forEach(m => {
-                        const div = document.createElement('div');
-                        div.style.padding = '4px 0';
-                        div.style.borderBottom = '1px solid rgba(56, 189, 248, 0.1)';
-                        div.innerHTML = `• <b>${m.nickname}</b> (${m.cargo}) — <i style="color: #38bdf8;">Elegível (2h+ cumpridas HOJE)</i>`;
-                        container.appendChild(div);
-                    });
-                } else {
-                    container.innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível com 2h+ cumpridas HOJE neste ciclo.</span>`;
-                }
-            } catch (e) {
-                console.error(e);
-            }
-        }
-        carregarElegiveisSorteio();
-
-        async function verificarStatusSorteioServidor() {
-            try {
-                const res = await fetch('/api/admin/sorteio/status');
-                const data = await res.json();
-                if (data.success && data.agendamento) {
-                    const ag = data.agendamento;
-                    document.getElementById('sorteioHorario').value = ag.horarioAlvo;
-                    document.getElementById('sorteioQtd').value = ag.qtdGanhadores;
-                    document.getElementById('sorteioPremios').value = ag.premios;
-
-                    if (!ag.executado) {
-                        document.getElementById('statusConfigSorteio').innerHTML = `✅ Sorteio salvo na base de dados para o dia <b>${ag.dataAlvo}</b> às <b>${ag.horarioAlvo}</b>.`;
-                    } else {
-                        document.getElementById('statusConfigSorteio').innerHTML = `🏁 O último sorteio agendado para as ${ag.horarioAlvo} já foi executado.`;
-                    }
-                }
-            } catch (e) {
-                console.error(e);
-            }
-        }
-        verificarStatusSorteioServidor();
-
-        async function salvarConfiguracaoSorteio() {
-            const horarioAlvo = document.getElementById('sorteioHorario').value;
-            const qtdGanhadores = document.getElementById('sorteioQtd').value;
-            const premios = document.getElementById('sorteioPremios').value;
-
-            if (!horarioAlvo || !premios) {
-                mostrarModalCustomizado('Atenção', 'Preencha o horário e os prémios antes de salvar.');
-                return;
-            }
-
-            const hoje = new Date();
-            const ano = hoje.getFullYear();
-            const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-            const dia = String(hoje.getDate()).padStart(2, '0');
-            const dataAlvoStr = `${ano}-${mes}-${dia}`;
-
-            try {
-                const res = await fetch('/api/admin/sorteio/agendar', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ dataAlvo: dataAlvoStr, horarioAlvo, qtdGanhadores, premios })
-                });
-                const data = await res.json();
-
-                if (data.success) {
-                    document.getElementById('statusConfigSorteio').innerHTML = `✅ Sorteio salvo na base de dados para o dia <b>${dataAlvoStr}</b> às <b>${horarioAlvo}</b>.`;
-                    mostrarModalCustomizado('Sucesso', `Sorteio salvo na base de dados para o dia ${dataAlvoStr} às ${horarioAlvo}.`);
-                }
-            } catch (e) {
-                console.error(e);
-                mostrarModalCustomizado('Erro', 'Erro ao salvar o agendamento.');
-            }
-        }
-
-        async function executarSorteioImediato() {
-            const qtdGanhadores = document.getElementById('sorteioQtd').value;
-            const premios = document.getElementById('sorteioPremios').value;
-
-            mostrarModalCustomizado(
-                'Confirmação de Sorteio Imediato',
-                `Deseja efetuar o sorteio imediato agora para ${qtdGanhadores} ganhador(es) com 2h+ cumpridas HOJE?`,
-                'confirmacao',
-                async () => {
-                    try {
-                        const res = await fetch('/api/admin/sorteio/realizar', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ qtdGanhadores, premios })
-                        });
-                        const data = await res.json();
-
-                        if (data.success) {
-                            let resultadoHtml = '🎉 <b>Ganhadores Sorteados (Imediato):</b><br>';
-                            data.ganhadores.forEach(g => {
-                                resultadoHtml += `• ${g.nickname} (${g.cargo}) levou: <b>${g.premio}</b><br>`;
-                                
-                                socket.emit('chat_mensagem', {
-                                    salaId: 'sala_geral_salazar',
-                                    nickname: 'SORTEIO OFICIAL',
-                                    cargo: 'Comando',
-                                    mensagem: `🏆 O operacional ${g.nickname} (${g.cargo}) foi contemplado no sorteio oficial e ganhou: ${g.premio}!`
-                                });
-                            });
-
-                            document.getElementById('resultadoSorteio').innerHTML = resultadoHtml;
-                            mostrarModalCustomizado('Sucesso', 'Sorteio imediato executado com sucesso!');
-                        } else {
-                            mostrarModalCustomizado('Aviso', data.message);
-                        }
-                    } catch (e) {
-                        console.error(e);
-                        mostrarModalCustomizado('Erro', 'Erro ao processar o sorteio.');
-                    }
-                }
-            );
-        }
-
-        async function resetarElegiveisSorteio() {
-            mostrarModalCustomizado(
-                'Confirmação de Reset de Elegíveis',
-                'Tem a certeza que deseja limpar os elegíveis deste ciclo? Os nomes vão sair da lista instantaneamente, mantendo as horas do ranking intactas.',
-                'confirmacao',
-                async () => {
-                    try {
-                        document.getElementById('listaElegiveisSorteio').innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível com 2h+ cumpridas HOJE neste ciclo.</span>`;
-
-                        const res = await fetch('/api/admin/sorteio/resetar-elegiveis', { method: 'PUT' });
-                        const data = await res.json();
-                        if (data.success) {
-                            mostrarModalCustomizado('Sucesso', data.message);
-                            carregarElegiveisSorteio();
-                            carregarEfetivo();
-                        } else {
-                            mostrarModalCustomizado('Erro', data.message);
-                        }
-                    } catch (e) {
-                        console.error(e);
-                        mostrarModalCustomizado('Erro', 'Erro de conexão ao resetar elegíveis.');
-                    }
-                }
-            );
-        }
-
-        async function enviarNotificacaoRanking() {
-            mostrarModalCustomizado(
-                'Confirmação',
-                'Deseja enviar a notificação com a posição atual do ranking de horas para a caixa de entrada de todos os operacionais?',
-                'confirmacao',
-                async () => {
-                    try {
-                        const res = await fetch('/api/admin/notificar/ranking', { method: 'POST' });
-                        const data = await res.json();
-                        if (data.success) {
-                            mostrarModalCustomizado('Sucesso', 'Notificações de ranking enviadas com sucesso para a tropa!');
-                        } else {
-                            mostrarModalCustomizado('Erro', data.message);
-                        }
-                    } catch (e) {
-                        console.error(e);
-                        mostrarModalCustomizado('Erro', 'Erro ao enviar notificações de ranking.');
-                    }
-                }
-            );
-        }
-
-        async function resetarRankingSemanal() {
-            mostrarModalCustomizado(
-                'Confirmação de Reset de Ranking',
-                'Tem a certeza absoluta que deseja resetar o ranking de horas da tropa para iniciar a nova semana? Todos os turnos acumulados anteriores serão limpos.',
-                'confirmacao',
-                async () => {
-                    try {
-                        const res = await fetch('/api/admin/ranking/resetar', { method: 'PUT' });
-                        const data = await res.json();
-                        if (data.success) {
-                            mostrarModalCustomizado('Sucesso', 'O ranking semanal foi resetado com sucesso e a tropa foi notificada!');
-                        } else {
-                            mostrarModalCustomizado('Erro', data.message);
-                        }
-                    } catch (e) {
-                        console.error(e);
-                        mostrarModalCustomizado('Erro', 'Erro de conexão ao resetar o ranking.');
-                    }
-                }
-            );
-        }
-
-        async function atualizarMembro(id, status, cargo) {
-            const res = await fetch(`/api/admin/membro/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status, cargo })
-            });
-            const data = await res.json();
-            if (data.success) { carregarEfetivo(); carregarElegiveisSorteio(); }
-        }
-
-        function promoverMembro(id, cargoAtual) {
-            const modal = document.getElementById('customModal');
-            document.getElementById('modalCustomTitle').innerText = 'Promover Operacional';
-            
-            document.getElementById('modalCustomMessage').innerHTML = `
-                <p style="margin-bottom: 10px;">Digite o novo cargo hierárquico:</p>
-                <input type="text" id="inputNovoCargo" value="${cargoAtual || ''}" style="width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 6px; color: white; font-size: 14px; text-align: center; outline: none;">
-            `;
-
-            const btnContainer = document.getElementById('modalCustomButtons');
-            btnContainer.innerHTML = '';
-
-            const btnCancelar = document.createElement('button');
-            btnCancelar.innerText = 'Cancelar';
-            btnCancelar.className = 'btn-action btn-demitir';
-            btnCancelar.style.padding = '8px 20px';
-            btnCancelar.onclick = () => { modal.style.display = 'none'; };
-
-            const btnConfirmar = document.createElement('button');
-            btnConfirmar.innerText = 'Confirmar Promoção';
-            btnConfirmar.className = 'btn-action btn-aprovar';
-            btnConfirmar.style.padding = '8px 20px';
-            btnConfirmar.onclick = async () => {
-                const novoCargo = document.getElementById('inputNovoCargo').value.trim();
-                if (!novoCargo) return;
-
-                modal.style.display = 'none';
-
-                try {
-                    const res = await fetch(`/api/admin/membro/${id}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ cargo: novoCargo })
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        carregarEfetivo();
-                        carregarElegiveisSorteio();
-                        mostrarModalCustomizado('Sucesso', 'Cargo atualizado com sucesso e notificação enviada!');
-                    } else {
-                        mostrarModalCustomizado('Erro', 'Erro ao atualizar cargo.');
-                    }
-                } catch (e) {
-                    console.error(e);
-                    mostrarModalCustomizado('Erro', 'Erro de conexão.');
-                }
+app.get('/api/admin/ranking/turnos', async (req, res) => {
+    try {
+        const membros = await User.find({}, 'nickname cargo historicoTurnos.duracao historicoTurnos.data').lean();
+        const ranking = membros.map(m => {
+            const turnosValidos = (m.historicoTurnos || []).filter(t => turnoEstaNoHorarioPermitido(t.data));
+            const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+            return {
+                nickname: m.nickname,
+                cargo: m.cargo || 'Soldado',
+                totalSegundos: totalSegundos,
+                totalFormatado: converterSegundosParaDuracao(totalSegundos)
             };
+        }).filter(m => m.totalSegundos > 0).sort((a, b) => b.totalSegundos - a.totalSegundos);
 
-            btnContainer.appendChild(btnCancelar);
-            btnContainer.appendChild(btnConfirmar);
-            modal.style.display = 'flex';
+        res.json({ success: true, ranking: ranking.slice(0, 10) });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao carregar ranking de turnos.' });
+    }
+});
+
+app.put('/api/admin/ranking/resetar', async (req, res) => {
+    try {
+        await User.updateMany({}, { $set: { historicoTurnos: [] } });
+        const notif = {
+            titulo: '🔄 Ranking Semanal Resetado',
+            mensagem: 'O comando resetou o ranking de horas da tropa para iniciar a nova semana.',
+            data: new Date()
+        };
+        await User.updateMany({}, { $push: { caixaEntrada: notif } });
+        io.emit('atualizar_status_geral_tropa');
+        res.json({ success: true, message: 'Ranking semanal resetado com sucesso!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao resetar ranking.' });
+    }
+});
+
+app.post('/api/admin/notificar/ranking', async (req, res) => {
+    try {
+        const notif = {
+            titulo: '📊 Posição do Ranking',
+            mensagem: 'O comando atualizou as notificações relativas ao ranking semanal de horas (17h às 02h).',
+            data: new Date()
+        };
+        await User.updateMany({}, { $push: { caixaEntrada: notif } });
+        res.json({ success: true, message: 'Notificações enviadas!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao enviar notificações.' });
+    }
+});
+
+app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
+    try {
+        const { adminNickname, targetNickname, horas, minutos, segundos, motivo } = req.body;
+
+        if (!adminNickname || adminNickname.toLowerCase().trim() !== 'mestre') {
+            return res.status(403).json({ success: false, message: 'Acesso negado. Apenas a conta Mestre pode injetar tempo manualmente.' });
+        }
+        if (!targetNickname) {
+            return res.status(400).json({ success: false, message: 'Nickname do membro alvo é obrigatório.' });
         }
 
-        function resetarTurnosMembro(id) {
-            mostrarModalCustomizado('Confirmação de Reset', 'Tem certeza que deseja apagar todo o histórico de turnos deste membro?', 'confirmacao', async () => {
-                const res = await fetch(`/api/admin/membro/resetar-turnos/${id}`, { method: 'PUT' });
-                const data = await res.json();
-                if (data.success) { fecharHistoricoAdmin(); carregarEfetivo(); carregarElegiveisSorteio(); }
-            });
+        const h = parseInt(horas) || 0;
+        const m = parseInt(minutos) || 0;
+        const s = parseInt(segundos) || 0;
+        const totalSegundos = (h * 3600) + (m * 60) + s;
+
+        if (totalSegundos <= 0) {
+            return res.status(400).json({ success: false, message: 'O tempo a adicionar deve ser superior a 0.' });
         }
 
-        function demitirMembro(id) {
-            mostrarModalCustomizado('Confirmação de Demissão', 'Tem certeza que deseja demitir/excluir este membro?', 'confirmacao', async () => {
-                const res = await fetch(`/api/admin/membro/${id}`, { method: 'DELETE' });
-                const data = await res.json();
-                if (data.success) { carregarEfetivo(); carregarElegiveisSorteio(); }
-            });
+        const duracaoFormatada = converterSegundosParaDuracao(totalSegundos);
+        const dataInjecao = new Date();
+        dataInjecao.setHours(18, 0, 0, 0);
+
+        const novoTurnoManual = {
+            data: dataInjecao,
+            duracao: duracaoFormatada,
+            fotoComprovante: motivo ? `Injeção Manual por Mestre: ${motivo}` : 'Injeção Manual por Mestre'
+        };
+
+        const notif = {
+            titulo: '⏱️ Tempo Adicionado Manualmente',
+            mensagem: `O Comando (Mestre) adicionou ${duracaoFormatada} ao teu histórico. Motivo: ${motivo || 'Ajuste operacional'}.`,
+            data: new Date()
+        };
+
+        const resultado = await User.updateOne(
+            { nickname: new RegExp('^' + targetNickname.trim() + '$', 'i') },
+            { $push: { historicoTurnos: novoTurnoManual, caixaEntrada: notif } }
+        );
+
+        if (resultado.matchedCount === 0) return res.status(404).json({ success: false, message: 'Membro alvo não encontrado na base de dados.' });
+
+        io.emit('atualizar_status_geral_tropa');
+        res.json({ success: true, message: `Adicionado com sucesso ${duracaoFormatada} para o alvo! Computado no ranking e sorteio.` });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro interno ao adicionar tempo: ' + error.message });
+    }
+});
+
+app.put('/api/membro/status-plantao', async (req, res) => {
+    try {
+        const { nickname, emPlantao, estadoTurno, inicioPlantao, segundosAcumulados, fotoComprovanteAtiva } = req.body;
+        if (!nickname) return res.status(400).json({ success: false, message: 'Nickname obrigatório.' });
+
+        const updateData = {
+            emPlantao: !!emPlantao,
+            estadoTurno: estadoTurno || 'parado'
+        };
+
+        if (inicioPlantao !== undefined) updateData.inicioPlantao = inicioPlantao ? new Date(inicioPlantao) : null;
+        if (segundosAcumulados !== undefined) updateData.segundosAcumulados = segundosAcumulados;
+        if (fotoComprovanteAtiva !== undefined) updateData.fotoComprovanteAtiva = fotoComprovanteAtiva;
+
+        await User.updateOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, { $set: updateData });
+
+        io.emit('atualizar_estado_turno_usuario', { nickname: nickname.toLowerCase() });
+        io.emit('atualizar_status_geral_tropa');
+
+        res.json({ success: true, message: 'Estado do turno sincronizado com sucesso!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao atualizar status na conta.' });
+    }
+});
+
+app.post('/api/membro/turno', async (req, res) => {
+    try {
+        const { nickname, duracao, fotoComprovante } = req.body;
+        if (!nickname) return res.status(400).json({ success: false, message: 'Nickname não fornecido.' });
+
+        if (!duracao || typeof duracao !== 'string' || !duracao.match(/^\d{2}:\d{2}:\d{2}$/)) {
+            return res.status(400).json({ success: false, message: 'Duração de turno inválida.' });
         }
 
-        function logout() {
-            localStorage.clear();
-            window.location.href = 'index.html';
+        const segundosEnviados = converterDuracaoParaSegundos(duracao);
+        if (segundosEnviados < 5) return res.status(400).json({ success: false, message: 'Turno muito curto para ser registado.' });
+
+        const novoTurno = {
+            data: new Date(),
+            duracao: duracao,
+            fotoComprovante: fotoComprovante || 'Sem foto'
+        };
+
+        const resultado = await User.updateOne(
+            { nickname: new RegExp('^' + nickname + '$', 'i') },
+            { 
+                $push: { historicoTurnos: novoTurno }, 
+                $set: { 
+                    emPlantao: false, 
+                    estadoTurno: 'parado',
+                    inicioPlantao: null,
+                    segundosAcumulados: 0,
+                    fotoComprovanteAtiva: ''
+                } 
+            }
+        );
+
+        if (resultado.matchedCount === 0) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        io.emit('atualizar_estado_turno_usuario', { nickname: nickname.toLowerCase() });
+        io.emit('atualizar_status_geral_tropa');
+
+        res.json({ success: true, message: 'Turno validado e registado com sucesso!' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao guardar turno.' });
+    }
+});
+
+app.get('/api/membro/provas/status/:nickname', async (req, res) => {
+    try {
+        const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }).lean();
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        if (membro.cooldownProvaAte) {
+            const dataCooldown = new Date(membro.cooldownProvaAte);
+            const agora = new Date();
+            if (agora < dataCooldown) {
+                const horasRestantes = Math.ceil((dataCooldown - agora) / (1000 * 60 * 60));
+                return res.json({
+                    success: true,
+                    bloqueadoByCooldown: true,
+                    horasRestantes,
+                    message: `Estás em cooldown devido a uma reprovação recente. Podes tentar novamente em cerca de ${horasRestantes} hora(s).`
+                });
+            }
         }
 
-        carregarEfetivo();
-    </script>
-</body>
-</html>
+        const turnosValidos = (membro.historicoTurnos || []).filter(t => turnoEstaNoHorarioPermitido(t.data));
+        const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+        const totalHoras = totalSegundos / 3600;
+
+        const cargoAtual = membro.cargo || 'Soldado';
+        let provaDisponivelPara = null;
+        let horasNecessarias = 0;
+
+        if (cargoAtual === 'Soldado' || cargoAtual === 'Privado') {
+            horasNecessarias = 10;
+            if (totalHoras >= 10) provaDisponivelPara = 'Sargento';
+        } else if (cargoAtual === 'Sargento') {
+            horasNecessarias = 25;
+            if (totalHoras >= 25) provaDisponivelPara = 'Tenente';
+        } else if (cargoAtual === 'Tenente') {
+            horasNecessarias = 50;
+            if (totalHoras >= 50) provaDisponivelPara = 'Major';
+        }
+
+        const horasFaltando = Math.max(0, (horasNecessarias - totalHoras).toFixed(1));
+
+        res.json({
+            success: true,
+            bloqueadoPorCooldown: false,
+            totalHoras: totalHoras.toFixed(1),
+            cargoAtual,
+            provaDisponivelPara,
+            horasFaltando
+        });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao verificar status de provas.' });
+    }
+});
+
+app.post('/api/membro/provas/submeter', async (req, res) => {
+    try {
+        const { nickname, cargoAlvo, respostas } = req.body;
+        
+        const membro = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        if (membro.cooldownProvaAte) {
+            const dataCooldown = new Date(membro.cooldownProvaAte);
+            if (new Date() < dataCooldown) {
+                return res.status(400).json({ success: false, message: 'Tentativa bloqueada. Estás no período de cooldown de 24 horas.' });
+            }
+        }
+
+        let gabarito = {};
+        if (cargoAlvo === 'Sargento') {
+            gabarito = { q1: 'a', q2: 'b', q3: 'b' };
+        } else if (cargoAlvo === 'Tenente') {
+            gabarito = { q1: 'a', q2: 'b', q3: 'b' };
+        } else if (cargoAlvo === 'Major') {
+            gabarito = { q1: 'a', q2: 'a', q3: 'c' };
+        }
+
+        let acertos = 0;
+        let totalPerguntas = Object.keys(gabarito).length;
+
+        if (respostas && respostas.q1 === gabarito.q1) acertos++;
+        if (respostas && respostas.q2 === gabarito.q2) acertos++;
+        if (respostas && respostas.q3 === gabarito.q3) acertos++;
+
+        const aprovado = (acertos / totalPerguntas) >= 0.7;
+
+        if (aprovado) {
+            await User.updateOne(
+                { _id: membro._id },
+                { 
+                    $set: { cargo: cargoAlvo, cooldownProvaAte: null },
+                    $push: { 
+                        historicoPromocoes: { novoCargo: cargoAlvo, data: new Date() },
+                        caixaEntrada: {
+                            titulo: '🎉 Aprovado na Prova!',
+                            mensagem: `Parabéns! Foste aprovado na prova do Exército Brasileiro e promovido para <b>${cargoAlvo}</b>!`,
+                            data: new Date()
+                        }
+                    }
+                }
+            );
+
+            io.emit('atualizar_status_geral_tropa');
+            res.json({ success: true, aprovado: true, message: `Parabéns! Passaste na prova com ${acertos}/${totalPerguntas} acertos e foste promovido a ${cargoAlvo}!` });
+        } else {
+            const dataCooldown = new Date();
+            dataCooldown.setHours(dataCooldown.getHours() + 24);
+
+            await User.updateOne(
+                { _id: membro._id },
+                { 
+                    $set: { cooldownProvaAte: dataCooldown },
+                    $push: { 
+                        caixaEntrada: {
+                            titulo: '❌ Reprovado na Prova (Cooldown 24h)',
+                            mensagem: `Obtiviste ${acertos}/${totalPerguntas} acertos na prova para ${cargoAlvo}. Estás em cooldown de 24 horas.`,
+                            data: new Date()
+                        }
+                    }
+                }
+            );
+
+            res.json({ success: true, aprovado: false, message: `Infelizmente obtiviste ${acertos}/${totalPerguntas} acertos. Foste reprovado e terás um cooldown de 24 horas para tentar novamente.` });
+        }
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro interno ao processar prova.' });
+    }
+});
+
+app.get('/api/admin/sorteio/status', async (req, res) => {
+  try {
+    const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' }).lean();
+    res.json({ success: true, agendamento: config });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Erro ao buscar status.' });
+  }
+});
+
+app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
+  try {
+    const agora = new Date();
+    const membros = await User.find({}, 'nickname cargo sorteioExcluidoAte historicoTurnos.duracao historicoTurnos.data').lean();
+    
+    const elegiveis = membros.filter(m => {
+      if (m.sorteioExcluidoAte) {
+        const dataExclusao = new Date(m.sorteioExcluidoAte);
+        if (dataExclusao.getDate() === agora.getDate() &&
+            dataExclusao.getMonth() === agora.getMonth() &&
+            dataExclusao.getFullYear() === agora.getFullYear()) {
+          return false;
+        }
+      }
+
+      if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
+      const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoEhDeHoje(t.data));
+      const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+      return totalSegundosHoje >= 7200;
+    });
+
+    const listaElegiveis = elegiveis.map(m => ({
+      id: m._id,
+      nickname: m.nickname,
+      cargo: m.cargo || 'Soldado',
+      totalTurnos: m.historicoTurnos.length
+    }));
+    res.json({ success: true, elegiveis: listaElegiveis });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Erro ao carregar elegíveis.' });
+  }
+});
+
+app.post('/api/admin/sorteio/agendar', async (req, res) => {
+  try {
+    const { dataAlvo, horarioAlvo, qtdGanhadores, premios } = req.body;
+    
+    await User.updateMany({}, { $set: { sorteioExcluidoAte: null } });
+
+    await ConfigSorteio.findOneAndUpdate(
+      { chave: 'sorteio_ativo' },
+      { dataAlvo, horarioAlvo, qtdGanhadores: parseInt(qtdGanhadores) || 1, premios: premios || 'Prêmio Especial', executado: false },
+      { upsert: true, new: true }
+    );
+
+    const notifSorteio = {
+      titulo: '🎁 Novo Sorteio Agendado!',
+      mensagem: `O Comando agendou um novo sorteio para hoje às <b>${horarioAlvo}</b>.<br><b>Prémios:</b> ${premios || 'Prêmio Especial'}<br>Cumpre pelo menos 2h de plantão HOJE para participar automaticamente!`,
+      data: new Date()
+    };
+
+    await User.updateMany({}, { $push: { caixaEntrada: notifSorteio } });
+
+    res.json({ success: true, message: 'Sorteio agendado com sucesso e notificação enviada à tropa!' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Erro ao salvar agendamento e notificar.' });
+  }
+});
+
+app.put('/api/admin/sorteio/resetar-elegiveis', async (req, res) => {
+    try {
+        const membros = await User.find({}, 'historicoTurnos.duracao historicoTurnos.data').lean();
+        const idsParaExcluir = [];
+        const agora = new Date();
+
+        membros.forEach(m => {
+            if (m.historicoTurnos && m.historicoTurnos.length > 0) {
+                const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoEhDeHoje(t.data));
+                const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+                if (totalSegundosHoje >= 7200) {
+                    idsParaExcluir.push(m._id);
+                }
+            }
+        });
+
+        await User.updateMany(
+            { _id: { $in: idsParaExcluir } },
+            { $set: { sorteioExcluidoAte: agora } }
+        );
+
+        await ConfigSorteio.findOneAndUpdate(
+            { chave: 'sorteio_ativo' },
+            { $set: { executado: false } },
+            { upsert: true, new: true }
+        );
+
+        const notif = {
+            titulo: '🔄 Ciclo de Sorteio Reiniciado',
+            mensagem: 'O Comando reiniciou a lista de elegíveis deste ciclo. As horas do ranking semanal continuam 100% preservadas.',
+            data: new Date()
+        };
+        await User.updateMany({}, { $push: { caixaEntrada: notif } });
+
+        io.emit('atualizar_status_geral_tropa');
+        res.json({ success: true, message: 'Elegíveis deste ciclo removidos com sucesso!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao resetar elegíveis do sorteio.' });
+    }
+});
+
+app.post('/api/admin/sorteio/realizar', async (req, res) => {
+  try {
+    const { qtdGanhadores, premios } = req.body;
+    const membros = await User.find({}, 'nickname cargo sorteioExcluidoAte historicoTurnos.duracao historicoTurnos.data').lean();
+    const agora = new Date();
+    
+    const elegiveis = membros.filter(m => {
+      if (m.sorteioExcluidoAte) {
+        const dataExclusao = new Date(m.sorteioExcluidoAte);
+        if (dataExclusao.getDate() === agora.getDate() &&
+            dataExclusao.getMonth() === agora.getMonth() &&
+            dataExclusao.getFullYear() === agora.getFullYear()) {
+          return false;
+        }
+      }
+      if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
+      const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoEhDeHoje(t.data));
+      const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+      return totalSegundosHoje >= 7200;
+    });
+
+    if (elegiveis.length === 0) {
+      return res.json({ success: false, message: 'Não há operacionais elegíveis disponíveis para este sorteio.' });
+    }
+
+    const premiosLista = premios ? premios.split(',').map(p => p.trim()) : ['Prêmio Especial'];
+    const ganhadores = [];
+
+    for (let i = 0; i < Math.min(parseInt(qtdGanhadores) || 1, elegiveis.length); i++) {
+      const randomIndex = Math.floor(Math.random() * elegiveis.length);
+      const escolhido = elegiveis.splice(randomIndex, 1)[0];
+      const premioSorteado = premiosLista[i % premiosLista.length];
+      ganhadores.push({ nickname: escolhido.nickname, cargo: escolhido.cargo || 'Privado', premio: premioSorteado });
+      await User.updateOne({ _id: escolhido._id }, { $push: { historicoSorteios: { descricaoPremio: premioSorteado, status: 'venceu', data: new Date() } } });
+    }
+
+    res.json({ success: true, ganhadores });
+  } catch (e) {
+    res.status(500).json({ success: false, message: 'Erro ao realizar sorteio.' });
+  }
+});
+
+const usuariosOnline = {}; 
+io.on('connection', (socket) => {
+  socket.on('entrar_sala', (data) => {
+    let salaId = typeof data === 'string' ? data : (data.salaId || 'sala_geral_salazar');
+    let nickname = typeof data === 'string' ? 'Operacional' : (data.nickname || 'Operacional');
+    let cargo = typeof data === 'string' ? 'Privado' : (data.cargo || 'Privado');
+
+    socket.join(salaId);
+    usuariosOnline[socket.id] = { nickname, cargo, salaId };
+    atualizarEstadoOperacional(salaId);
+  });
+
+  socket.on('chat_mensagem', (data) => { io.to(data.salaId).emit('receber_mensagem', data); });
+
+  socket.on('disconnect', () => {
+    const user = usuariosOnline[socket.id];
+    if (user) {
+      delete usuariosOnline[socket.id];
+      atualizarEstadoOperacional(user.salaId);
+    }
+  });
+});
+
+function atualizarEstadoOperacional(salaId) {
+  const conexõesNaSala = Object.values(usuariosOnline).filter(u => u.salaId === salaId);
+  const unicosMap = {};
+  conexõesNaSala.forEach(u => { unicosMap[u.nickname] = u; });
+  const listaFormatada = Object.values(unicosMap);
+  io.to(salaId).emit('atualizar_usuarios_online', listaFormatada);
+  io.emit('atualizar_status_adm', listaFormatada);
+}
+
+const PORT = process.env.PORT || 10000;
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Servidor rodando na porta ${PORT} 🚀`);
+});
