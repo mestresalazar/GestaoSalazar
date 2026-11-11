@@ -19,8 +19,8 @@ const io = new Server(server, {
   }
 });
 
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(cors());
 app.use(express.static('public'));
 
@@ -39,18 +39,22 @@ function converterSegundosParaDuracao(segundosTotais) {
   return `${horas}:${minutos}:${segundos}`;
 }
 
+// --- VALIDAÇÃO DE HORÁRIO RIGOROSA EM UTC-3 (BRASÍLIA) ---
 function turnoEstaNoHorarioPermitido(dataTurno) {
+    if (!dataTurno) return false;
     const d = new Date(dataTurno);
-    const hora = d.getHours();
+    const horaStr = d.toLocaleString("en-US", { timeZone: "America/Sao_Paulo", hour: 'numeric', hour12: false });
+    const hora = parseInt(horaStr, 10);
     return (hora >= 17 && hora <= 23) || (hora >= 0 && hora < 2);
 }
 
 function turnoEhDeHoje(dataTurno) {
+    if (!dataTurno) return false;
     const d = new Date(dataTurno);
     const hoje = new Date();
-    return d.getDate() === hoje.getDate() &&
-           d.getMonth() === hoje.getMonth() &&
-           d.getFullYear() === hoje.getFullYear();
+    const dStr = d.toLocaleDateString("en-US", { timeZone: "America/Sao_Paulo" });
+    const hojeStr = hoje.toLocaleDateString("en-US", { timeZone: "America/Sao_Paulo" });
+    return dStr === hojeStr;
 }
 
 app.post('/api/auth/login', async (req, res) => {
@@ -59,7 +63,7 @@ app.post('/api/auth/login', async (req, res) => {
         const passFinal = senha || password;
         if (!nickname || !passFinal) return res.status(400).json({ success: false, message: 'Preencha os campos.' });
         
-        const user = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') }).lean();
+        const user = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') }).select('-historicoTurnos.fotoComprovante').lean();
         if (!user) return res.status(400).json({ success: false, message: 'Utilizador não encontrado.' });
         if (user.password && user.password !== passFinal) {
             return res.status(400).json({ success: false, message: 'Senha incorreta.' });
@@ -99,7 +103,7 @@ app.post('/api/auth/register', async (req, res) => {
 
 app.get('/api/membro/historico/:nickname', async (req, res) => {
     try {
-        const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }, '-password').lean();
+        const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }, '-password -historicoTurnos.fotoComprovante').lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
         const ultimoTurno = membro.historicoTurnos && membro.historicoTurnos.length > 0 
@@ -137,8 +141,7 @@ app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
             query = { $or: [{ nickname: new RegExp('^' + nickname + '$', 'i') }, { _id: nickname }] };
         }
 
-        let membro = await User.findOne(query, '-password').lean();
-        if (!membro) membro = await User.findOne({}, '-password').lean();
+        let membro = await User.findOne(query, '-password -historicoTurnos.fotoComprovante').lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
         const ultimoTurno = membro.historicoTurnos && membro.historicoTurnos.length > 0 ? membro.historicoTurnos[membro.historicoTurnos.length - 1] : null;
@@ -171,7 +174,11 @@ app.get('/api/admin/membros', async (req, res) => {
       
       const ultimoTurno = m.historicoTurnos && m.historicoTurnos.length > 0 ? m.historicoTurnos[m.historicoTurnos.length - 1] : null;
       return {
-        ...m,
+        _id: m._id,
+        nickname: m.nickname,
+        cargo: m.cargo || 'Soldado',
+        status: m.status || 'ativo',
+        emPlantao: !!m.emPlantao,
         ultimoPlantao: totalSegundosAcumulados > 0 
           ? `Total: ${totalHorasFormatado} (${m.historicoTurnos.length} turnos)` 
           : (ultimoTurno ? `${ultimoTurno.duracao} (${new Date(ultimoTurno.data).toLocaleDateString()})` : 'Nenhum plantão registado')
@@ -231,7 +238,7 @@ app.delete('/api/admin/membro/:id', async (req, res) => {
 
 app.get('/api/admin/ranking/turnos', async (req, res) => {
     try {
-        const membros = await User.find({}, 'nickname cargo historicoTurnos').lean();
+        const membros = await User.find({}, 'nickname cargo historicoTurnos.duracao historicoTurnos.data').lean();
         const ranking = membros.map(m => {
             const turnosValidos = (m.historicoTurnos || []).filter(t => turnoEstaNoHorarioPermitido(t.data));
             const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
@@ -537,7 +544,7 @@ app.get('/api/admin/sorteio/status', async (req, res) => {
 app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
   try {
     const agora = new Date();
-    const membros = await User.find({}, '-password').lean();
+    const membros = await User.find({}, 'nickname cargo sorteioExcluidoAte historicoTurnos.duracao historicoTurnos.data').lean();
     
     const elegiveis = membros.filter(m => {
       if (m.sorteioExcluidoAte) {
@@ -595,7 +602,7 @@ app.post('/api/admin/sorteio/agendar', async (req, res) => {
 
 app.put('/api/admin/sorteio/resetar-elegiveis', async (req, res) => {
     try {
-        const membros = await User.find({}, '-password').lean();
+        const membros = await User.find({}, 'historicoTurnos.duracao historicoTurnos.data').lean();
         const idsParaExcluir = [];
         const agora = new Date();
 
@@ -628,7 +635,7 @@ app.put('/api/admin/sorteio/resetar-elegiveis', async (req, res) => {
         await User.updateMany({}, { $push: { caixaEntrada: notif } });
 
         io.emit('atualizar_status_geral_tropa');
-        res.json({ success: true, message: 'Elegíveis deste ciclo removidos com sucesso! O ranking e as horas da tropa foram totalmente preservados.' });
+        res.json({ success: true, message: 'Elegíveis deste ciclo removidos com sucesso!' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao resetar elegíveis do sorteio.' });
     }
@@ -637,8 +644,8 @@ app.put('/api/admin/sorteio/resetar-elegiveis', async (req, res) => {
 app.post('/api/admin/sorteio/realizar', async (req, res) => {
   try {
     const { qtdGanhadores, premios } = req.body;
+    const membros = await User.find({}, 'nickname cargo sorteioExcluidoAte historicoTurnos.duracao historicoTurnos.data').lean();
     const agora = new Date();
-    const membros = await User.find({}, '-password').lean();
     
     const elegiveis = membros.filter(m => {
       if (m.sorteioExcluidoAte) {
