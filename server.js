@@ -205,6 +205,23 @@ app.get('/api/admin/membros', async (req, res) => {
   }
 });
 
+// --- ROTA DE ESTATÍSTICAS E CONTAGEM DE MEMBROS ---
+app.get('/api/admin/estatisticas', async (req, res) => {
+    try {
+        const totalRegistados = await User.countDocuments();
+        const ativos = await User.countDocuments({ status: 'ativo' });
+        const pendentes = await User.countDocuments({ status: 'pendente' });
+        const emPlantao = await User.countDocuments({ emPlantao: true });
+
+        res.json({
+            success: true,
+            estatisticas: { totalRegistados, ativos, pendentes, emPlantao }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao carregar estatísticas.' });
+    }
+});
+
 app.put('/api/admin/membro/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -690,7 +707,7 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
     });
 
     if (elegiveis.length === 0) {
-      return res.json({ success: false, message: 'Não há oper oficiales elegíveis disponíveis para este sorteio.' });
+      return res.json({ success: false, message: 'Não há operacionais elegíveis disponíveis para este sorteio.' });
     }
 
     const premiosLista = premios ? premios.split(',').map(p => p.trim()) : ['Prêmio Especial'];
@@ -710,13 +727,11 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
   }
 });
 
-// --- NOVO ENDPOINT: SORTEIO GERAL PARA QUEM TEM PELO MENOS 1 TURNO SALVO HOJE ---
 app.post('/api/admin/sorteio/realizar-geral', async (req, res) => {
   try {
     const { qtdGanhadores, premios } = req.body;
     const membros = await User.find({}, 'nickname cargo historicoTurnos.duracao historicoTurnos.data').lean();
     
-    // Filtra quem tem pelo menos 1 turno válido no ciclo atual (independente de ter 2h ou não)
     const participantesGerais = membros.filter(m => {
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
       const turnosCiclo = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoPertenceAoCicloAtual(t.data));
