@@ -283,12 +283,6 @@
             cursor: pointer;
             font-weight: bold;
         }
-
-        /* Custom Scrollbars */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
-        ::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.4); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(56, 189, 248, 0.7); }
     </style>
     <script src="/socket.io/socket.io.js"></script>
 </head>
@@ -321,7 +315,7 @@
             </div>
 
             <div class="card">
-                <h3>🪖 Módulo Bate-Ponto & Turnos (Seguro por Servidor)</h3>
+                <h3>🪖 Módulo Bate-Ponto & Turnos</h3>
                 <p id="etapaAtual" style="color: #e2e8f0; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Detectando etapa atual...</p>
                 
                 <div class="timer-display" id="timerDisplay">00:00:00</div>
@@ -333,7 +327,8 @@
                 </div>
                 
                 <button class="btn-action" id="btnCheckin" onclick="fazerCheckin()">Iniciar Turno (Check-in)</button>
-                <button class="btn-action" id="btnCheckout" style="background-color: rgba(220, 38, 38, 0.9);" onclick="fazerCheckout()">Finalizar Turno (Check-out)</button>
+                <button class="btn-action" id="btnPausar" style="background-color: rgba(234, 179, 8, 0.9); color: #000; display: none;" onclick="alternarPausa()">Pausar Turno</button>
+                <button class="btn-action" id="btnCheckout" style="background-color: rgba(71, 85, 105, 0.9);" onclick="fazerCheckout()">Finalizar Turno (Check-out)</button>
             </div>
 
             <div class="card">
@@ -456,6 +451,7 @@
         }
         verificarEstadoPush();
 
+        // ATIVAÇÃO PUSH COM A CHAVE VAPID PÚBLICA OFICIAL GERADA
         async function ativarNotificacoesPush() {
             if ('serviceWorker' in navigator && 'PushManager' in window) {
                 try {
@@ -629,11 +625,14 @@
                 } else {
                     container.innerHTML = '<span style="color: #94a3b8;">Nenhuma nova notificação na caixa de entrada.</span>';
                 }
-            } catch (e) { console.error('Erro ao carregar caixa de entrada:', e); }
+            } catch (e) {
+                console.error('Erro ao carregar caixa de entrada:', e);
+            }
         }
         carregarCaixaEntrada();
         setInterval(carregarCaixaEntrada, 6000);
 
+        // ALARME SINTETIZADO SEM DEPENDÊNCIA DE MP3
         function tocarAlarmeSonoro() {
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -665,7 +664,7 @@
 
         socket.on('atualizar_estado_turno_usuario', async (data) => {
             if (data && data.nickname && user && data.nickname.toLowerCase() === user.nickname.toLowerCase()) {
-                await sincronizarEstadoServidor();
+                await restaurarEstadoTurno();
                 carregarRanking();
                 verificarProgressoProvas();
                 carregarCaixaEntrada();
@@ -780,32 +779,6 @@
                     if (callbackConfirmar) callbackConfirmar();
                 };
                 btnContainer.appendChild(btnOk);
-            } else if (tipo === 'confirmar') {
-                const btnSim = document.createElement('button');
-                btnSim.innerText = 'Sim';
-                btnSim.className = 'btn-action';
-                btnSim.style.width = 'auto';
-                btnSim.style.marginTop = '0';
-                btnSim.style.padding = '8px 20px';
-                btnSim.onclick = () => {
-                    modal.style.display = 'none';
-                    if (callbackConfirmar) callbackConfirmar(true);
-                };
-
-                const btnNao = document.createElement('button');
-                btnNao.innerText = 'Não';
-                btnNao.className = 'btn-action';
-                btnNao.style.backgroundColor = 'rgba(239, 68, 68, 0.9)';
-                btnNao.style.width = 'auto';
-                btnNao.style.marginTop = '0';
-                btnNao.style.padding = '8px 20px';
-                btnNao.onclick = () => {
-                    modal.style.display = 'none';
-                    if (callbackConfirmar) callbackConfirmar(false);
-                };
-
-                btnContainer.appendChild(btnSim);
-                btnContainer.appendChild(btnNao);
             }
             modal.style.display = 'flex';
         }
@@ -851,77 +824,100 @@
         }
         carregarRanking();
 
-        // -------------------------------------------------------------------------
-        // CRONÔMETRO À PROVA DE SUSPENSÃO (TIMESTAMP ABSOLUTO DO SERVIDOR)
-        // -------------------------------------------------------------------------
         let timerInterval = null;
-        let emPlantaoLocal = false;
-        let inicioPlantaoTimestamp = null;
+        let estadoTurno = 'parado';
+        let segundosAcumuladosBase = 0;
+        let timestampInicioServer = null;
         let fotoComprovanteBase64 = '';
 
-        function atualizarDisplaySeguro() {
-            const display = document.getElementById('timerDisplay');
-            if (!emPlantaoLocal || !inicioPlantaoTimestamp) {
-                if (display) display.innerText = "00:00:00";
-                return 0;
+        function calcularSegundosTotais() {
+            if (estadoTurno === 'ativo' && timestampInicioServer) {
+                const decorridoAgora = Math.floor((Date.now() - timestampInicioServer) / 1000);
+                return segundosAcumuladosBase + decorridoAgora;
+            } else {
+                return segundosAcumuladosBase;
             }
+        }
 
-            const agora = Date.now();
-            const segundosDecorridos = Math.floor((agora - inicioPlantaoTimestamp) / 1000);
+        function atualizarDisplayTimer() {
+            const segundosTotais = calcularSegundosTotais();
 
-            const h = String(Math.floor(segundosDecorridos / 3600)).padStart(2, '0');
-            const m = String(Math.floor((segundosDecorridos % 3600) / 60)).padStart(2, '0');
-            const s = String(segundosDecorridos % 60).padStart(2, '0');
-
-            if (display) display.innerText = `${h}:${m}:${s}`;
-            return segundosDecorridos;
+            const horas = String(Math.floor(segundosTotais / 3600)).padStart(2, '0');
+            const minutos = String(Math.floor((segundosTotais % 3600) / 60)).padStart(2, '0');
+            const segundos = String(segundosTotais % 60).padStart(2, '0');
+            
+            const display = document.getElementById('timerDisplay');
+            if (display) display.innerText = `${horas}:${minutos}:${segundos}`;
+            
+            return segundosTotais;
         }
 
         function iniciarLoopTimer() {
             if (timerInterval) clearInterval(timerInterval);
-            atualizarDisplaySeguro();
-            timerInterval = setInterval(atualizarDisplaySeguro, 1000);
+            atualizarDisplayTimer();
+            timerInterval = setInterval(() => {
+                atualizarDisplayTimer();
+            }, 1000);
         }
 
         document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && emPlantaoLocal) {
-                atualizarDisplaySeguro();
+            if (!document.hidden && estadoTurno === 'ativo') {
+                atualizarDisplayTimer();
             }
         });
 
         window.addEventListener('focus', () => {
-            if (emPlantaoLocal) {
-                atualizarDisplaySeguro();
+            if (estadoTurno === 'ativo') {
+                atualizarDisplayTimer();
             }
         });
 
-        async function sincronizarEstadoServidor() {
+        async function restaurarEstadoTurno() {
             try {
                 const res = await fetch(`/api/membro/historico/${encodeURIComponent(user.nickname)}`);
                 const data = await res.json();
 
                 if (data.success && data.membro) {
-                    emPlantaoLocal = data.membro.emPlantao || false;
-                    inicioPlantaoTimestamp = data.membro.inicioPlantao ? new Date(data.membro.inicioPlantao).getTime() : null;
+                    estadoTurno = data.membro.estadoTurno || 'parado';
+                    segundosAcumuladosBase = data.membro.segundosAcumulados || 0;
+                    timestampInicioServer = data.membro.inicioPlantao ? new Date(data.membro.inicioPlantao).getTime() : null;
                     fotoComprovanteBase64 = data.membro.fotoComprovanteAtiva || '';
-
-                    const statusAnexo = document.getElementById('statusAnexo');
-                    if (fotoComprovanteBase64 && statusAnexo) {
-                        statusAnexo.innerText = '✅ Print guardado na conta e pronto!';
-                    }
-
-                    if (emPlantaoLocal && inicioPlantaoTimestamp) {
-                        iniciarLoopTimer();
-                    } else {
-                        if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-                        atualizarDisplaySeguro();
-                    }
                 }
             } catch (e) {
-                console.error('Erro ao sincronizar estado com o servidor:', e);
+                console.error('Erro ao sincronizar turno com a conta:', e);
+            }
+
+            const btnPausar = document.getElementById('btnPausar');
+            const statusAnexo = document.getElementById('statusAnexo');
+
+            if (fotoComprovanteBase64 && statusAnexo) {
+                statusAnexo.innerText = '✅ Print guardado na tua conta e pronto!';
+            }
+
+            if (estadoTurno === 'ativo') {
+                if (btnPausar) {
+                    btnPausar.style.display = 'block';
+                    btnPausar.innerText = 'Pausar Turno';
+                    btnPausar.style.backgroundColor = 'rgba(234, 179, 8, 0.9)';
+                    btnPausar.style.color = '#000';
+                }
+                atualizarDisplayTimer();
+                iniciarLoopTimer();
+            } else if (estadoTurno === 'pausado') {
+                if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+                if (btnPausar) {
+                    btnPausar.style.display = 'block';
+                    btnPausar.innerText = 'Retomar Turno';
+                    btnPausar.style.backgroundColor = 'rgba(34, 197, 94, 0.9)';
+                }
+                atualizarDisplayTimer();
+            } else {
+                if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+                if (btnPausar) btnPausar.style.display = 'none';
+                atualizarDisplayTimer();
             }
         }
-        sincronizarEstadoServidor();
+        restaurarEstadoTurno();
 
         function converterFotoLocal(input) {
             if (input.files && input.files[0]) {
@@ -938,6 +934,8 @@
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ 
                                 nickname: user.nickname, 
+                                emPlantao: (estadoTurno === 'ativo'),
+                                estadoTurno: estadoTurno,
                                 fotoComprovanteAtiva: fotoComprovanteBase64
                             })
                         });
@@ -950,7 +948,7 @@
         }
 
         async function fazerCheckin() {
-            if (emPlantaoLocal) {
+            if (estadoTurno === 'ativo') {
                 mostrarModalCustomizado('Aviso', 'Turno já em andamento!');
                 return;
             }
@@ -960,31 +958,109 @@
                 return;
             }
 
+            const agoraTimestamp = Date.now();
+            estadoTurno = 'ativo';
+            timestampInicioServer = agoraTimestamp;
+            segundosAcumuladosBase = 0;
+
             try {
-                const res = await fetch('/api/plantao/iniciar', {
-                    method: 'POST',
+                await fetch('/api/membro/status-plantao', {
+                    method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nickname: user.nickname })
+                    body: JSON.stringify({ 
+                        nickname: user.nickname, 
+                        emPlantao: true,
+                        estadoTurno: 'ativo',
+                        inicioPlantao: agoraTimestamp,
+                        segundosAcumulados: 0,
+                        fotoComprovanteAtiva: fotoComprovanteBase64
+                    })
                 });
-                const data = await res.json();
-                if (data.success) {
-                    emPlantaoLocal = true;
-                    inicioPlantaoTimestamp = data.inicioPlantao;
-                    iniciarLoopTimer();
-                    mostrarModalCustomizado('Sucesso', 'Check-in registado com segurança pelo servidor!');
-                } else {
-                    mostrarModalCustomizado('Erro', data.message);
-                }
             } catch (e) {
-                console.error(e);
-                mostrarModalCustomizado('Erro', 'Erro de conexão ao iniciar plantão.');
+                console.error('Erro ao atualizar check-in na conta:', e);
+            }
+
+            const btnPausar = document.getElementById('btnPausar');
+            if (btnPausar) {
+                btnPausar.style.display = 'block';
+                btnPausar.innerText = 'Pausar Turno';
+                btnPausar.style.backgroundColor = 'rgba(234, 179, 8, 0.9)';
+                btnPausar.style.color = '#000';
+            }
+
+            iniciarLoopTimer();
+            mostrarModalCustomizado('Sucesso', 'Check-in registado!');
+        }
+
+        async function alternarPausa() {
+            if (estadoTurno === 'parado') return;
+
+            const btnPausar = document.getElementById('btnPausar');
+            if (estadoTurno === 'ativo') {
+                segundosAcumuladosBase = calcularSegundosTotais();
+                timestampInicioServer = null;
+                estadoTurno = 'pausado';
+
+                clearInterval(timerInterval);
+                timerInterval = null;
+
+                try {
+                    await fetch('/api/membro/status-plantao', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            nickname: user.nickname, 
+                            emPlantao: false,
+                            estadoTurno: 'pausado',
+                            inicioPlantao: null,
+                            segundosAcumulados: segundosAcumuladosBase
+                        })
+                    });
+                } catch (e) {
+                    console.error(e);
+                }
+
+                if (btnPausar) {
+                    btnPausar.innerText = 'Retomar Turno';
+                    btnPausar.style.backgroundColor = 'rgba(34, 197, 94, 0.9)';
+                }
+                mostrarModalCustomizado('Turno Pausado', 'O cronômetro foi pausado.');
+            } else {
+                const agoraTimestamp = Date.now();
+                estadoTurno = 'ativo';
+                timestampInicioServer = agoraTimestamp;
+
+                try {
+                    await fetch('/api/membro/status-plantao', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            nickname: user.nickname, 
+                            emPlantao: true,
+                            estadoTurno: 'ativo',
+                            inicioPlantao: agoraTimestamp,
+                            segundosAcumulados: segundosAcumuladosBase
+                        })
+                    });
+                } catch (e) {
+                    console.error(e);
+                }
+
+                if (btnPausar) {
+                    btnPausar.innerText = 'Pausar Turno';
+                    btnPausar.style.backgroundColor = 'rgba(234, 179, 8, 0.9)';
+                    btnPausar.style.color = '#000';
+                }
+                
+                iniciarLoopTimer();
+                mostrarModalCustomizado('Turno Retomado', 'O cronômetro voltou a contar.');
             }
         }
 
         async function fazerCheckout() {
-            const segundosTotais = atualizarDisplaySeguro();
-            if (!emPlantaoLocal && segundosTotais === 0) {
-                mostrarModalCustomizado('Aviso', 'Nenhum plantão ativo.');
+            const segundosTotais = atualizarDisplayTimer();
+            if (estadoTurno === 'parado' && segundosTotais === 0) {
+                mostrarModalCustomizado('Aviso', 'Nenhum turno ativo.');
                 return;
             }
 
@@ -993,35 +1069,41 @@
                 return;
             }
             
-            if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+            clearInterval(timerInterval);
+            timerInterval = null;
+            const btnPausar = document.getElementById('btnPausar');
+            if (btnPausar) btnPausar.style.display = 'none';
+
             const display = document.getElementById('timerDisplay');
             const tempoFinal = display ? display.innerText : '00:00:00';
 
             try {
-                const response = await fetch('/api/plantao/parar', {
+                const response = await fetch('/api/membro/turno', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         nickname: user.nickname,
+                        duracao: tempoFinal,
                         fotoComprovante: fotoComprovanteBase64
                     })
                 });
 
                 const data = await response.json();
                 if (data.success) {
-                    mostrarModalCustomizado('Sucesso', `${data.message} (Duração: ${tempoFinal})`);
+                    mostrarModalCustomizado('Sucesso', `Turno finalizado e gravado com sucesso! Duração: ${tempoFinal}`);
                     carregarRanking();
                     verificarProgressoProvas();
                     
-                    emPlantaoLocal = false;
-                    inicioPlantaoTimestamp = null;
+                    estadoTurno = 'parado';
+                    segundosAcumuladosBase = 0;
+                    timestampInicioServer = null;
                     fotoComprovanteBase64 = '';
 
                     const fotoComp = document.getElementById('fotoComprovante');
                     const statusAnexo = document.getElementById('statusAnexo');
                     if (fotoComp) fotoComp.value = '';
                     if (statusAnexo) statusAnexo.innerText = '';
-                    atualizarDisplaySeguro();
+                    atualizarDisplayTimer();
                 } else {
                     mostrarModalCustomizado('Erro', 'Erro ao gravar no histórico: ' + data.message);
                 }
@@ -1044,15 +1126,15 @@
                     container.innerHTML = `
                         <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2);">
                             <h4 style="color: #38bdf8; margin-bottom: 8px;">🛡️ Turnos Cumpridos</h4>
-                            ${data.historicoTurnos && data.historicoTurnos.length > 0 ? data.historicoTurnos.map(t => `<p style="margin-bottom: 4px;">• Duração: <b>${t.duracao}</b> | Data: ${t.data}</p>`).join('') : '<p style="color: #94a3b8;">Nenhum turno registado ainda.</p>'}
+                            ${data.historicoTurnos.length > 0 ? data.historicoTurnos.map(t => `<p style="margin-bottom: 4px;">• Duração: <b>${t.duracao}</b> | Comprovante: <i>Anexo gravado</i> (${new Date(t.data).toLocaleDateString()})</p>`).join('') : '<p style="color: #94a3b8;">Nenhum turno registado ainda.</p>'}
                         </div>
                         <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2);">
                             <h4 style="color: #38bdf8; margin-bottom: 8px;">⭐ Histórico de Promoções</h4>
-                            ${data.historicoPromocoes && data.historicoPromocoes.length > 0 ? data.historicoPromocoes.map(p => `<p style="margin-bottom: 4px;">• Promovido para <b>${p.novoCargo}</b> em ${new Date(p.data).toLocaleDateString()}</p>`).join('') : '<p style="color: #94a3b8;">Nenhuma promoção registada.</p>'}
+                            ${data.historicoPromocoes.length > 0 ? data.historicoPromocoes.map(p => `<p style="margin-bottom: 4px;">• Promovido para <b>${p.novoCargo}</b> em ${new Date(p.data).toLocaleDateString()}</p>`).join('') : '<p style="color: #94a3b8;">Nenhuma promoção registada.</p>'}
                         </div>
                         <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2);">
                             <h4 style="color: #38bdf8; margin-bottom: 8px;">🎁 Histórico de Sorteios</h4>
-                            ${data.historicoSorteios && data.historicoSorteios.length > 0 ? data.historicoSorteios.map(s => `<p style="margin-bottom: 4px;">• ${s.descricaoPremio} - Status: <b>${s.status}</b></p>`).join('') : '<p style="color: #94a3b8;">Sem participações em sorteios registadas.</p>'}
+                            ${data.historicoSorteios.length > 0 ? data.historicoSorteios.map(s => `<p style="margin-bottom: 4px;">• ${s.descricaoPremio} - Status: <b>${s.status}</b></p>`).join('') : '<p style="color: #94a3b8;">Sem participações em sorteios registadas.</p>'}
                         </div>
                     `;
                 } else {
@@ -1073,7 +1155,7 @@
                 await fetch('/api/membro/status-plantao', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nickname: user.nickname, emPlantao: false })
+                    body: JSON.stringify({ nickname: user.nickname, emPlantao: false, estadoTurno: 'parado' })
                 });
             } catch (e) {
                 console.error(e);

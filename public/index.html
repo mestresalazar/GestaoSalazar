@@ -1,336 +1,195 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const mongoose = require('mongoose');
-
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
-
-app.use(express.json({ limit: '15mb' }));
-app.use(express.urlencoded({ extended: true, limit: '15mb' }));
-app.use(express.static(__dirname));
-
-// Conexão ao MongoDB Atlas
-const MONGO_URI = process.env.MONGO_URI || "SUA_MONGO_URI_AQUI";
-mongoose.connect(MONGO_URI)
-    .then(() => console.log('📦 Conectado ao MongoDB Atlas com sucesso!'))
-    .catch(err => console.error('Erro ao conectar ao MongoDB:', err));
-
-// Esquema do Membro / Operacional
-const membroSchema = new mongoose.Schema({
-    nickname: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    role: { type: String, default: 'membro' }, // 'admin' ou 'membro'
-    cargo: { type: String, default: 'Soldado' },
-    status: { type: String, default: 'ativo' }, // ativo, pendente
-    emPlantao: { type: Boolean, default: false },
-    inicioPlantao: { type: Number, default: null }, // Timestamp absoluto
-    fotoComprovanteAtiva: { type: String, default: '' },
-    ultimoPlantao: { type: String, default: 'Nenhum plantão' },
-    historicoTurnos: [{
-        duracao: String,
-        duracaoSegundos: Number,
-        data: String,
-        fotoComprovante: String
-    }],
-    historicoPromocoes: [{
-        novoCargo: String,
-        data: { type: Date, default: Date.now }
-    }],
-    historicoSorteios: [{
-        descricaoPremio: String,
-        status: String,
-        data: { type: Date, default: Date.now }
-    }],
-    caixaEntrada: [{
-        titulo: String,
-        mensagem: String,
-        data: { type: Date, default: Date.now }
-    }],
-    subscricaoPush: { type: Object, default: null }
-});
-
-const Membro = mongoose.model('Membro', membroSchema);
-
-// Função Auxiliar: Formato Rigoroso no Horário de Brasília (GMT-3)
-function formatarHorarioBrasilia(dataInput = new Date()) {
-    const data = new Date(dataInput);
-    return new Intl.DateTimeFormat('pt-BR', {
-        timeZone: 'America/Sao_Paulo',
-        dateStyle: 'short',
-        timeStyle: 'medium'
-    }).format(data);
-}
-
-// --- ROTAS DE AUTENTICAÇÃO ---
-app.post('/api/auth/login', async (req, res) => {
-    try {
-        const { nickname, password } = req.body;
-        const membro = await Membro.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') });
-        if (!membro || membro.password !== password) {
-            return res.json({ success: false, message: 'Nickname ou senha incorretos.' });
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão Salazar - Login</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        res.json({ success: true, user: { nickname: membro.nickname, role: membro.role, cargo: membro.cargo, status: membro.status } });
-    } catch (e) {
-        console.error(e);
-        res.json({ success: false, message: 'Erro no login.' });
-    }
-});
-
-app.post('/api/auth/register', async (req, res) => {
-    try {
-        const { nickname, password, cargo } = req.body;
-        const existe = await Membro.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') });
-        if (existe) return res.json({ success: false, message: 'Nickname já registado.' });
-
-        const novoMembro = new Membro({
-            nickname: nickname.trim(),
-            password,
-            cargo: cargo || 'Soldado',
-            status: 'ativo'
-        });
-        await novoMembro.save();
-        res.json({ success: true, message: 'Conta criada com sucesso!' });
-    } catch (e) {
-        res.json({ success: false, message: 'Erro ao registar.' });
-    }
-});
-
-// --- ROTAS DE PLANTÃO (SEGURO POR TIMESTAMP) ---
-app.post('/api/plantao/iniciar', async (req, res) => {
-    try {
-        const { nickname } = req.body;
-        const membro = await Membro.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
-        if (!membro) return res.json({ success: false, message: 'Membro não encontrado.' });
-
-        if (membro.emPlantao) {
-            return res.json({ success: true, inicioPlantao: membro.inicioPlantao });
+        body {
+            background-image: linear-gradient(rgba(11, 19, 30, 0.3), rgba(11, 19, 30, 0.3)), url('/background.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-color: #0b131e;
+            color: #ffffff;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
-
-        membro.emPlantao = true;
-        membro.inicioPlantao = Date.now();
-        await membro.save();
-
-        io.emit('atualizar_status_geral_tropa');
-        res.json({ success: true, inicioPlantao: membro.inicioPlantao });
-    } catch (e) {
-        res.json({ success: false, message: 'Erro ao iniciar plantão.' });
-    }
-});
-
-app.post('/api/plantao/parar', async (req, res) => {
-    try {
-        const { nickname, fotoComprovante } = req.body;
-        const membro = await Membro.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
-
-        if (!membro || !membro.emPlantao || !membro.inicioPlantao) {
-            return res.json({ success: false, message: 'Nenhum plantão ativo encontrado.' });
+        .login-card {
+            background-color: rgba(18, 31, 51, 0.45);
+            backdrop-filter: blur(10px);
+            padding: 35px;
+            border-radius: 10px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            text-align: center;
         }
-
-        const agora = Date.now();
-        const duracaoSegundos = Math.floor((agora - membro.inicioPlantao) / 1000);
-
-        if (duracaoSegundos < 5) {
-            membro.emPlantao = false;
-            membro.inicioPlantao = null;
-            await membro.save();
-            return res.json({ success: false, message: 'Plantão muito curto para ser contabilizado.' });
+        .login-card h2 {
+            color: #38bdf8;
+            margin-bottom: 5px;
+            font-size: 24px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
         }
+        .login-card p {
+            color: #cbd5e1;
+            font-size: 13px;
+            margin-bottom: 25px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        }
+        .form-group {
+            margin-bottom: 18px;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: #e2e8f0;
+            margin-bottom: 6px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 6px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus {
+            border-color: #38bdf8;
+        }
+        .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background-color: rgba(2, 132, 199, 0.9);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        }
+        .btn-submit:hover {
+            background-color: #0284c7;
+        }
+        .register-link {
+            display: block;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #38bdf8;
+            text-decoration: none;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        }
+        .register-link:hover {
+            text-decoration: underline;
+        }
+        .btn-action {
+            padding: 8px 25px;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            background-color: rgba(22, 163, 74, 0.9);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .btn-action:hover { opacity: 0.85; }
+    </style>
+</head>
+<body>
 
-        const horas = Math.floor(duracaoSegundos / 3600);
-        const minutos = Math.floor((duracaoSegundos % 3600) / 60);
-        const segundos = duracaoSegundos % 60;
-        const duracaoFormatada = `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`;
+    <div class="login-card">
+        <h2>Gestão Salazar</h2>
+        <p>Painel Operacional Restrito</p>
         
-        const dataFormatadaBR = formatarHorarioBrasilia(new Date());
+        <form id="loginForm" onsubmit="fazerLogin(event)">
+            <div class="form-group">
+                <label>Nickname</label>
+                <input type="text" id="nickname" required placeholder="Digite seu nickname...">
+            </div>
+            
+            <div class="form-group">
+                <label>Senha</label>
+                <input type="password" id="password" required placeholder="••••••••">
+            </div>
 
-        membro.historicoTurnos.push({
-            duracao: duracaoFormatada,
-            duracaoSegundos: duracaoSegundos,
-            data: dataFormatadaBR,
-            fotoComprovante: fotoComprovante || membro.fotoComprovanteAtiva || 'Sem print'
-        });
+            <button type="submit" class="btn-submit">Entrar no Sistema</button>
+        </form>
 
-        membro.ultimoPlantao = duracaoFormatada;
-        membro.emPlantao = false;
-        membro.inicioPlantao = null;
-        membro.fotoComprovanteAtiva = '';
-        await membro.save();
+        <a href="register.html" class="register-link">Não tem conta? Cadastre-se</a>
+    </div>
 
-        io.emit('atualizar_status_geral_tropa');
-        res.json({ success: true, message: `Plantão de ${duracaoFormatada} salvo com sucesso!`, duracao: duracaoFormatada });
-    } catch (e) {
-        console.error(e);
-        res.json({ success: false, message: 'Erro ao finalizar plantão.' });
-    }
-});
+    <!-- Modal Profissional para Substituir Alertas Nativos -->
+    <div id="customModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(4px);">
+        <div style="background: rgba(18, 31, 51, 0.95); width: 90%; max-width: 400px; border-radius: 8px; padding: 25px; box-shadow: 0 4px 25px rgba(0,0,0,0.9); border: 1px solid #38bdf8; text-align: center;">
+            <h3 id="modalCustomTitle" style="color: #38bdf8; margin-bottom: 12px; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">Gestão Salazar</h3>
+            <p id="modalCustomMessage" style="color: #e2e8f0; font-size: 14px; margin-bottom: 20px; line-height: 1.4; text-shadow: 0 1px 2px rgba(0,0,0,0.8);"></p>
+            <div id="modalCustomButtons" style="display: flex; gap: 10px; justify-content: center;"></div>
+        </div>
+    </div>
 
-app.put('/api/membro/status-plantao', async (req, res) => {
-    try {
-        const { nickname, fotoComprovanteAtiva } = req.body;
-        const membro = await Membro.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
-        if (!membro) return res.json({ success: false });
+    <script>
+        function mostrarModalCustomizado(titulo, mensagem, callback = null) {
+            const modal = document.getElementById('customModal');
+            document.getElementById('modalCustomTitle').innerText = titulo;
+            document.getElementById('modalCustomMessage').innerHTML = mensagem;
+            const btnContainer = document.getElementById('modalCustomButtons');
+            btnContainer.innerHTML = '';
 
-        if (fotoComprovanteAtiva !== undefined) membro.fotoComprovanteAtiva = fotoComprovanteAtiva;
-        await membro.save();
-        res.json({ success: true });
-    } catch (e) {
-        res.json({ success: false });
-    }
-});
+            const btnOk = document.createElement('button');
+            btnOk.innerText = 'OK';
+            btnOk.className = 'btn-action';
+            btnOk.onclick = () => {
+                modal.style.display = 'none';
+                if (callback) callback();
+            };
+            btnContainer.appendChild(btnOk);
+            modal.style.display = 'flex';
+        }
 
-app.get('/api/membro/historico/:nickname', async (req, res) => {
-    try {
-        const membro = await Membro.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') });
-        if (!membro) return res.json({ success: false, message: 'Membro não encontrado.' });
+        async function fazerLogin(event) {
+            event.preventDefault();
+            const nickname = document.getElementById('nickname').value.trim();
+            const password = document.getElementById('password').value;
 
-        res.json({
-            success: true,
-            membro: {
-                emPlantao: membro.emPlantao,
-                inicioPlantao: membro.inicioPlantao,
-                fotoComprovanteAtiva: membro.fotoComprovanteAtiva,
-                ultimoPlantao: membro.ultimoPlantao
-            },
-            historicoTurnos: membro.historicoTurnos.slice().reverse(),
-            historicoPromocoes: membro.historicoPromocoes || [],
-            historicoSorteios: membro.historicoSorteios || [],
-            caixaEntrada: membro.caixaEntrada || []
-        });
-    } catch (e) {
-        res.json({ success: false, message: 'Erro ao buscar histórico.' });
-    }
-});
-
-// --- RANKING ---
-app.get('/api/admin/ranking/turnos', async (req, res) => {
-    try {
-        const membros = await Membro.find({});
-        const rankingMap = {};
-
-        membros.forEach(m => {
-            let totalSeg = 0;
-            if (m.historicoTurnos) {
-                m.historicoTurnos.forEach(t => {
-                    totalSeg += t.duracaoSegundos || 0;
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nickname, password })
                 });
+
+                const data = await response.json();
+                if (data.success) {
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    mostrarModalCustomizado('Sucesso', 'Login realizado com sucesso!', () => {
+                        window.location.href = 'dashboard.html';
+                    });
+                } else {
+                    mostrarModalCustomizado('Erro de Autenticação', data.message || 'Erro ao realizar login.');
+                }
+            } catch (e) {
+                console.error(e);
+                mostrarModalCustomizado('Erro', 'Erro de conexão com o servidor.');
             }
-            rankingMap[m.nickname] = totalSeg;
-        });
-
-        const rankingOrdenado = Object.keys(rankingMap)
-            .map(nick => {
-                const totalSeg = rankingMap[nick];
-                const h = Math.floor(totalSeg / 3600);
-                const m = Math.floor((totalSeg % 3600) / 60);
-                const s = totalSeg % 60;
-                return {
-                    nickname: nick,
-                    totalSegundos: totalSeg,
-                    totalFormatado: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-                };
-            })
-            .sort((a, b) => b.totalSegundos - a.totalSegundos);
-
-        res.json({ success: true, ranking: rankingOrdenado });
-    } catch (e) {
-        res.json({ success: false, ranking: [] });
-    }
-});
-
-// --- ADMINISTRAÇÃO & INJEÇÃO DO MESTRE ---
-app.get('/api/admin/membros', async (req, res) => {
-    try {
-        const membros = await Membro.find({});
-        res.json({ success: true, membros });
-    } catch (e) {
-        res.json({ success: false, membros: [] });
-    }
-});
-
-app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
-    try {
-        const membro = await Membro.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') });
-        if (!membro) return res.json({ success: false });
-        res.json({
-            success: true,
-            membro: { cargo: membro.cargo, ultimoPlantao: membro.ultimoPlantao },
-            historicoTurnos: membro.historicoTurnos.slice().reverse()
-        });
-    } catch (e) {
-        res.json({ success: false });
-    }
-});
-
-app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
-    try {
-        const { adminNickname, targetNickname, horas, minutos, segundos, motivo } = req.body;
-        if (adminNickname.toLowerCase().trim() !== 'mestre') {
-            return res.json({ success: false, message: 'Acesso negado. Apenas o Mestre pode injetar tempo.' });
         }
-
-        const membro = await Membro.findOne({ nickname: new RegExp('^' + targetNickname.trim() + '$', 'i') });
-        if (!membro) return res.json({ success: false, message: 'Membro alvo não encontrado.' });
-
-        const segAdicionais = (parseInt(horas) || 0) * 3600 + (parseInt(minutos) || 0) * 60 + (parseInt(segundos) || 0);
-        if (segAdicionais <= 0) return res.json({ success: false, message: 'Insira um tempo válido.' });
-
-        const h = Math.floor(segAdicionais / 3600);
-        const m = Math.floor((segAdicionais % 3600) / 60);
-        const s = segAdicionais % 60;
-        const duracaoFormatada = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-        const dataFormatadaBR = formatarHorarioBrasilia(new Date());
-
-        membro.historicoTurnos.push({
-            duracao: duracaoFormatada,
-            duracaoSegundos: segAdicionais,
-            data: `${dataFormatadaBR} [Injeção Mestre: ${motivo}]`,
-            fotoComprovante: 'Manual / Mestre'
-        });
-        membro.ultimoPlantao = duracaoFormatada;
-        await membro.save();
-
-        io.emit('atualizar_status_geral_tropa');
-        res.json({ success: true, message: `Tempo de ${duracaoFormatada} injetado com sucesso para ${membro.nickname}!` });
-    } catch (e) {
-        console.error(e);
-        res.json({ success: false, message: 'Erro ao injetar tempo.' });
-    }
-});
-
-app.post('/api/admin/membro/demitir/:id', async (req, res) => {
-    try {
-        await Membro.findByIdAndDelete(req.params.id);
-        res.json({ success: true });
-    } catch (e) {
-        res.json({ success: false });
-    }
-});
-
-// --- SOCKET.IO ---
-let usuariosOnline = [];
-io.on('connection', (socket) => {
-    socket.on('entrar_sala', (data) => {
-        socket.nickname = data.nickname;
-        socket.cargo = data.cargo;
-        if (!usuariosOnline.some(u => u.nickname.toLowerCase() === data.nickname.toLowerCase())) {
-            usuariosOnline.push({ nickname: data.nickname, cargo: data.cargo });
-        }
-        io.emit('atualizar_status_adm', usuariosOnline);
-    });
-
-    socket.on('chat_mensagem', (data) => {
-        io.emit('receber_mensagem', data);
-    });
-
-    socket.on('disconnect', () => {
-        usuariosOnline = usuariosOnline.filter(u => u.nickname !== socket.nickname);
-        io.emit('atualizar_status_adm', usuariosOnline);
-    });
-});
-
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Servidor Gestão Salazar rodando na porta ${PORT} com Horário de Brasília ativo.`);
-});
+    </script>
+</body>
+</html>
