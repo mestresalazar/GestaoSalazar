@@ -1,282 +1,200 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const http = require('http');
-const { Server } = require('socket.io');
-const path = require('path');
-
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
-
-// Middleware para JSON e ficheiros estáticos
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(express.static(path.join(__dirname, 'public'))); // Ou a pasta onde guardas os teus HTMLs
-
-// Conexão com o MongoDB (ajusta a tua URI se necessário)
-mongoose.connect('mongodb://localhost:27017/gestao_salazar', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-}).then(() => {
-    console.log('✅ Conectado ao MongoDB com sucesso!');
-}).catch(err => {
-    console.error('❌ Erro de conexão ao MongoDB:', err);
-});
-
-// --- ESQUEMA DE MEMBROS ---
-const membroSchema = new mongoose.Schema({
-    nickname: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    cargo: { type: String, default: 'Soldado' },
-    status: { type: String, default: 'ativo' }, // 'pendente' ou 'ativo'
-    role: { type: String, default: 'membro' }, // 'membro' ou 'admin'
-    avatar: { type: String, default: '' },
-    segundosAcumulados: { type: Number, default: 0 },
-    estadoTurno: { type: String, default: 'parado' }, // 'parado', 'ativo', 'pausado'
-    inicioPlantao: { type: Date, default: null },
-    fotoComprovanteAtiva: { type: String, default: '' },
-    ultimoPlantao: { type: String, default: 'Nenhum' },
-    carteiraSaldo: { type: Number, default: 0 },
-    historicoTurnos: [{
-        duracao: String,
-        duracaoSegundos: Number,
-        data: { type: Date, default: Date.now },
-        fotoComprovante: String
-    }],
-    missoes: [{
-        id: String,
-        titulo: String,
-        valor: Number,
-        ciclo: String,
-        concluida: Boolean,
-        fotoComprovante: String
-    }],
-    caixaEntrada: [{
-        titulo: String,
-        mensagem: String,
-        data: { type: Date, default: Date.now }
-    }],
-    subscricaoPush: { type: Object, default: null }
-});
-
-const Membro = mongoose.model('Membro', membroSchema);
-
-// --- ROTAS DE AUTENTICAÇÃO ---
-
-app.post('/api/auth/login', async (req, res) => {
-    try {
-        const { nickname, password } = req.body;
-        const membro = await Membro.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
-        
-        if (!membro) {
-            return res.json({ success: false, message: 'Operacional não encontrado.' });
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão Salazar - Acesso Operacional</title>
+    <!-- SUPORTE PWA PARA ANDROID -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0b131e">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        if (membro.password !== password) {
-            return res.json({ success: false, message: 'Senha incorreta.' });
+        body {
+            background-image: linear-gradient(rgba(11, 19, 30, 0.4), rgba(11, 19, 30, 0.4)), url('/background.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-color: #0b131e;
+            color: #ffffff;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
-        if (membro.status === 'pendente') {
-            return res.json({ success: false, message: 'A sua conta aguarda aprovação do Comando.' });
+        .login-card {
+            background-color: rgba(18, 31, 51, 0.75);
+            backdrop-filter: blur(12px);
+            padding: 35px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            text-align: center;
         }
-
-        res.json({ success: true, user: membro });
-    } catch (e) {
-        console.error(e);
-        res.json({ success: false, message: 'Erro interno no servidor.' });
-    }
-});
-
-// --- ROTAS DE PERFIL DO OPERACIONAL ---
-
-app.get('/api/membro/perfil/:nickname', async (req, res) => {
-    try {
-        const membro = await Membro.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') });
-        if (!membro) return res.json({ success: false, message: 'Membro não encontrado.' });
-
-        // Calcular total de horas acumuladas de todos os turnos
-        let totalSegundos = 0;
-        if (membro.historicoTurnos) {
-            membro.historicoTurnos.forEach(t => {
-                totalSegundos += t.duracaoSegundos || 0;
-            });
+        .login-card h2 {
+            color: #38bdf8;
+            margin-bottom: 8px;
+            font-size: 24px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
         }
-        const h = Math.floor(totalSegundos / 3600);
-        const m = Math.floor((totalSegundos % 3600) / 60);
-        const s = totalSegundos % 60;
-        const totalHorasFormatado = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        .login-card p {
+            color: #94a3b8;
+            font-size: 13px;
+            margin-bottom: 25px;
+        }
+        .form-group {
+            margin-bottom: 18px;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: #38bdf8;
+            margin-bottom: 6px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 6px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus {
+            border-color: #38bdf8;
+            box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+        }
+        .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background-color: rgba(2, 132, 199, 0.9);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.2s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+        .btn-submit:hover {
+            background-color: #0284c7;
+        }
+        .toggle-link {
+            margin-top: 18px;
+            display: block;
+            font-size: 13px;
+            color: #38bdf8;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        .toggle-link:hover {
+            color: #7dd3fc;
+        }
+        #errorMsg {
+            color: #f87171;
+            font-size: 12px;
+            margin-top: 12px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
 
-        // Calcular tempo de gestão (dias desde a criação da conta)
-        const dataCriacao = membro._id.getTimestamp();
-        const agora = new Date();
-        const diffTempo = Math.abs(agora - dataCriacao);
-        const diffDias = Math.floor(diffTempo / (1000 * 60 * 60 * 24));
-        const tempoGestaoStr = diffDias === 0 ? 'Menos de 1 dia' : `${diffDias} dia(s) na organização`;
+    <div class="login-card">
+        <h2 id="cardTitle">Gestão Salazar</h2>
+        <p id="cardSubtitle">Autenticação do Efetivo Operacional</p>
 
-        res.json({
-            success: true,
-            perfil: {
-                nickname: membro.nickname,
-                cargo: membro.cargo || 'Soldado',
-                status: membro.status,
-                avatar: membro.avatar || '',
-                totalHoras: totalHorasFormatado,
-                tempoGestao: tempoGestaoStr,
-                dataCriacao: dataCriacao,
-                ultimoPlantao: membro.ultimoPlantao || 'Nenhum'
+        <form id="authForm" onsubmit="handleAuth(event)">
+            <div class="form-group">
+                <label>Nickname (Jogo / Discord)</label>
+                <input type="text" id="nickname" required placeholder="Digite o seu nickname...">
+            </div>
+
+            <div class="form-group">
+                <label>Palavra-passe</label>
+                <input type="password" id="password" required placeholder="Digite a sua palavra-passe...">
+            </div>
+
+            <button type="submit" class="btn-submit" id="btnSubmitText">Entrar no Sistema</button>
+        </form>
+
+        <span class="toggle-link" id="toggleModeBtn" onclick="alternarModo()">Não tem conta? Solicitar Registo</span>
+        <div id="errorMsg"></div>
+    </div>
+
+    <script>
+        let isRegisterMode = false;
+
+        function alternarModo() {
+            isRegisterMode = !isRegisterMode;
+            const title = document.getElementById('cardTitle');
+            const subtitle = document.getElementById('cardSubtitle');
+            const btn = document.getElementById('btnSubmitText');
+            const toggleBtn = document.getElementById('toggleModeBtn');
+            const err = document.getElementById('errorMsg');
+            err.innerText = '';
+
+            if (isRegisterMode) {
+                title.innerText = 'Novo Operacional';
+                subtitle.innerText = 'Registo para aprovação do Comando';
+                btn.innerText = 'Solicitar Registo';
+                toggleBtn.innerText = 'Já tem conta? Fazer Login';
+            } else {
+                title.innerText = 'Gestão Salazar';
+                subtitle.innerText = 'Autenticação do Efetivo Operacional';
+                btn.innerText = 'Entrar no Sistema';
+                toggleBtn.innerText = 'Não tem conta? Solicitar Registo';
             }
-        });
-    } catch (e) {
-        console.error(e);
-        res.json({ success: false, message: 'Erro ao carregar perfil.' });
-    }
-});
-
-app.put('/api/membro/atualizar-avatar', async (req, res) => {
-    try {
-        const { nickname, avatar } = req.body;
-        const membro = await Membro.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
-        if (!membro) return res.json({ success: false, message: 'Membro não encontrado.' });
-
-        membro.avatar = avatar;
-        await membro.save();
-        res.json({ success: true, message: 'Avatar atualizado com sucesso!' });
-    } catch (e) {
-        console.error(e);
-        res.json({ success: false, message: 'Erro ao atualizar avatar.' });
-    }
-});
-
-// --- ROTAS DE HISTÓRICO E TURNO ---
-
-app.get('/api/membro/historico/:nickname', async (req, res) => {
-    try {
-        const membro = await Membro.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') });
-        if (!membro) return res.json({ success: false, message: 'Membro não encontrado.' });
-
-        res.json({
-            success: true,
-            membro: {
-                estadoTurno: membro.estadoTurno,
-                segundosAcumulados: membro.segundosAcumulados,
-                inicioPlantao: membro.inicioPlantao,
-                fotoComprovanteAtiva: membro.fotoComprovanteAtiva
-            },
-            historicoTurnos: membro.historicoTurnos || [],
-            caixaEntrada: membro.caixaEntrada || []
-        });
-    } catch (e) {
-        res.json({ success: false, message: 'Erro ao buscar histórico.' });
-    }
-});
-
-app.put('/api/membro/status-plantao', async (req, res) => {
-    try {
-        const { nickname, emPlantao, estadoTurno, inicioPlantao, segundosAcumulados, fotoComprovanteAtiva } = req.body;
-        const membro = await Membro.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
-        if (!membro) return res.json({ success: false });
-
-        if (estadoTurno !== undefined) membro.estadoTurno = estadoTurno;
-        if (inicioPlantao !== undefined) membro.inicioPlantao = inicioPlantao ? new Date(inicioPlantao) : null;
-        if (segundosAcumulados !== undefined) membro.segundosAcumulados = segundosAcumulados;
-        if (fotoComprovanteAtiva !== undefined) membro.fotoComprovanteAtiva = fotoComprovanteAtiva;
-
-        await membro.save();
-        res.json({ success: true });
-    } catch (e) {
-        res.json({ success: false });
-    }
-});
-
-app.post('/api/membro/turno', async (req, res) => {
-    try {
-        const { nickname, duracao, segundosTotais, fotoComprovante } = req.body;
-        const membro = await Membro.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
-        if (!membro) return res.json({ success: false, message: 'Membro não encontrado.' });
-
-        membro.historicoTurnos.push({
-            duracao,
-            duracaoSegundos: segundosTotais,
-            data: new Date(),
-            fotoComprovante
-        });
-
-        membro.estadoTurno = 'parado';
-        membro.inicioPlantao = null;
-        membro.segundosAcumulados = 0;
-        membro.fotoComprovanteAtiva = '';
-        membro.ultimoPlantao = duracao;
-
-        await membro.save();
-        res.json({ success: true });
-    } catch (e) {
-        res.json({ success: false, message: 'Erro ao salvar turno.' });
-    }
-});
-
-app.get('/api/membro/em-plantao', async (req, res) => {
-    try {
-        const membrosAtivos = await Membro.find({ estadoTurno: 'ativo' }).select('nickname cargo inicioPlantao');
-        res.json({ success: true, emPlantao: membrosAtivos });
-    } catch (e) {
-        res.json({ success: false, emPlantao: [] });
-    }
-});
-
-app.get('/api/membro/carteira/:nickname', async (req, res) => {
-    try {
-        const membro = await Membro.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') });
-        if (!membro) return res.json({ success: false });
-        res.json({ success: true, saldo: membro.carteiraSaldo || 0, missoes: membro.missoes || [] });
-    } catch (e) {
-        res.json({ success: false });
-    }
-});
-
-app.post('/api/membro/carteira/atualizar', async (req, res) => {
-    try {
-        const { nickname, variacao, saldoTotal, missoes } = req.body;
-        const membro = await Membro.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
-        if (!membro) return res.json({ success: false });
-
-        membro.carteiraSaldo = saldoTotal !== undefined ? saldoTotal : (membro.carteiraSaldo + variacao);
-        if (missoes) membro.missoes = missoes;
-
-        await membro.save();
-        res.json({ success: true, saldo: membro.carteiraSaldo });
-    } catch (e) {
-        res.json({ success: false });
-    }
-});
-
-// --- WEBSOCKETS (SOCKET.IO) ---
-let usuariosOnline = [];
-
-io.on('connection', (socket) => {
-    socket.on('entrar_sala', (data) => {
-        socket.nickname = data.nickname;
-        socket.cargo = data.cargo;
-        socket.emPlantao = data.emPlantao;
-
-        const existente = usuariosOnline.find(u => u.nickname.toLowerCase() === data.nickname.toLowerCase());
-        if (existente) {
-            existente.emPlantao = data.emPlantao;
-            existente.cargo = data.cargo;
-        } else {
-            usuariosOnline.push({ id: socket.id, nickname: data.nickname, cargo: data.cargo, emPlantao: data.emPlantao });
         }
-        io.emit('atualizar_usuarios_online', usuariosOnline);
-    });
 
-    socket.on('chat_mensagem', (data) => {
-        io.emit('receber_mensagem', data);
-    });
+        async function handleAuth(event) {
+            event.preventDefault();
+            const nickname = document.getElementById('nickname').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const err = document.getElementById('errorMsg');
+            err.innerText = '';
 
-    socket.on('disconnect', () => {
-        usuariosOnline = usuariosOnline.filter(u => u.id !== socket.id);
-        io.emit('atualizar_usuarios_online', usuariosOnline);
-    });
-});
+            const endpoint = isRegisterMode ? '/api/auth/register' : '/api/auth/login';
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`🚀 Servidor a rodar na porta ${PORT}`);
-});
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nickname, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    if (isRegisterMode) {
+                        alert('Registo solicitado com sucesso! Aguarde a aprovação do Comando.');
+                        alternarModo();
+                    } else {
+                        localStorage.setItem('user', JSON.stringify(data.user));
+                        window.location.href = 'dashboard.html';
+                    }
+                } else {
+                    err.innerText = data.message || 'Erro na autenticação.';
+                }
+            } catch (error) {
+                console.error(error);
+                err.innerText = 'Erro de conexão com o servidor.';
+            }
+        }
+    </script>
+</body>
+</html>

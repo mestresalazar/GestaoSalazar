@@ -39,7 +39,14 @@ const io = new Server(server, {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors());
-app.use(express.static('public'));
+
+// Servir ficheiros estáticos da pasta public[cite: 5]
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Rota raiz para abrir o index.html (Login) automaticamente ao entrar no link principal
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 app.get('/sw.js', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'sw.js'));
@@ -608,7 +615,6 @@ app.get('/api/admin/estatisticas', async (req, res) => {
     }
 });
 
-// --- ROTA DE ATUALIZAÇÃO DE MEMBRO COM LOG REGISTADO E SOCKET EMIT ---
 app.put('/api/admin/membro/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -616,7 +622,6 @@ app.put('/api/admin/membro/:id', async (req, res) => {
         const membroAntigo = await User.findById(id);
         if (!membroAntigo) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
-        // Trava de segurança: Apenas a conta Mestre pode promover para Coronel ou Coronel All
         if (cargo && (cargo === 'Coronel' || cargo === 'Coronel All')) {
             const autorLimpo = (autor || '').toLowerCase().trim();
             if (autorLimpo !== 'mestre') {
@@ -641,7 +646,6 @@ app.put('/api/admin/membro/:id', async (req, res) => {
             await registarLogAdmin(nomeAutor, 'Alteração de Status', `Membro ${membro.nickname} alterou status para ${status}`);
         }
 
-        // EMIT GLOBAL PARA ATUALIZAR O CARGO DO OPERACIONAL EM TEMPO REAL (tanto para cima quanto para baixo)
         if (cargo) {
             io.emit('atualizar_cargo_usuario', { nickname: membro.nickname.toLowerCase(), novoCargo: cargo });
         }
@@ -653,7 +657,6 @@ app.put('/api/admin/membro/:id', async (req, res) => {
     }
 });
 
-// Auxiliar simples para definir o texto do log entre promoção ou rebaixamento
 function cargoAniPrecedencia(novo, antigo) {
     const hierarquia = ['Privado', 'Soldado', 'Sargento', 'Tenente', 'Major', 'Coronel', 'Coronel All', 'General'];
     return hierarquia.indexOf(novo) > hierarquia.indexOf(antigo);
@@ -902,7 +905,6 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
     }
 });
 
-// --- SORTEIOS MANUAIS ---
 app.get('/api/admin/sorteio/status', (req, res) => {
     res.json({ success: true, agendamento: null });
 });
