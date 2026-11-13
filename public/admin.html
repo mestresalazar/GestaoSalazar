@@ -546,7 +546,7 @@
             carregarLogsAdmin();
         });
 
-        // OUVINTE EM TEMPO REAL PARA REBAIXAMENTO OU ALTERAÇÃO DE CARGO
+        // OUVINTE EM TEMPO REAL: Se for promovido ganha acesso instantâneo; se for rebaixado perde e sai do painel
         socket.on('atualizar_cargo_usuario', (data) => {
             if (data.nickname.toLowerCase() === user.nickname.toLowerCase()) {
                 user.cargo = data.novoCargo;
@@ -558,6 +558,9 @@
                 if (!temAcesso) {
                     alert('O seu cargo foi alterado e já não tem permissão para aceder ao Painel ADM.');
                     window.location.replace('dashboard.html');
+                } else {
+                    // Se foi promovido para um cargo com acesso e estiver num painel restrito ou dashboard, atualiza os dados visuais
+                    document.getElementById('userBadgeInfo').innerText = `${user.nickname} (${user.cargo})`;
                 }
             }
         });
@@ -1149,7 +1152,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ cargo: novoCargo, autor: user.nickname })
                     });
-                    const data = varJsonParse = await res.json();
+                    const data = await res.json();
                     if (data.success) {
                         carregarEfetivo();
                         carregarElegiveisSorteio();
