@@ -4,6 +4,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestão Salazar - Central de Comando (ADM)</title>
+    <!-- BLOQUEIO DE SEGURANÇA IMEDIATO -->
+    <script>
+        document.documentElement.style.display = 'none';
+
+        function validarAcessoComandoDireto() {
+            const userStr = localStorage.getItem('user');
+            if (!userStr) {
+                window.location.replace('index.html');
+                return;
+            }
+            try {
+                const user = JSON.parse(userStr);
+                const cargosPermitidos = ['General', 'Coronel'];
+                const isAdmin = user.role === 'admin' || cargosPermitidos.includes(user.cargo);
+
+                if (!isAdmin) {
+                    alert('Acesso Negado: Área restrita ao Alto Comando.');
+                    window.location.replace('dashboard.html');
+                    return;
+                }
+                document.documentElement.style.display = '';
+            } catch (e) {
+                window.location.replace('index.html');
+            }
+        }
+
+        validarAcessoComandoDireto();
+
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                validarAcessoComandoDireto();
+            }
+        });
+    </script>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         * {
@@ -110,13 +144,58 @@
             font-size: 13px;
         }
         th {
-            background-color: rgba(15, 23, 42, 0.9);
+            background-color: rgba(15, 23, 42, 0.95);
             color: #38bdf8;
             text-shadow: 0 1px 2px rgba(0,0,0,0.8);
             position: sticky;
             top: 0;
             z-index: 2;
         }
+
+        /* ESTILO CORRIGIDO PARA A TABELA E SCROLL DE LOGS */
+        .logs-scroll-wrapper {
+            max-height: 260px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid rgba(147, 51, 234, 0.35);
+            border-radius: 6px;
+        }
+        .logs-scroll-wrapper::-webkit-scrollbar {
+            width: 6px;
+        }
+        .logs-scroll-wrapper::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 0 6px 6px 0;
+        }
+        .logs-scroll-wrapper::-webkit-scrollbar-thumb {
+            background: rgba(168, 85, 247, 0.6);
+            border-radius: 3px;
+        }
+        .logs-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .logs-table th {
+            background-color: rgba(24, 20, 48, 0.98);
+            color: #a855f7;
+            padding: 10px 12px;
+            font-size: 12px;
+            border-bottom: 1px solid rgba(147, 51, 234, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 3;
+        }
+        .logs-table td {
+            padding: 8px 12px;
+            font-size: 12px;
+            border-bottom: 1px solid rgba(147, 51, 234, 0.15);
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            vertical-align: top;
+        }
+
         .btn-action {
             padding: 5px 10px;
             border: none;
@@ -137,6 +216,7 @@
         .btn-reset { background-color: rgba(234, 179, 8, 0.9); color: #000; }
         .btn-demitir { background-color: rgba(220, 38, 38, 0.9); }
         .btn-parar-turno { background-color: rgba(245, 158, 11, 0.9); color: #000; }
+        .btn-prints { background-color: rgba(234, 179, 8, 0.9); color: #000; }
 
         .status-dot-offline { display: inline-block; width: 8px; height: 8px; background: #64748b; border-radius: 50%; margin-right: 5px; }
         .status-dot-online { display: inline-block; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; margin-right: 5px; box-shadow: 0 0 6px #22c55e; }
@@ -176,15 +256,15 @@
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0,0,0,0.8);
             justify-content: center;
             align-items: center;
             z-index: 1000;
         }
         .modal-content {
-            background: rgba(18, 31, 51, 0.95);
+            background: rgba(18, 31, 51, 0.98);
             width: 90%;
-            max-width: 650px;
+            max-width: 680px;
             max-height: 85vh;
             border-radius: 8px;
             padding: 25px;
@@ -218,7 +298,7 @@
 
     <div class="grid-container">
         <div>
-            <!-- PAINEL DE DISPARAR AÇÃO (EXCLUSIVO ADM / CORONEL) -->
+            <!-- PAINEL DE DISPARAR AÇÃO -->
             <div class="card" style="border: 2px dashed #ef4444; background: rgba(239, 68, 68, 0.05);">
                 <h3 style="color: #ef4444;">🚨 Central de Disparo de Ações (Alarme Geral)</h3>
                 <p style="color: #e2e8f0; margin-bottom: 15px; font-size: 13px;">Dispare uma notificação push imediata para o telemóvel/PC de todos os operacionais (mesmo com o navegador fechado) e toque o alarme tático.</p>
@@ -236,7 +316,7 @@
                 <button class="btn-action" style="background-color: rgba(239, 68, 68, 0.95); color: white; font-size: 14px; padding: 12px 20px; width: 100%; font-weight: bold;" onclick="dispararAlertaAcao()">🚨 DISPARAR ALERTA DE AÇÃO PARA A TROPA</button>
             </div>
 
-            <!-- PAINEL EXCLUSIVO DO MESTRE: ADICIONAR TEMPO MANUALMENTE -->
+            <!-- PAINEL EXCLUSIVO DO MESTRE -->
             <div class="card" id="cardInjecaoMestre" style="display: none; border: 2px dashed #eab308; background: rgba(234, 179, 8, 0.05);">
                 <h3 style="color: #eab308;">👑 Painel Exclusivo do Mestre: Adicionar Tempo Manual</h3>
                 <p style="color: #e2e8f0; margin-bottom: 15px; font-size: 13px;">Injete horas de plantão para operacionais cujo tempo não salvou.</p>
@@ -289,11 +369,34 @@
                 </div>
             </div>
 
+            <!-- CENTRAL DE AUDITORIA E LOGS DO COMANDO (SCROLL E LAYOUT CORRIGIDOS) -->
+            <div class="card" style="border: 1px solid rgba(147, 51, 234, 0.4); background: rgba(147, 51, 234, 0.05);">
+                <h3 style="color: #a855f7;">📋 Central de Auditoria e Logs do Comando</h3>
+                <p style="color: #e2e8f0; margin-bottom: 12px; font-size: 13px;">Registo em tempo real de todas as ações operacionais, promoções, injeções de tempo e alterações.</p>
+                
+                <div class="logs-scroll-wrapper">
+                    <table class="logs-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 18%;">Data/Hora</th>
+                                <th style="width: 17%;">Autor</th>
+                                <th style="width: 23%;">Ação</th>
+                                <th style="width: 42%;">Detalhes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaLogsAdmin">
+                            <tr>
+                                <td colspan="4" style="text-align: center; color: #94a3b8; padding: 15px;">A carregar registos de auditoria...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <div class="card">
                 <h3>👥 Gerenciamento de Efetivo, Históricos e Promoções</h3>
                 <p style="color: #e2e8f0; margin-bottom: 12px; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Ordenação prioritária: Plantão ➔ Online ➔ Offline.</p>
                 
-                <!-- BARRA DE PESQUISA DE MEMBROS -->
                 <div style="margin-bottom: 15px;">
                     <input type="text" id="inputBuscaMembro" placeholder="🔍 Pesquisar operacional por nickname..." oninput="filtrarTabelaEfetivo()" style="width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; font-size: 13px; outline: none;">
                 </div>
@@ -442,6 +545,10 @@
             carregarElegiveisSorteio();
         });
 
+        socket.on('atualizar_logs_admin', () => {
+            carregarLogsAdmin();
+        });
+
         socket.on('receber_mensagem', (data) => {
             const chatBox = document.getElementById('chatBox');
             const div = document.createElement('div');
@@ -450,6 +557,48 @@
             chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
         });
+
+        // --- CARREGAR LOGS ADMINISTRATIVOS ---
+        async function carregarLogsAdmin() {
+            try {
+                const res = await fetch('/api/admin/logs');
+                const data = await res.json();
+                const tbody = document.getElementById('tabelaLogsAdmin');
+                if (!tbody) return;
+
+                tbody.innerHTML = '';
+                if (data.success && data.logs && data.logs.length > 0) {
+                    data.logs.forEach(log => {
+                        const tr = document.createElement('tr');
+                        
+                        const dataFormatada = new Date(log.data).toLocaleString('pt-BR', {
+                            timeZone: 'America/Sao_Paulo',
+                            day: '2-digit',
+                            month: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit'
+                        });
+
+                        // Limpa qualquer "R$ undefined" antigo visualmente
+                        const detalhesLimpos = (log.detalhes || '').replace(/R\$\s*undefined/gi, 'Saldo Atualizado');
+
+                        tr.innerHTML = `
+                            <td style="color: #94a3b8;">${dataFormatada}</td>
+                            <td style="color: #38bdf8; font-weight: bold;">${log.autor}</td>
+                            <td style="color: #eab308;">${log.acao}</td>
+                            <td style="color: #e2e8f0;">${detalhesLimpos}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 15px;">Nenhum registo de log encontrado.</td></tr>`;
+                }
+            } catch (e) {
+                console.error("Erro ao carregar logs:", e);
+            }
+        }
+        carregarLogsAdmin();
 
         async function dispararAlertaAcao() {
             const tituloAcao = document.getElementById('acaoTitulo').value.trim();
@@ -661,6 +810,7 @@
                             ${membro.status !== 'ativo' ? `<button class="btn-action btn-aprovar" style="width:auto;" onclick="atualizarMembro('${membro._id}', 'ativo', 'Soldado')">Aprovar</button>` : ''}
                             ${membro.emPlantao ? `<button class="btn-action btn-parar-turno" style="width:auto;" onclick="forcarFimTurno('${membro._id}', '${membro.nickname}')">⏹️ Parar Turno</button>` : ''}
                             <button class="btn-action btn-historico" style="width:auto;" onclick="verHistoricoMembro('${membro.nickname}', '${membro._id}')">Ver Histórico</button>
+                            <button class="btn-action btn-prints" style="width:auto;" onclick="abrirModalPrintsMissoes('${membro._id}', '${membro.nickname}')">📸 Prints Missões</button>
                             <button class="btn-action btn-promover" style="width:auto;" onclick="promoverMembro('${membro._id}', '${membro.cargo}')">Promover</button>
                             <button class="btn-action btn-demitir" style="width:auto;" onclick="demitirMembro('${membro._id}')">Demitir</button>
                         </td>
@@ -704,41 +854,95 @@
 
         let membroIdAtualModal = null;
 
+        // --- VER HISTÓRICO DE TURNOS COM PRINTS (SOB DEMANDA) ---
         async function verHistoricoMembro(nickname, id) {
             membroIdAtualModal = id;
             document.getElementById('modalAdminHistorico').style.display = 'flex';
             document.getElementById('tituloModalHistorico').innerText = `📜 Histórico Operacional: ${nickname}`;
             const container = document.getElementById('conteudoAdminHistorico');
-            container.innerHTML = '<p>A carregar dados...</p>';
+            container.innerHTML = '<p>A carregar dados e comprovantes...</p>';
 
             try {
-                const res = await fetch(`/api/admin/membro/historico/${encodeURIComponent(nickname)}`);
+                const res = await fetch(`/api/admin/membro/historico-completo/${id}`);
                 const data = await res.json();
 
                 if (data.success) {
                     container.innerHTML = `
                         <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2); display: flex; justify-content: space-between; align-items: center;">
                             <div>
-                                <p><b>Status Atual:</b> ${data.membro.status.toUpperCase()} | <b>Cargo:</b> ${data.membro.cargo}</p>
-                                <p style="margin-top: 5px; color: #38bdf8;"><b>Último Plantão:</b> ${data.membro.ultimoPlantao}</p>
+                                <p><b>Operacional:</b> ${data.nickname} | <b>Cargo:</b> ${data.cargo}</p>
                             </div>
                             <button class="btn-action btn-reset" style="padding: 8px 12px;" onclick="resetarTurnosMembro('${membroIdAtualModal}')">🗑️ Resetar Turnos</button>
                         </div>
                         <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2);">
                             <h4 style="color: #38bdf8; margin-bottom: 8px;">🛡️ Turnos Cumpridos (${data.historicoTurnos.length})</h4>
-                            ${data.historicoTurnos.length > 0 ? data.historicoTurnos.map((t, index) => `
-                                <div style="background: rgba(30, 41, 59, 0.5); padding: 8px; border-radius: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
-                                    <div>
-                                        <p style="margin-bottom: 2px;">• Duração: <b>${t.duracao}</b> (${new Date(t.data).toLocaleDateString()})</p>
-                                        <p style="font-size: 11px; color: #94a3b8;">${t.fotoComprovante || 'Sem foto registada'}</p>
-                                    </div>
+                            ${data.historicoTurnos.length > 0 ? data.historicoTurnos.slice().reverse().map((t) => `
+                                <div style="background: rgba(30, 41, 59, 0.6); padding: 10px; border-radius: 6px; margin-bottom: 10px; border: 1px solid rgba(56, 189, 248, 0.25);">
+                                    <p style="margin-bottom: 5px;">• Duração: <b style="color: #38bdf8;">${t.duracao}</b> | Data: ${new Date(t.data).toLocaleString()}</p>
+                                    ${t.fotoComprovante && t.fotoComprovante.startsWith('data:image') ? `
+                                        <div style="text-align: center; margin-top: 8px;">
+                                            <img src="${t.fotoComprovante}" style="max-width: 100%; max-height: 220px; border-radius: 4px; border: 1px solid #38bdf8; cursor: pointer;" onclick="window.open('${t.fotoComprovante}')" title="Clique para ampliar">
+                                            <p style="font-size: 10px; color: #94a3b8; margin-top: 4px;">Print do Turno (Clique na imagem para ampliar)</p>
+                                        </div>
+                                    ` : `<p style="font-size: 11px; color: #94a3b8;">Comprovante: ${t.fotoComprovante || 'Sem foto registada'}</p>`}
                                 </div>
                             `).join('') : '<p style="color: #94a3b8;">Nenhum turno registado.</p>'}
                         </div>
                     `;
                 }
             } catch (e) {
-                console.error(e);
+                container.innerHTML = '<p style="color: #ef4444;">Erro ao carregar histórico.</p>';
+            }
+        }
+
+        // --- FUNÇÃO PARA O ADM VER OS PRINTS DE MISSÕES DE CADA MEMBRO ---
+        async function abrirModalPrintsMissoes(membroId, nickname) {
+            let modal = document.getElementById('modalPrintsAdmin');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'modalPrintsAdmin';
+                modal.style.cssText = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); justify-content:center; align-items:center; z-index:10000;";
+                modal.innerHTML = `
+                    <div style="background: rgba(18, 31, 51, 0.98); width: 90%; max-width: 650px; max-height: 85vh; border-radius: 8px; padding: 25px; border: 1px solid #38bdf8; overflow-y: auto; color: #fff;">
+                        <button onclick="document.getElementById('modalPrintsAdmin').style.display='none'" style="float:right; background:#ef4444; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold;">X</button>
+                        <h3 id="tituloPrintsAdmin" style="color: #38bdf8; margin-bottom: 15px;">📸 Prints de Missões</h3>
+                        <div id="conteudoPrintsAdmin" style="display: flex; flex-direction: column; gap: 15px;">A carregar comprovantes...</div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+
+            document.getElementById('tituloPrintsAdmin').innerText = `📸 Comprovantes de Missões: ${nickname}`;
+            document.getElementById('conteudoPrintsAdmin').innerHTML = '<p>A carregar...</p>';
+            modal.style.display = 'flex';
+
+            try {
+                const res = await fetch(`/api/admin/membro/missoes/${membroId}`);
+                const data = await res.json();
+                const container = document.getElementById('conteudoPrintsAdmin');
+                container.innerHTML = '';
+
+                if (data.success && data.historicoMissoes && data.historicoMissoes.length > 0) {
+                    data.historicoMissoes.slice().reverse().forEach((item) => {
+                        const div = document.createElement('div');
+                        div.style.background = 'rgba(15, 23, 42, 0.7)';
+                        div.style.padding = '12px';
+                        div.style.borderRadius = '6px';
+                        div.style.border = '1px solid rgba(56, 189, 248, 0.3)';
+                        div.innerHTML = `
+                            <p style="font-weight: bold; color: #38bdf8; margin-bottom: 5px;">${item.motivo} <span style="font-size: 11px; color: #94a3b8; float: right;">Ciclo: ${item.ciclo} | ${new Date(item.data).toLocaleString()}</span></p>
+                            <div style="margin-top: 8px; text-align: center;">
+                                <img src="${item.comprovante}" style="max-width: 100%; max-height: 300px; border-radius: 4px; border: 1px solid #38bdf8; cursor: pointer;" onclick="window.open('${item.comprovante}')" title="Clique para ampliar">
+                                <p style="font-size: 10px; color: #94a3b8; margin-top: 4px;">Clique na imagem para abrir em tamanho real</p>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                } else {
+                    container.innerHTML = '<p style="color: #94a3b8; text-align: center;">Nenhum comprovante de missão registado para este membro.</p>';
+                }
+            } catch (e) {
+                document.getElementById('conteudoPrintsAdmin').innerHTML = '<p style="color: #ef4444;">Erro ao carregar os comprovantes.</p>';
             }
         }
 

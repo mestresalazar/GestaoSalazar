@@ -31,6 +31,8 @@
             margin-bottom: 20px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.4);
             border: 1px solid rgba(56, 189, 248, 0.2);
+            flex-wrap: wrap;
+            gap: 10px;
         }
         .nav-brand {
             color: #38bdf8;
@@ -40,8 +42,9 @@
         }
         .nav-links {
             display: flex;
-            gap: 15px;
+            gap: 12px;
             align-items: center;
+            flex-wrap: wrap;
         }
         .nav-links a {
             color: #e2e8f0;
@@ -138,7 +141,6 @@
             font-weight: bold;
             margin-left: 10px;
         }
-        .status-pendente { background-color: #eab308; color: #000; }
         .status-ativo { background-color: #22c55e; color: #fff; }
         .timer-display {
             font-size: 28px;
@@ -153,7 +155,22 @@
             letter-spacing: 2px;
             text-shadow: 0 2px 4px rgba(0,0,0,0.8);
         }
-
+        .wallet-box {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(6, 78, 59, 0.4));
+            border: 1px solid #10b981;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .wallet-amount {
+            font-size: 24px;
+            font-weight: bold;
+            color: #34d399;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
         .chat-container-wrapper {
             display: flex;
             gap: 12px;
@@ -210,7 +227,6 @@
             70% { transform: scale(1.1); box-shadow: 0 0 0 5px rgba(234, 179, 8, 0); }
             100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(234, 179, 8, 0); }
         }
-
         #chatBox {
             height: 250px;
             background: rgba(15, 23, 42, 0.75);
@@ -252,12 +268,11 @@
             color: #e2e8f0;
             font-size: 13px;
         }
-
-        #modalHistorico {
+        #modalHistorico, #modalMissaoComprovante {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0,0,0,0.75);
             justify-content: center;
             align-items: center;
             z-index: 1000;
@@ -265,7 +280,7 @@
         .modal-content {
             background: rgba(18, 31, 51, 0.95);
             width: 90%;
-            max-width: 600px;
+            max-width: 500px;
             max-height: 80vh;
             border-radius: 8px;
             padding: 25px;
@@ -308,6 +323,37 @@
 
     <div class="grid-container">
         <div>
+            <!-- CARTEIRA DIGITAL DO OPERACIONAL -->
+            <div class="card" style="border: 2px solid #10b981;">
+                <h3>💳 Carteira Digital Salazar</h3>
+                <div class="wallet-box">
+                    <div>
+                        <span style="font-size: 12px; color: #a7f3d0; display: block;">SALDO DISPONÍVEL</span>
+                        <span class="wallet-amount" id="saldoCarteiraTotal">R$ 0</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 11px; color: #e2e8f0; display: block;">Ganho Hoje: <b id="ganhoHojeCarteira" style="color: #34d399;">+R$ 0</b></span>
+                        <span style="font-size: 11px; color: #fca5a5; display: block;">Meta de Plantão: <b id="statusMetaPlantao">Pendente (30m)</b></span>
+                    </div>
+                </div>
+                <p style="font-size: 12px; color: #cbd5e1; line-height: 1.4;">
+                    • Cada missão concluída com print gera <b>+R$ 1.000</b> na carteira.<br>
+                    • <span style="color: #f87171;"><b>Atenção:</b></span> Se não cumprir pelo menos 1 plantão válido (mín. 30 min) no ciclo diário, será descontado <b>-R$ 1.000</b> automaticamente após as 02:00!
+                </p>
+            </div>
+
+            <!-- FISCALIZAÇÃO DE PLANTÃO PÚBLICA -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(56, 189, 248, 0.2); padding-bottom: 10px; margin-bottom: 15px;">
+                    <h3 style="border: none; margin: 0; padding: 0;">👀 Fiscalização de Plantão (Tropa)</h3>
+                    <button onclick="atualizarFiscalizacaoServidor()" style="background: rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; color: #38bdf8; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;">🔄 Atualizar</button>
+                </div>
+                <p style="color: #e2e8f0; margin-bottom: 10px; font-size: 13px;">Operacionais atualmente em plantão ativo no sistema:</p>
+                <div id="listaFiscalizacaoPlantao" style="max-height: 200px; overflow-y: auto; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; padding: 10px; font-size: 13px;">
+                    <span style="color: #94a3b8;">A carregar efetivo em plantão...</span>
+                </div>
+            </div>
+
             <div class="card" id="cardModuloProvas" style="border: 2px dashed #38bdf8; display: none;">
                 <h3>🎓 Exame Oficial Exército Brasileiro (Rio Rise)</h3>
                 <p id="infoStatusProva" style="color: #e2e8f0; font-size: 13px; margin-bottom: 12px;">A verificar progresso...</p>
@@ -319,16 +365,17 @@
                 <p id="etapaAtual" style="color: #e2e8f0; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Detectando etapa atual...</p>
                 
                 <div class="timer-display" id="timerDisplay">00:00:00</div>
+                <p id="avisoTempoMinimo" style="text-align: center; font-size: 12px; color: #eab308; margin-top: 8px;">⏱️ Tempo mínimo recomendado para computar horas: <b>30 minutos</b>.</p>
 
                 <div style="margin-top: 15px;">
-                    <label style="font-size: 13px; color: #e2e8f0; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Anexar Print do Jogo (Obrigatório)</label>
+                    <label style="font-size: 13px; color: #e2e8f0; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Anexar Print do Jogo (Obrigatório para Turno)</label>
                     <input type="file" id="fotoComprovante" accept="image/*" style="width: 100%; padding: 8px; margin-top: 5px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; color: white; font-size: 13px;" onchange="converterFotoLocal(this)">
                     <div id="statusAnexo" style="font-size: 12px; color: #22c55e; margin-top: 5px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);"></div>
                 </div>
                 
                 <button class="btn-action" id="btnCheckin" onclick="fazerCheckin()">Iniciar Turno (Check-in)</button>
                 <button class="btn-action" id="btnPausar" style="background-color: rgba(234, 179, 8, 0.9); color: #000; display: none;" onclick="alternarPausa()">Pausar Turno</button>
-                <button class="btn-action" id="btnCheckout" style="background-color: rgba(71, 85, 105, 0.9);" onclick="fazerCheckout()">Finalizar Turno (Check-out)</button>
+                <button class="btn-action" id="btnCheckout" style="background-color: rgba(22, 163, 74, 0.9);" onclick="fazerCheckout()">Finalizar Turno (Check-out)</button>
             </div>
 
             <div class="card">
@@ -341,6 +388,19 @@
         </div>
 
         <div>
+            <!-- MISSÕES DIÁRIAS & RECOMPENSAS (EXIGE COMPROVANTE POR FOTO) -->
+            <div class="card" style="border: 2px solid #eab308; background: rgba(234, 179, 8, 0.05);">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(234, 179, 8, 0.3); padding-bottom: 10px; margin-bottom: 12px;">
+                    <h3 style="border: none; margin: 0; padding: 0;">📋 Missões Diárias do QG</h3>
+                    <span style="font-size: 11px; background: rgba(234, 179, 8, 0.2); color: #fde047; padding: 3px 8px; border-radius: 4px;">Reinicia às 02:00</span>
+                </div>
+                <p style="color: #e2e8f0; font-size: 13px; margin-bottom: 12px;">Patente: <b id="patenteAtualTexto"></b> | Cada missão concluída com <b>print da ação</b> vale <b>R$ 1.000</b>.</p>
+                
+                <div id="conteudoMissoesDiarias" style="background: rgba(15, 23, 42, 0.7); padding: 15px; border-radius: 6px; border: 1px solid rgba(234, 179, 8, 0.3); font-size: 13px; color: #e2e8f0; line-height: 1.5;">
+                    A carregar missões...
+                </div>
+            </div>
+
             <div class="card">
                 <h3>📥 Caixa de Entrada & Notificações</h3>
                 <div id="caixaEntradaContainer" style="max-height: 140px; overflow-y: auto; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; padding: 10px; font-size: 13px; color: #e2e8f0;">
@@ -390,7 +450,23 @@
         </div>
     </div>
 
-    <!-- Modais -->
+    <!-- Modal de Envio de Comprovante de Missão -->
+    <div id="modalMissaoComprovante">
+        <div class="modal-content">
+            <button class="close-modal" onclick="fecharModalMissao()">X</button>
+            <h3 style="color: #38bdf8; margin-bottom: 15px;" id="tituloModalMissao">📸 Comprovante de Missão</h3>
+            <p style="font-size: 13px; color: #e2e8f0; margin-bottom: 15px;">Para concluir esta missão e creditar <b>R$ 1.000</b> na sua carteira, anexe o print que comprove a realização da atividade:</p>
+            
+            <div style="margin-bottom: 15px;">
+                <input type="file" id="fotoPrintMissao" accept="image/*" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; color: white; font-size: 13px;" onchange="converterFotoMissaoLocal(this)">
+                <div id="statusPrintMissao" style="font-size: 12px; color: #22c55e; margin-top: 5px;"></div>
+            </div>
+
+            <button class="btn-action" style="background-color: rgba(22, 163, 74, 0.9); margin-top: 0;" onclick="confirmarConclusaoMissaoComPrint()">Enviar Comprovante e Ganhar R$ 1.000</button>
+        </div>
+    </div>
+
+    <!-- Modais Gerais -->
     <div id="modalProva" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 10000;">
         <div style="background: rgba(18, 31, 51, 0.98); width: 90%; max-width: 600px; border-radius: 8px; padding: 25px; border: 1px solid #38bdf8; max-height: 85vh; overflow-y: auto;">
             <h3 id="tituloModalProva" style="color: #38bdf8; margin-bottom: 15px;">Avaliação Oficial</h3>
@@ -440,6 +516,293 @@
             document.getElementById('navAdminLink').style.display = 'inline-block';
         }
 
+        function obterDataCicloOperacional() {
+            const agora = new Date();
+            if (agora.getHours() < 2) {
+                agora.setDate(agora.getDate() - 1);
+            }
+            return agora.toISOString().split('T')[0];
+        }
+
+        function comprimirImagemBase64(file, callback) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    let largura = img.width;
+                    let altura = img.height;
+                    const maxDim = 1280;
+                    if (largura > maxDim) {
+                        altura = Math.round((altura * maxDim) / largura);
+                        largura = maxDim;
+                    }
+                    canvas.width = largura;
+                    canvas.height = altura;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, largura, altura);
+                    callback(canvas.toDataURL('image/jpeg', 0.72));
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        let missaoSelecionadaAtual = null;
+        let fotoPrintMissaoBase64 = '';
+        let saldoCarteiraAtual = 0;
+        let missoesServidorCache = [];
+        let segundosPlantaoCumpridosHoje = 0;
+
+        function obterDefinicoesMissoesPorCargo() {
+            const cargo = (user.cargo || 'Soldado').toLowerCase();
+            if (cargo.includes('major') || cargo.includes('coronel') || cargo.includes('general')) {
+                return [
+                    { id: 'm1', titulo: 'Conduzir briefing diário e alinhamento tático' },
+                    { id: 'm2', titulo: 'Auditar relatórios de defesa do quartel' },
+                    { id: 'm3', titulo: 'Conferir conformidade de turnos da tropa' }
+                ];
+            } else if (cargo.includes('tenente')) {
+                return [
+                    { id: 'm1', titulo: 'Orientar Sargentos e Privados nas rotinas' },
+                    { id: 'm2', titulo: 'Liderar patrulha mista (1 Tenente, 1 Sargento, 1 Privado)' },
+                    { id: 'm3', titulo: 'Coordenar plantão defensivo no quartel' }
+                ];
+            } else if (cargo.includes('sargento')) {
+                return [
+                    { id: 'm1', titulo: 'Apoiar o Tenente na transmissão de ordens' },
+                    { id: 'm2', titulo: 'Integrar patrulha mista externa' },
+                    { id: 'm3', titulo: 'Cumprir período de defesa do quartel' }
+                ];
+            }
+            return [
+                { id: 'm1', titulo: 'Cumprir quota diária de plantão (Defesa do Quartel)' },
+                { id: 'm2', titulo: 'Participar de patrulha mista com Tenente e Sargento' },
+                { id: 'm3', titulo: 'Manter ponto ativo no site e enviar comprovante' }
+            ];
+        }
+
+        async function sincronizarCarteiraEMissoes() {
+            const cicloAtual = obterDataCicloOperacional();
+            document.getElementById('patenteAtualTexto').innerText = user.cargo || 'Soldado';
+            const containerMissoes = document.getElementById('conteudoMissoesDiarias');
+
+            // 1. Verifica histórico de turnos cumpridos no ciclo de hoje
+            let plantaoOkHoje = localStorage.getItem(`plantao_cumprido_${user.nickname}_${cicloAtual}`) === 'true';
+            try {
+                const resHist = await fetch(`/api/membro/historico/${encodeURIComponent(user.nickname)}`);
+                if (resHist.ok) {
+                    const dataHist = await resHist.json();
+                    if (dataHist.success && Array.isArray(dataHist.historicoTurnos)) {
+                        segundosPlantaoCumpridosHoje = 0;
+                        dataHist.historicoTurnos.forEach(t => {
+                            const dt = new Date(t.data);
+                            if (dt.getHours() < 2) dt.setDate(dt.getDate() - 1);
+                            const cicloTurno = dt.toISOString().split('T')[0];
+                            if (cicloTurno === cicloAtual && t.duracao) {
+                                const partes = t.duracao.split(':');
+                                if (partes.length === 3) {
+                                    segundosPlantaoCumpridosHoje += (parseInt(partes[0]) * 3600) + (parseInt(partes[1]) * 60) + parseInt(partes[2]);
+                                }
+                            }
+                        });
+                        if (segundosPlantaoCumpridosHoje >= 1800) {
+                            plantaoOkHoje = true;
+                            localStorage.setItem(`plantao_cumprido_${user.nickname}_${cicloAtual}`, 'true');
+                        }
+                    }
+                }
+            } catch (e) {}
+
+            // 2. Busca saldo e missões no servidor
+            let saldoServidor = null;
+            try {
+                const res = await fetch(`/api/membro/carteira/${encodeURIComponent(user.nickname)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success) {
+                        if (typeof data.saldo === 'number') {
+                            saldoServidor = data.saldo;
+                        }
+                        if (Array.isArray(data.missoes)) {
+                            missoesServidorCache = data.missoes;
+                        }
+                    }
+                }
+            } catch (e) {}
+
+            const chaveMissoes = `missoes_ciclo_${user.nickname}_${cicloAtual}`;
+            const concluidasLocal = JSON.parse(localStorage.getItem(chaveMissoes)) || {};
+
+            // Sincroniza missões concluídas que vieram do servidor para o ciclo atual
+            missoesServidorCache.forEach(ms => {
+                if (ms.ciclo === cicloAtual && ms.concluida) {
+                    concluidasLocal[ms.id] = true;
+                }
+            });
+            localStorage.setItem(chaveMissoes, JSON.stringify(concluidasLocal));
+
+            // 3. Verifica virada de ciclo para descontar -R$ 1.000 se turno anterior foi incompleto (< 30 min)
+            const ultimoCicloVerificado = localStorage.getItem(`ultimo_ciclo_${user.nickname}`);
+            let saldoBase = saldoServidor !== null ? saldoServidor : parseInt(localStorage.getItem(`carteira_saldo_${user.nickname}`) || '0', 10);
+
+            if (ultimoCicloVerificado && ultimoCicloVerificado !== cicloAtual) {
+                const cumpriuCicloAnterior = localStorage.getItem(`plantao_cumprido_${user.nickname}_${ultimoCicloVerificado}`) === 'true';
+                if (!cumpriuCicloAnterior) {
+                    saldoBase -= 1000;
+                    localStorage.setItem(`carteira_saldo_${user.nickname}`, saldoBase.toString());
+
+                    try {
+                        await fetch('/api/membro/carteira/atualizar', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                nickname: user.nickname,
+                                variacao: -1000,
+                                saldoTotal: saldoBase,
+                                motivo: `Desconto automático: plantão diário incompleto (< 30 min) no ciclo ${ultimoCicloVerificado}`,
+                                ciclo: cicloAtual
+                            })
+                        });
+                    } catch (e) {}
+
+                    mostrarModalCustomizado(
+                        '⚠️ Penalidade de Plantão',
+                        `O ciclo diário reiniciou às 02:00 e você não cumpriu o plantão mínimo obrigatório de 30 minutos no turno anterior.<br><br><b style="color:#ef4444;">-R$ 1.000</b> foram descontados da sua Carteira Digital.`
+                    );
+                }
+            }
+            localStorage.setItem(`ultimo_ciclo_${user.nickname}`, cicloAtual);
+
+            const missoesArray = obterDefinicoesMissoesPorCargo();
+            let htmlMissao = '';
+            let ganhoHoje = 0;
+
+            missoesArray.forEach((m, idx) => {
+                const isConcluida = !!concluidasLocal[m.id];
+                if (isConcluida) ganhoHoje += 1000;
+                
+                const botaoAcao = isConcluida 
+                    ? `<span style="color: #34d399; font-size: 12px; font-weight: bold;">Concluído ✅</span>`
+                    : `<button onclick="abrirModalMissao('${m.id}', '${m.titulo}')" style="background: rgba(234, 179, 8, 0.9); border: none; color: #000; padding: 5px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer;">Enviar Print 📸</button>`;
+
+                htmlMissao += `
+                    <div style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; background: rgba(30, 41, 59, 0.6); padding: 10px; border-radius: 6px; border: 1px solid ${isConcluida ? 'rgba(16, 185, 129, 0.5)' : 'transparent'};">
+                        <div style="flex: 1; padding-right: 10px;">
+                            <span style="${isConcluida ? 'text-decoration: line-through; color: #94a3b8;' : 'color: #e2e8f0;'}"><b>M${idx+1}:</b> ${m.titulo}</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="color: #34d399; font-size: 11px; font-weight: bold; background: rgba(16, 185, 129, 0.15); padding: 3px 6px; border-radius: 4px;">+R$ 1.000</span>
+                            ${botaoAcao}
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Garante consistência mínima com as missões concluídas hoje
+            if (saldoBase < ganhoHoje && !ultimoCicloVerificado) {
+                saldoBase = ganhoHoje;
+            }
+            saldoCarteiraAtual = saldoBase;
+            localStorage.setItem(`carteira_saldo_${user.nickname}`, saldoCarteiraAtual.toString());
+
+            containerMissoes.innerHTML = htmlMissao;
+            const elSaldo = document.getElementById('saldoCarteiraTotal');
+            elSaldo.innerText = `R$ ${saldoCarteiraAtual.toLocaleString('pt-BR')}`;
+            elSaldo.style.color = saldoCarteiraAtual < 0 ? '#f87171' : '#34d399';
+            document.getElementById('ganhoHojeCarteira').innerText = `+R$ ${ganhoHoje.toLocaleString('pt-BR')}`;
+
+            const statusMetaEl = document.getElementById('statusMetaPlantao');
+            if (plantaoOkHoje) {
+                statusMetaEl.innerText = 'Cumprido ✅';
+                statusMetaEl.style.color = '#34d399';
+            } else {
+                statusMetaEl.innerText = 'Pendente (-R$ 1.000 às 02h)';
+                statusMetaEl.style.color = '#f87171';
+            }
+        }
+
+        function abrirModalMissao(idMissao, tituloMissao) {
+            missaoSelecionadaAtual = idMissao;
+            fotoPrintMissaoBase64 = '';
+            document.getElementById('tituloModalMissao').innerText = `📸 Comprovante: ${tituloMissao}`;
+            document.getElementById('fotoPrintMissao').value = '';
+            document.getElementById('statusPrintMissao').innerText = '';
+            document.getElementById('modalMissaoComprovante').style.display = 'flex';
+        }
+
+        function fecharModalMissao() {
+            document.getElementById('modalMissaoComprovante').style.display = 'none';
+        }
+
+        function converterFotoMissaoLocal(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                comprimirImagemBase64(file, function(base64Comprimido) {
+                    fotoPrintMissaoBase64 = base64Comprimido;
+                    document.getElementById('statusPrintMissao').innerText = `✅ Print carregado e otimizado: ${file.name}`;
+                });
+            }
+        }
+
+        async function confirmarConclusaoMissaoComPrint() {
+            if (!fotoPrintMissaoBase64) {
+                mostrarModalCustomizado('Atenção', 'Anexe o print que comprove a realização da atividade da missão!');
+                return;
+            }
+
+            fecharModalMissao();
+            const cicloAtual = obterDataCicloOperacional();
+            const chaveMissoes = `missoes_ciclo_${user.nickname}_${cicloAtual}`;
+            const concluidas = JSON.parse(localStorage.getItem(chaveMissoes)) || {};
+
+            if (concluidas[missaoSelecionadaAtual]) return;
+
+            concluidas[missaoSelecionadaAtual] = true;
+            localStorage.setItem(chaveMissoes, JSON.stringify(concluidas));
+
+            saldoCarteiraAtual += 1000;
+            localStorage.setItem(`carteira_saldo_${user.nickname}`, saldoCarteiraAtual.toString());
+
+            // Atualiza lista completa de missões do ciclo para enviar ao backend
+            const definicoes = obterDefinicoesMissoesPorCargo();
+            const missoesAtualizadasPayload = definicoes.map(d => ({
+                id: d.id,
+                titulo: d.titulo,
+                valor: 1000,
+                ciclo: cicloAtual,
+                concluida: !!concluidas[d.id],
+                fotoComprovante: d.id === missaoSelecionadaAtual ? fotoPrintMissaoBase64 : ''
+            }));
+
+            try {
+                const res = await fetch('/api/membro/carteira/atualizar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nickname: user.nickname,
+                        variacao: 1000,
+                        saldoTotal: saldoCarteiraAtual,
+                        missoes: missoesAtualizadasPayload,
+                        motivo: `Missão diária concluída com comprovante (${missaoSelecionadaAtual})`,
+                        ciclo: cicloAtual,
+                        comprovantePrint: fotoPrintMissaoBase64
+                    })
+                });
+                const data = await res.json();
+                if (data.success && typeof data.saldo === 'number') {
+                    saldoCarteiraAtual = data.saldo;
+                    localStorage.setItem(`carteira_saldo_${user.nickname}`, saldoCarteiraAtual.toString());
+                }
+            } catch (e) {}
+
+            mostrarModalCustomizado('Sucesso', 'Comprovante verificado e aprovado! <b>+R$ 1.000</b> adicionados à sua Carteira Digital.');
+            sincronizarCarteiraEMissoes();
+        }
+
+        setInterval(() => { sincronizarCarteiraEMissoes(); }, 60000);
+        sincronizarCarteiraEMissoes();
+
         async function verificarEstadoPush() {
             if ('serviceWorker' in navigator && 'PushManager' in window) {
                 if (Notification.permission !== 'granted') {
@@ -451,46 +814,29 @@
         }
         verificarEstadoPush();
 
-        // ATIVAÇÃO PUSH COM A CHAVE VAPID PÚBLICA OFICIAL GERADA
         async function ativarNotificacoesPush() {
             if ('serviceWorker' in navigator && 'PushManager' in window) {
                 try {
                     const registration = await navigator.serviceWorker.register('/sw.js');
                     await navigator.serviceWorker.ready;
-
                     const permissao = await Notification.requestPermission();
-                    
                     if (permissao === 'granted') {
                         const publicVapidKey = 'BE5CpajXiRi74CjMe6B0ooSqHupNpbsu1otJVlH5t0t5h6tVJmL8PTVGlkSTPWIdAlIwra6WjFsTcy9sBgii8wQ';
                         const convertedVapidKey = urlBase64ToUint8Array(publicVapidKey);
-
                         const subscription = await registration.pushManager.subscribe({
                             userVisibleOnly: true,
                             applicationServerKey: convertedVapidKey
                         });
 
-                        const res = await fetch('/api/membro/salvar-subscricao-push', {
+                        await fetch('/api/membro/salvar-subscricao-push', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ nickname: user.nickname, subscription })
                         });
-
-                        const data = await res.json();
-                        if (data.success) {
-                            document.getElementById('bannerPush').style.display = 'none';
-                            mostrarModalCustomizado('Sucesso', 'Notificações push ativadas com sucesso! Agora o seu dispositivo está registado na base de dados.');
-                        } else {
-                            mostrarModalCustomizado('Erro', 'O servidor não conseguiu guardar a subscrição.');
-                        }
-                    } else {
-                        mostrarModalCustomizado('Atenção', 'A permissão de notificações foi negada. Ative nas definições do seu navegador.');
+                        document.getElementById('bannerPush').style.display = 'none';
+                        mostrarModalCustomizado('Sucesso', 'Notificações push ativadas!');
                     }
-                } catch (e) {
-                    console.error('Erro detalhado ao ativar Push:', e);
-                    mostrarModalCustomizado('Erro', 'Falha ao registar push: ' + e.message);
-                }
-            } else {
-                mostrarModalCustomizado('Indisponível', 'O seu navegador não suporta notificações push.');
+                } catch (e) {}
             }
         }
 
@@ -537,7 +883,7 @@
                         }
                     }
                 }
-            } catch (e) { console.error('Erro ao verificar provas:', e); }
+            } catch (e) {}
         }
         verificarProgressoProvas();
 
@@ -549,20 +895,20 @@
             if (cargoDestinoAtual === 'Sargento') {
                 container.innerHTML = `
                     <div style="margin-bottom: 15px;"><label style="font-size: 13px; color: #e2e8f0;">1. Qual é o canal padrão de rádio para comunicação de patrulha e operações táticas?</label><br><input type="radio" name="q1" value="a" required> A) Canal Geral / Tático da Tropa<br><input type="radio" name="q1" value="b"> B) Chat privado de amigos<br><input type="radio" name="q1" value="c"> C) Megafone da cidade</div>
-                    <div style="margin-bottom: 15px;"><label style="font-size: 13px; color: #e2e8f0;">2. Como deve proceder um Sargento ao identificar um elemento suspeito invadindo o perímetro da base do Rio Rise?</label><br><input type="radio" name="q2" value="a" required> A) Ficar em silêncio e fugir<br><input type="radio" name="q2" value="b"> B) Alertar via rádio tático, isolar a área e acionar o comando imediatamente<br><input type="radio" name="q2" value="c"> C) Convidar o invasor para tomar café</div>
+                    <div style="margin-bottom: 15px;"><label style="font-size: 13px; color: #e2e8f0;">2. Como deve proceder um Sargento ao identificar um elemento suspeito invadindo o perímetro da base?</label><br><input type="radio" name="q2" value="a" required> A) Ficar em silêncio e fugir<br><input type="radio" name="q2" value="b"> B) Alertar via rádio tático, isolar a área e acionar o comando imediatamente<br><input type="radio" name="q2" value="c"> C) Convidar o invasor para tomar café</div>
                     <div style="margin-bottom: 15px;"><label style="font-size: 13px; color: #e2e8f0;">3. Qual é a postura exigida ao reportar-se a um Oficial Superior (Tenente/Major/General)?</label><br><input type="radio" name="q3" value="a" required> A) Tratar de igual para igual sem respeito<br><input type="radio" name="q3" value="b"> B) Respeito absoluto, continência e uso da subordinação hierárquica correta<br><input type="radio" name="q3" value="c"> C) Ignorar ordens directas</div>
                 `;
             } else if (cargoDestinoAtual === 'Tenente') {
                 container.innerHTML = `
                     <div style="margin-bottom: 15px;"><label style="font-size: 13px; color: #e2e8f0;">1. Qual é a responsabilidade primária de um Tenente ao assumir o comando do quartel durante o turno?</label><br><input type="radio" name="q1" value="a" required> A) Organizar a tropa, supervisionar os plantões e manter a disciplina<br><input type="radio" name="q1" value="b"> B) Dormir no alojamento<br><input type="radio" name="q1" value="c"> C) Fazer corridas ilegais com viaturas</div>
-                    <div style="margin-bottom: 15px;"><label style="font-size: 13px; color: #e2e8f0;">2. Em caso de conflito direto ou megabatalha na cidade, qual é a diretriz de mobilização do Exército no Rio Rise?</label><br><input type="radio" name="q2" value="a" required> A) Deserção em massa<br><input type="radio" name="q2" value="b"> B) Organizar comboio blindado, garantir apoio logístico e seguir ordens do Estado-Maior<br><input type="radio" name="q2" value="c"> C) Ignorar o conflito e pescar</div>
+                    <div style="margin-bottom: 15px;"><label style="font-size: 13px; color: #e2e8f0;">2. Em caso de conflito direto ou megabatalha na cidade, qual é a diretriz de mobilização do Exército?</label><br><input type="radio" name="q2" value="a" required> A) Deserção em massa<br><input type="radio" name="q2" value="b"> B) Organizar comboio blindado, garantir apoio logístico e seguir ordens do Estado-Maior<br><input type="radio" name="q2" value="c"> C) Ignorar o conflito e pescar</div>
                     <div style="margin-bottom: 15px;"><label style="font-size: 13px; color: #e2e8f0;">3. Como o Tenente deve agir se detetar um subordinado a burlar o sistema de turnos (afk em plantão)?</label><br><input type="radio" name="q3" value="a" required> A) Ocultar a infração para proteger amigo<br><input type="radio" name="q3" value="b"> B) Registrar a infração, reportar ao comando para sanção e zerar o turno irregular<br><input type="radio" name="q3" value="c"> C) Promover o subordinado por solidariedade</div>
                 `;
             } else if (cargoDestinoAtual === 'Major') {
                 container.innerHTML = `
                     <div style="margin-bottom: 15px;"><label style="font-size: 13px; color: #e2e8f0;">1. Quais são as atribuições estratégicas de um Major perante o Conselho de Oficiais e Generalato?</label><br><input type="radio" name="q1" value="a" required> A) Participar das decisões de efetivo, promoções e planeamento tático da facção/organização<br><input type="radio" name="q1" value="b"> B) Vender armas no mercado negro<br><input type="radio" name="q1" value="c"> C) Limpar o quartel sozinho</div>
                     <div style="margin-bottom: 15px;"><label style="font-size: 13px; color: #e2e8f0;">2. Qual o procedimento para aplicação de sanções administrativas graves (demissão/exclusão) de membros da tropa?</label><br><input type="radio" name="q2" value="a" required> A) Análise de histórico operacional completo e aval do comando superior<br><input type="radio" name="q2" value="b"> B) Decisão impulsiva sem provas<br><input type="radio" name="q2" value="c"> C) Banimento arbitrário sem justificativa</div>
-                    <div style="margin-bottom: 15px;"><label style="font-size: 13px; color: #e2e8f0;">3. Como assegurar que os sorteios e métricas de horas do Exército no Rio Rise decorram sem fraudes?</label><br><input type="radio" name="q3" value="a" required> A) Permitir clonagem de relógios<br><input type="radio" name="q3" value="b"> B) Ignorar manipulações de tempo<br><input type="radio" name="q3" value="c"> C) Auditoria rigorosa de prints, horários regulamentares e bloqueio de exploits</div>
+                    <div style="margin-bottom: 15px;"><label style="font-size: 13px; color: #e2e8f0;">3. Como assegurar que os sorteios e métricas de horas do Exército decorram sem fraudes?</label><br><input type="radio" name="q3" value="a" required> A) Permitir clonagem de relógios<br><input type="radio" name="q3" value="b"> B) Ignorar manipulações de tempo<br><input type="radio" name="q3" value="c"> C) Auditoria rigorosa de prints, horários regulamentares e bloqueio de exploits</div>
                 `;
             }
         }
@@ -598,7 +944,7 @@
                         verificarProgressoProvas();
                     });
                 }
-            } catch (e) { console.error(e); mostrarModalCustomizado('Erro', 'Erro ao submeter a prova.'); }
+            } catch (e) {}
         }
 
         async function carregarCaixaEntrada() {
@@ -625,61 +971,100 @@
                 } else {
                     container.innerHTML = '<span style="color: #94a3b8;">Nenhuma nova notificação na caixa de entrada.</span>';
                 }
-            } catch (e) {
-                console.error('Erro ao carregar caixa de entrada:', e);
-            }
+            } catch (e) {}
         }
         carregarCaixaEntrada();
-        setInterval(carregarCaixaEntrada, 6000);
+        setInterval(carregarCaixaEntrada, 8000);
 
-        // ALARME SINTETIZADO SEM DEPENDÊNCIA DE MP3
-        function tocarAlarmeSonoro() {
-            try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.5);
-            } catch (e) {
-                console.log("Erro ao reproduzir som sintetizado:", e);
+        function renderizarListaFiscalizacao(listaMembrosEmPlantao) {
+            const containerFiscalizacao = document.getElementById('listaFiscalizacaoPlantao');
+            if (!containerFiscalizacao) return;
+
+            containerFiscalizacao.innerHTML = '';
+            if (listaMembrosEmPlantao && listaMembrosEmPlantao.length > 0) {
+                listaMembrosEmPlantao.forEach(u => {
+                    const item = document.createElement('div');
+                    item.style.padding = '8px 10px';
+                    item.style.marginBottom = '6px';
+                    item.style.background = 'rgba(30, 41, 59, 0.75)';
+                    item.style.border = '1px solid rgba(34, 197, 94, 0.3)';
+                    item.style.borderRadius = '6px';
+                    item.style.display = 'flex';
+                    item.style.justifyContent = 'space-between';
+                    item.style.alignItems = 'center';
+                    
+                    let tempoDecorridoTxt = '';
+                    if (u.inicioPlantao) {
+                        const mins = Math.floor((Date.now() - new Date(u.inicioPlantao).getTime()) / 60000);
+                        if (mins >= 0) tempoDecorridoTxt = ` • <span style="color:#eab308;">${mins} min ativo</span>`;
+                    }
+
+                    item.innerHTML = `
+                        <div>
+                            <span>🪖 <b>${u.nickname}</b> <span style="font-size: 11px; color: #38bdf8;">(${u.cargo || 'Soldado'})</span>${tempoDecorridoTxt}</span>
+                        </div>
+                        <span class="status-badge status-ativo" style="font-size: 10px; margin:0;">EM PLANTÃO</span>
+                    `;
+                    containerFiscalizacao.appendChild(item);
+                });
+            } else {
+                containerFiscalizacao.innerHTML = '<span style="font-size: 12px; color: #94a3b8;">Nenhum operacional em plantão neste momento.</span>';
             }
         }
+
+        async function atualizarFiscalizacaoServidor() {
+            try {
+                const res = await fetch('/api/membro/em-plantao');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success && Array.isArray(data.emPlantao)) {
+                        renderizarListaFiscalizacao(data.emPlantao);
+                        return;
+                    }
+                }
+            } catch (e) {}
+
+            if (window.usuariosOnlineCache) {
+                const ativos = window.usuariosOnlineCache.filter(u => u.emPlantao);
+                renderizarListaFiscalizacao(ativos);
+            }
+        }
+
+        atualizarFiscalizacaoServidor();
+        setInterval(atualizarFiscalizacaoServidor, 10000);
 
         const socket = io();
         socket.emit('entrar_sala', { 
             salaId: 'sala_geral_salazar', 
             nickname: user.nickname, 
-            cargo: user.cargo || 'Soldado'
+            cargo: user.cargo || 'Soldado',
+            emPlantao: (localStorage.getItem(`estado_turno_${user.nickname}`) === 'ativo')
         });
 
-        socket.on('tocar_alarme_acao', (data) => {
-            tocarAlarmeSonoro();
-            mostrarModalCustomizado(`🚨 ${data.titulo}`, data.descricao, 'alerta');
-        });
-
-        socket.on('atualizar_estado_turno_usuario', async (data) => {
-            if (data && data.nickname && user && data.nickname.toLowerCase() === user.nickname.toLowerCase()) {
-                await restaurarEstadoTurno();
-                carregarRanking();
-                verificarProgressoProvas();
-                carregarCaixaEntrada();
+        socket.on('atualizar_usuarios_online', (usuarios) => {
+            window.usuariosOnlineCache = usuarios || [];
+            const listaOnline = document.getElementById('listaOnline');
+            if (listaOnline) {
+                listaOnline.innerHTML = '';
+                if (usuarios && usuarios.length > 0) {
+                    usuarios.forEach(u => {
+                        const item = document.createElement('div');
+                        item.className = 'online-user-item';
+                        const dotClass = u.emPlantao ? 'plantao-dot' : 'online-dot';
+                        const statusText = u.emPlantao ? '<span style="color:#eab308; font-size:10px;"> (Plantão)</span>' : '';
+                        item.innerHTML = `<span class="${dotClass}"></span> <b>${u.nickname}</b>${statusText}`;
+                        listaOnline.appendChild(item);
+                    });
+                } else {
+                    listaOnline.innerHTML = `<span style="font-size: 11px; color: #94a3b8;">Nenhum online</span>`;
+                }
             }
-        });
-
-        socket.on('atualizar_status_geral_tropa', () => {
-            carregarRanking();
-            verificarProgressoProvas();
+            atualizarFiscalizacaoServidor();
         });
 
         function carregarHistoricoChatLocal() {
             const chatBox = document.getElementById('chatBox');
             const mensagensSalvas = JSON.parse(localStorage.getItem('chat_historico_salazar')) || [];
-            
             if (mensagensSalvas.length === 0) {
                 adicionarMsgNoChat({
                     nickname: 'Sistema',
@@ -719,23 +1104,6 @@
             adicionarMsgNoChat(data, true);
         });
 
-        socket.on('atualizar_usuarios_online', (usuarios) => {
-            const listaOnline = document.getElementById('listaOnline');
-            listaOnline.innerHTML = '';
-            if (usuarios && usuarios.length > 0) {
-                usuarios.forEach(u => {
-                    const item = document.createElement('div');
-                    item.className = 'online-user-item';
-                    const dotClass = u.emPlantao ? 'plantao-dot' : 'online-dot';
-                    const statusText = u.emPlantao ? '<span style="color:#eab308; font-size:10px;"> (Plantão)</span>' : '';
-                    item.innerHTML = `<span class="${dotClass}"></span> <b>${u.nickname}</b>${statusText}`;
-                    listaOnline.appendChild(item);
-                });
-            } else {
-                listaOnline.innerHTML = `<span style="font-size: 11px; color: #94a3b8;">Nenhum online</span>`;
-            }
-        });
-
         function enviarMensagem() {
             const input = document.getElementById('chatInput');
             const mensagem = input.value.trim();
@@ -748,7 +1116,6 @@
                 mensagem: mensagem,
                 hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
             };
-
             socket.emit('chat_mensagem', dadosMsg);
             input.value = '';
         }
@@ -756,7 +1123,6 @@
         document.getElementById('chatInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') enviarMensagem();
         });
-
         carregarHistoricoChatLocal();
 
         function mostrarModalCustomizado(titulo, mensagem, tipo = 'alerta', callbackConfirmar = null) {
@@ -779,6 +1145,30 @@
                     if (callbackConfirmar) callbackConfirmar();
                 };
                 btnContainer.appendChild(btnOk);
+            } else if (tipo === 'confirmacao') {
+                const btnContinuar = document.createElement('button');
+                btnContinuar.innerText = 'Continuar no Plantão';
+                btnContinuar.className = 'btn-action';
+                btnContinuar.style.backgroundColor = 'rgba(34, 197, 94, 0.9)';
+                btnContinuar.style.width = 'auto';
+                btnContinuar.style.marginTop = '0';
+                btnContinuar.style.padding = '8px 15px';
+                btnContinuar.onclick = () => { modal.style.display = 'none'; };
+
+                const btnFechar = document.createElement('button');
+                btnFechar.innerText = 'Sim, Fechar e Perder Progresso';
+                btnFechar.className = 'btn-action';
+                btnFechar.style.backgroundColor = 'rgba(239, 68, 68, 0.9)';
+                btnFechar.style.width = 'auto';
+                btnFechar.style.marginTop = '0';
+                btnFechar.style.padding = '8px 15px';
+                btnFechar.onclick = () => {
+                    modal.style.display = 'none';
+                    if (callbackConfirmar) callbackConfirmar();
+                };
+
+                btnContainer.appendChild(btnContinuar);
+                btnContainer.appendChild(btnFechar);
             }
             modal.style.display = 'flex';
         }
@@ -818,9 +1208,7 @@
                 } else {
                     tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8;">Nenhum registo no horário correto ainda.</td></tr>`;
                 }
-            } catch (e) {
-                console.error('Erro ao carregar ranking:', e);
-            }
+            } catch (e) {}
         }
         carregarRanking();
 
@@ -829,6 +1217,7 @@
         let segundosAcumuladosBase = 0;
         let timestampInicioServer = null;
         let fotoComprovanteBase64 = '';
+        const TEMPO_MINIMO_SEGUNDOS = 30 * 60;
 
         function calcularSegundosTotais() {
             if (estadoTurno === 'ativo' && timestampInicioServer) {
@@ -841,55 +1230,35 @@
 
         function atualizarDisplayTimer() {
             const segundosTotais = calcularSegundosTotais();
-
             const horas = String(Math.floor(segundosTotais / 3600)).padStart(2, '0');
             const minutos = String(Math.floor((segundosTotais % 3600) / 60)).padStart(2, '0');
             const segundos = String(segundosTotais % 60).padStart(2, '0');
             
             const display = document.getElementById('timerDisplay');
             if (display) display.innerText = `${horas}:${minutos}:${segundos}`;
-            
             return segundosTotais;
         }
 
         function iniciarLoopTimer() {
             if (timerInterval) clearInterval(timerInterval);
             atualizarDisplayTimer();
-            timerInterval = setInterval(() => {
-                atualizarDisplayTimer();
-            }, 1000);
+            timerInterval = setInterval(() => { atualizarDisplayTimer(); }, 1000);
         }
-
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && estadoTurno === 'ativo') {
-                atualizarDisplayTimer();
-            }
-        });
-
-        window.addEventListener('focus', () => {
-            if (estadoTurno === 'ativo') {
-                atualizarDisplayTimer();
-            }
-        });
 
         async function restaurarEstadoTurno() {
             try {
                 const res = await fetch(`/api/membro/historico/${encodeURIComponent(user.nickname)}`);
                 const data = await res.json();
-
                 if (data.success && data.membro) {
                     estadoTurno = data.membro.estadoTurno || 'parado';
                     segundosAcumuladosBase = data.membro.segundosAcumulados || 0;
                     timestampInicioServer = data.membro.inicioPlantao ? new Date(data.membro.inicioPlantao).getTime() : null;
                     fotoComprovanteBase64 = data.membro.fotoComprovanteAtiva || '';
                 }
-            } catch (e) {
-                console.error('Erro ao sincronizar turno com a conta:', e);
-            }
+            } catch (e) {}
 
             const btnPausar = document.getElementById('btnPausar');
             const statusAnexo = document.getElementById('statusAnexo');
-
             if (fotoComprovanteBase64 && statusAnexo) {
                 statusAnexo.innerText = '✅ Print guardado na tua conta e pronto!';
             }
@@ -922,64 +1291,38 @@
         function converterFotoLocal(input) {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
-                const reader = new FileReader();
-                reader.onload = async function(e) {
-                    fotoComprovanteBase64 = e.target.result;
-                    const statusAnexo = document.getElementById('statusAnexo');
-                    if (statusAnexo) statusAnexo.innerHTML = `✅ Print carregado: <b>${file.name || 'Imagem'}</b>`;
-
+                comprimirImagemBase64(file, async function(base64Comprimido) {
+                    fotoComprovanteBase64 = base64Comprimido;
+                    document.getElementById('statusAnexo').innerText = `✅ Print carregado: ${file.name}`;
                     try {
                         await fetch('/api/membro/status-plantao', {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ 
-                                nickname: user.nickname, 
-                                emPlantao: (estadoTurno === 'ativo'),
-                                estadoTurno: estadoTurno,
-                                fotoComprovanteAtiva: fotoComprovanteBase64
-                            })
+                            body: JSON.stringify({ nickname: user.nickname, emPlantao: (estadoTurno === 'ativo'), estadoTurno, fotoComprovanteAtiva: fotoComprovanteBase64 })
                         });
-                    } catch (err) {
-                        console.error('Erro ao salvar foto na conta:', err);
-                    }
-                };
-                reader.readAsDataURL(file);
+                    } catch (err) {}
+                });
             }
         }
 
         async function fazerCheckin() {
-            if (estadoTurno === 'ativo') {
-                mostrarModalCustomizado('Aviso', 'Turno já em andamento!');
-                return;
-            }
-
+            if (estadoTurno === 'ativo') return;
             if (!fotoComprovanteBase64) {
-                mostrarModalCustomizado('Atenção', 'É obrigatório anexar a foto ou print do seu turno antes de iniciar!');
+                mostrarModalCustomizado('Atenção', 'Anexe o print do turno antes de iniciar!');
                 return;
             }
-
-            const agoraTimestamp = Date.now();
+            const agora = Date.now();
             estadoTurno = 'ativo';
-            timestampInicioServer = agoraTimestamp;
+            timestampInicioServer = agora;
             segundosAcumuladosBase = 0;
 
-            try {
-                await fetch('/api/membro/status-plantao', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        nickname: user.nickname, 
-                        emPlantao: true,
-                        estadoTurno: 'ativo',
-                        inicioPlantao: agoraTimestamp,
-                        segundosAcumulados: 0,
-                        fotoComprovanteAtiva: fotoComprovanteBase64
-                    })
-                });
-            } catch (e) {
-                console.error('Erro ao atualizar check-in na conta:', e);
-            }
-
+            await fetch('/api/membro/status-plantao', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nickname: user.nickname, emPlantao: true, estadoTurno: 'ativo', inicioPlantao: agora, segundosAcumulados: 0, fotoComprovanteAtiva: fotoComprovanteBase64 })
+            });
+            socket.emit('entrar_sala', { salaId: 'sala_geral_salazar', nickname: user.nickname, cargo: user.cargo || 'Soldado', emPlantao: true });
+            
             const btnPausar = document.getElementById('btnPausar');
             if (btnPausar) {
                 btnPausar.style.display = 'block';
@@ -989,69 +1332,47 @@
             }
 
             iniciarLoopTimer();
-            mostrarModalCustomizado('Sucesso', 'Check-in registado!');
+            mostrarModalCustomizado('Sucesso', 'Check-in iniciado com sucesso!');
+            atualizarFiscalizacaoServidor();
         }
 
         async function alternarPausa() {
             if (estadoTurno === 'parado') return;
-
             const btnPausar = document.getElementById('btnPausar');
             if (estadoTurno === 'ativo') {
                 segundosAcumuladosBase = calcularSegundosTotais();
                 timestampInicioServer = null;
                 estadoTurno = 'pausado';
-
                 clearInterval(timerInterval);
                 timerInterval = null;
 
-                try {
-                    await fetch('/api/membro/status-plantao', {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            nickname: user.nickname, 
-                            emPlantao: false,
-                            estadoTurno: 'pausado',
-                            inicioPlantao: null,
-                            segundosAcumulados: segundosAcumuladosBase
-                        })
-                    });
-                } catch (e) {
-                    console.error(e);
-                }
-
+                await fetch('/api/membro/status-plantao', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nickname: user.nickname, emPlantao: false, estadoTurno: 'pausado', inicioPlantao: null, segundosAcumulados: segundosAcumuladosBase })
+                });
+                atualizarFiscalizacaoServidor();
                 if (btnPausar) {
                     btnPausar.innerText = 'Retomar Turno';
                     btnPausar.style.backgroundColor = 'rgba(34, 197, 94, 0.9)';
                 }
                 mostrarModalCustomizado('Turno Pausado', 'O cronômetro foi pausado.');
             } else {
-                const agoraTimestamp = Date.now();
+                const agora = Date.now();
                 estadoTurno = 'ativo';
-                timestampInicioServer = agoraTimestamp;
+                timestampInicioServer = agora;
 
-                try {
-                    await fetch('/api/membro/status-plantao', {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            nickname: user.nickname, 
-                            emPlantao: true,
-                            estadoTurno: 'ativo',
-                            inicioPlantao: agoraTimestamp,
-                            segundosAcumulados: segundosAcumuladosBase
-                        })
-                    });
-                } catch (e) {
-                    console.error(e);
-                }
-
+                await fetch('/api/membro/status-plantao', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nickname: user.nickname, emPlantao: true, estadoTurno: 'ativo', inicioPlantao: agora, segundosAcumulados: segundosAcumuladosBase })
+                });
+                atualizarFiscalizacaoServidor();
                 if (btnPausar) {
                     btnPausar.innerText = 'Pausar Turno';
                     btnPausar.style.backgroundColor = 'rgba(234, 179, 8, 0.9)';
                     btnPausar.style.color = '#000';
                 }
-                
                 iniciarLoopTimer();
                 mostrarModalCustomizado('Turno Retomado', 'O cronômetro voltou a contar.');
             }
@@ -1064,91 +1385,101 @@
                 return;
             }
 
+            if (segundosTotais < TEMPO_MINIMO_SEGUNDOS) {
+                const mins = Math.floor(segundosTotais / 60);
+                mostrarModalCustomizado('⚠️ Atenção', `Você está com ${mins} min de plantão. Se fechar agora, o progresso abaixo de 30 minutos será perdido (e descontará -R$ 1.000 da carteira se não houver outro turno válido hoje). Deseja mesmo fechar?`, 'confirmacao', async () => {
+                    await executarEncerramentoDescartado();
+                });
+                return;
+            }
+            await executarEncerramentoValido(segundosTotais);
+        }
+
+        async function executarEncerramentoValido(segundosTotais) {
             if (!fotoComprovanteBase64) {
                 mostrarModalCustomizado('Atenção', 'Nenhum comprovante encontrado na conta. Anexe o print novamente.');
                 return;
             }
-            
             clearInterval(timerInterval);
             timerInterval = null;
-            const btnPausar = document.getElementById('btnPausar');
-            if (btnPausar) btnPausar.style.display = 'none';
-
-            const display = document.getElementById('timerDisplay');
-            const tempoFinal = display ? display.innerText : '00:00:00';
+            const tempoFinal = document.getElementById('timerDisplay').innerText;
 
             try {
-                const response = await fetch('/api/membro/turno', {
+                const res = await fetch('/api/membro/turno', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        nickname: user.nickname,
-                        duracao: tempoFinal,
-                        fotoComprovante: fotoComprovanteBase64
-                    })
+                    body: JSON.stringify({ nickname: user.nickname, duracao: tempoFinal, segundosTotais, fotoComprovante: fotoComprovanteBase64 })
                 });
-
-                const data = await response.json();
+                const data = await res.json();
                 if (data.success) {
-                    mostrarModalCustomizado('Sucesso', `Turno finalizado e gravado com sucesso! Duração: ${tempoFinal}`);
-                    carregarRanking();
-                    verificarProgressoProvas();
-                    
-                    estadoTurno = 'parado';
-                    segundosAcumuladosBase = 0;
-                    timestampInicioServer = null;
-                    fotoComprovanteBase64 = '';
-
-                    const fotoComp = document.getElementById('fotoComprovante');
-                    const statusAnexo = document.getElementById('statusAnexo');
-                    if (fotoComp) fotoComp.value = '';
-                    if (statusAnexo) statusAnexo.innerText = '';
-                    atualizarDisplayTimer();
+                    const cicloAtual = obterDataCicloOperacional();
+                    localStorage.setItem(`plantao_cumprido_${user.nickname}_${cicloAtual}`, 'true');
+                    mostrarModalCustomizado('Sucesso', `Turno finalizado com sucesso! Duração: <b>${tempoFinal}</b>.`);
+                    window.location.reload();
                 } else {
-                    mostrarModalCustomizado('Erro', 'Erro ao gravar no histórico: ' + data.message);
+                    mostrarModalCustomizado('Erro', data.message);
                 }
             } catch (e) {
-                console.error(e);
-                mostrarModalCustomizado('Erro', 'Erro de conexão ao salvar o turno.');
+                mostrarModalCustomizado('Erro', 'Erro ao salvar o turno.');
             }
+        }
+
+        async function executarEncerramentoDescartado() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            await fetch('/api/membro/status-plantao', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nickname: user.nickname, emPlantao: false, estadoTurno: 'parado', inicioPlantao: null, segundosAcumulados: 0, fotoComprovanteAtiva: '' })
+            });
+
+            // Deduz R$ 1.000 da carteira se o operacional descartar o turno incompleto e não tiver plantão válido hoje
+            const cicloAtual = obterDataCicloOperacional();
+            const plantaoOkHoje = localStorage.getItem(`plantao_cumprido_${user.nickname}_${cicloAtual}`) === 'true';
+
+            if (!plantaoOkHoje) {
+                saldoCarteiraAtual -= 1000;
+                localStorage.setItem(`carteira_saldo_${user.nickname}`, saldoCarteiraAtual.toString());
+
+                try {
+                    await fetch('/api/membro/carteira/atualizar', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            nickname: user.nickname,
+                            variacao: -1000,
+                            saldoTotal: saldoCarteiraAtual,
+                            motivo: 'Turno encerrado incompleto (< 30 minutos)',
+                            ciclo: cicloAtual
+                        })
+                    });
+                } catch (e) {}
+            }
+
+            window.location.reload();
         }
 
         async function abrirHistorico() {
             document.getElementById('modalHistorico').style.display = 'flex';
             const container = document.getElementById('conteudoHistorico');
-            container.innerHTML = '<p>A carregar registos da base de dados...</p>';
-
+            container.innerHTML = '<p>A carregar histórico...</p>';
             try {
                 const res = await fetch(`/api/membro/historico/${encodeURIComponent(user.nickname)}`);
                 const data = await res.json();
-                
                 if (data.success) {
                     container.innerHTML = `
-                        <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2);">
+                        <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 6px;">
                             <h4 style="color: #38bdf8; margin-bottom: 8px;">🛡️ Turnos Cumpridos</h4>
-                            ${data.historicoTurnos.length > 0 ? data.historicoTurnos.map(t => `<p style="margin-bottom: 4px;">• Duração: <b>${t.duracao}</b> | Comprovante: <i>Anexo gravado</i> (${new Date(t.data).toLocaleDateString()})</p>`).join('') : '<p style="color: #94a3b8;">Nenhum turno registado ainda.</p>'}
-                        </div>
-                        <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2);">
-                            <h4 style="color: #38bdf8; margin-bottom: 8px;">⭐ Histórico de Promoções</h4>
-                            ${data.historicoPromocoes.length > 0 ? data.historicoPromocoes.map(p => `<p style="margin-bottom: 4px;">• Promovido para <b>${p.novoCargo}</b> em ${new Date(p.data).toLocaleDateString()}</p>`).join('') : '<p style="color: #94a3b8;">Nenhuma promoção registada.</p>'}
-                        </div>
-                        <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2);">
-                            <h4 style="color: #38bdf8; margin-bottom: 8px;">🎁 Histórico de Sorteios</h4>
-                            ${data.historicoSorteios.length > 0 ? data.historicoSorteios.map(s => `<p style="margin-bottom: 4px;">• ${s.descricaoPremio} - Status: <b>${s.status}</b></p>`).join('') : '<p style="color: #94a3b8;">Sem participações em sorteios registadas.</p>'}
+                            ${data.historicoTurnos.length > 0 ? data.historicoTurnos.map(t => `<p>• Duração: <b>${t.duracao}</b> (${new Date(t.data).toLocaleDateString()})</p>`).join('') : '<p>Nenhum turno.</p>'}
                         </div>
                     `;
-                } else {
-                    container.innerHTML = '<p style="color: #ef4444;">Não foi possível carregar o histórico.</p>';
                 }
             } catch (e) {
-                console.error(e);
-                container.innerHTML = '<p style="color: #ef4444;">Erro de conexão ao carregar o histórico.</p>';
+                container.innerHTML = '<p>Erro ao carregar.</p>';
             }
         }
 
-        function fecharHistorico() {
-            document.getElementById('modalHistorico').style.display = 'none';
-        }
+        function fecharHistorico() { document.getElementById('modalHistorico').style.display = 'none'; }
 
         async function logout() {
             try {
@@ -1157,9 +1488,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ nickname: user.nickname, emPlantao: false, estadoTurno: 'parado' })
                 });
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) {}
             localStorage.clear();
             window.location.href = 'index.html';
         }

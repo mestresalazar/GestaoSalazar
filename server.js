@@ -8,11 +8,11 @@ const path = require('path');
 const conectarDB = require('./config/db');
 const User = require('./models/User');
 const ConfigSorteio = require('./models/ConfigSorteio');
+const LogAdmin = require('./models/LogAdmin');
 
 dotenv.config();
 conectarDB();
 
-// Configuração das Chaves VAPID Oficiais Geradas
 const publicVapidKey = process.env.VAPID_PUBLIC_KEY || 'BE5CpajXiRi74CjMe6B0ooSqHupNpbsu1otJVlH5t0t5h6tVJmL8PTVGlkSTPWIdAlIwra6WjFsTcy9sBgii8wQ';
 const privateVapidKey = process.env.VAPID_PRIVATE_KEY || 'zpTFhXUSrW9O8iuzIMZ_-_322JymestIXnunAraP65M';
 
@@ -41,10 +41,23 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors());
 app.use(express.static('public'));
 
-// Rota explícita para o Service Worker
 app.get('/sw.js', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'sw.js'));
 });
+
+async function registarLogAdmin(autor, acao, detalhes) {
+    try {
+        await LogAdmin.create({
+            autor: autor || 'Sistema',
+            acao: acao,
+            detalhes: detalhes,
+            data: new Date()
+        });
+        io.emit('atualizar_logs_admin');
+    } catch (e) {
+        console.error("Erro ao gravar log admin:", e);
+    }
+}
 
 function converterDuracaoParaSegundos(duracaoStr) {
   if (!duracaoStr) return 0;
@@ -111,6 +124,7 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(403).json({ success: false, message: 'A sua conta aguarda aprovação do Comando para ter acesso ao site.' });
         }
 
+        await registarLogAdmin(user.nickname, 'Login no Sistema', `Utilizador ${user.nickname} efetuou login.`);
         res.json({ success: true, message: 'Login bem-sucedido', user: { nickname: user.nickname, cargo: user.cargo, role: user.role, status: user.status } });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro no servidor.' });
@@ -134,6 +148,7 @@ app.post('/api/auth/register', async (req, res) => {
         });
 
         await novoUtilizador.save();
+        await registarLogAdmin(nickname.trim(), 'Registo de Conta', `Novo registo de conta pendente para ${nickname.trim()}.`);
         res.json({ success: true, message: 'Conta registada com sucesso! Aguarde aprovação.' });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro ao registar conta na base de dados.' });
@@ -173,7 +188,6 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
     }
 });
 
-// SUBSCRIÇÃO PUSH
 app.post('/api/membro/salvar-subscricao-push', async (req, res) => {
     try {
         const { nickname, subscription } = req.body;
@@ -184,19 +198,15 @@ app.post('/api/membro/salvar-subscricao-push', async (req, res) => {
             { $set: { pushSubscription: subscription } }
         );
 
-        console.log(`Subscrição Push guardada com sucesso para: ${nickname}`);
         res.json({ success: true, message: 'Subscrição push guardada com sucesso!' });
     } catch (e) {
-        console.error("Erro ao salvar subscrição push:", e);
         res.status(500).json({ success: false, message: 'Erro no servidor.' });
     }
 });
 
-// DISPARO DE AÇÃO DE EMERGÊNCIA (COM PUSH EM MASSA E SOCKET.IO)
 app.post('/api/admin/disparar-acao', async (req, res) => {
     try {
         const { adminNickname, tituloAcao, descricaoAcao, titulo, descricao } = req.body;
-        
         const tituloFinal = tituloAcao || titulo || 'ALERTA DE AÇÃO';
         const descricaoFinal = descricaoAcao || descricao || 'Convocação urgente do Comando! Apresente-se imediatamente.';
 
@@ -208,7 +218,6 @@ app.post('/api/admin/disparar-acao', async (req, res) => {
         }
 
         const membrosComPush = await User.find({ pushSubscription: { $exists: true, $ne: null } }).lean();
-
         const payload = JSON.stringify({
             title: `🚨 AÇÃO: ${tituloFinal}`,
             body: descricaoFinal,
@@ -221,9 +230,7 @@ app.post('/api/admin/disparar-acao', async (req, res) => {
                 try {
                     await webpush.sendNotification(membro.pushSubscription, payload);
                     enviados++;
-                } catch (err) {
-                    console.error('Erro ao enviar push para:', membro.nickname, err.message);
-                }
+                } catch (err) {}
             }
         }
 
@@ -237,13 +244,9 @@ app.post('/api/admin/disparar-acao', async (req, res) => {
         io.emit('tocar_alarme_acao', { titulo: tituloFinal, descricao: descricaoFinal });
         io.emit('atualizar_status_geral_tropa');
 
-        res.json({ 
-            success: true, 
-            message: `Alerta de ação disparado via Push para ${enviados} operacional(is) e gravado para toda a tropa!`,
-            enviados
-        });
+        await registarLogAdmin(adminNickname || 'Comando', 'Alarme Geral Disparado', `Ação: ${tituloFinal}`);
+        res.json({ success: true, message: `Alerta disparado para ${enviados} operacional(is)!`, enviados });
     } catch (e) {
-        console.error("Erro ao disparar ação:", e);
         res.status(500).json({ success: false, message: 'Erro ao disparar ação: ' + e.message });
     }
 });
@@ -309,6 +312,7 @@ app.post('/api/membro/turno', async (req, res) => {
 
         io.emit('atualizar_estado_turno_usuario', { nickname: nickname.toLowerCase() });
         io.emit('atualizar_status_geral_tropa');
+        await registarLogAdmin(nickname, 'Registo de Turno', `Turno de duração ${duracao} concluído e registado.`);
 
         res.json({ success: true, message: 'Turno validado e registado com sucesso!' });
     } catch (error) {
@@ -316,7 +320,165 @@ app.post('/api/membro/turno', async (req, res) => {
     }
 });
 
-// --- ROTAS DO ADMINISTRADOR ---
+// --- CARTEIRA E MISSÕES DIÁRIAS COM CORREÇÃO DE LOG E SALDO ---
+app.get('/api/membro/carteira/:nickname', async (req, res) => {
+    try {
+        const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }).lean();
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        res.json({
+            success: true,
+            saldo: membro.carteiraSaldo || 0,
+            missoes: membro.missoesDiarias || []
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao carregar carteira.' });
+    }
+});
+
+app.post('/api/membro/carteira/atualizar', async (req, res) => {
+    try {
+        const { nickname, missoes, saldoTotal, motivo, ciclo, comprovantePrint } = req.body;
+        if (!nickname) return res.status(400).json({ success: false, message: 'Nickname obrigatório.' });
+
+        const saldoFinal = saldoTotal !== undefined ? saldoTotal : 0;
+
+        const updateObj = {
+            carteiraSaldo: saldoFinal
+        };
+
+        if (missoes) {
+            updateObj.missoesDiarias = missoes;
+        }
+
+        let pushObj = {};
+        if (comprovantePrint) {
+            const novaMissaoHistorico = {
+                data: new Date(),
+                ciclo: ciclo || new Date().toISOString().split('T')[0],
+                motivo: motivo || 'Missão Diária',
+                comprovante: comprovantePrint
+            };
+            pushObj.historicoMissoes = novaMissaoHistorico;
+        }
+
+        const queryUpdate = { $set: updateObj };
+        if (Object.keys(pushObj).length > 0) {
+            queryUpdate.$push = pushObj;
+        }
+
+        await User.updateOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, queryUpdate);
+
+        await registarLogAdmin(nickname, 'Atualização de Missões', `Progresso de missões atualizado. Saldo atual: R$ ${saldoFinal}`);
+        res.json({ success: true, message: 'Missões e carteira atualizadas com sucesso!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao atualizar carteira.' });
+    }
+});
+
+// --- ROTA CORRIGIDA PARA O ADM VER OS COMPROVANTES DE MISSÕES ---
+app.get('/api/admin/membro/missoes/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        let query = { _id: id };
+        if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+            query = { nickname: new RegExp('^' + decodeURIComponent(id) + '$', 'i') };
+        }
+
+        const membro = await User.findOne(query, 'nickname cargo historicoMissoes missoesDiarias carteiraSaldo').lean();
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        // Garante compatibilidade caso o print esteja guardado em formato alternativo nas missões diárias
+        let listaMissoes = membro.historicoMissoes || [];
+        if (listaMissoes.length === 0 && membro.missoesDiarias) {
+            membro.missoesDiarias.forEach(m => {
+                if (m.fotoComprovante || m.comprovante) {
+                    listaMissoes.push({
+                        data: m.data || new Date(),
+                        ciclo: 'Atual',
+                        motivo: m.titulo || 'Missão Concluída',
+                        comprovante: m.fotoComprovante || m.comprovante
+                    });
+                }
+            });
+        }
+
+        res.json({
+            success: true,
+            nickname: membro.nickname,
+            cargo: membro.cargo,
+            saldo: membro.carteiraSaldo || 0,
+            historicoMissoes: listaMissoes
+        });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao carregar histórico de missões.' });
+    }
+});
+
+// --- ROTA DE HISTÓRICO COMPLETO DE TURNOS COM FOTOS (SOB DEMANDA) ---
+app.get('/api/admin/membro/historico-completo/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        let query = { _id: id };
+        if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+            query = { nickname: new RegExp('^' + decodeURIComponent(id) + '$', 'i') };
+        }
+
+        const membro = await User.findOne(query, 'nickname cargo status historicoTurnos carteiraSaldo').lean();
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        res.json({
+            success: true,
+            nickname: membro.nickname,
+            cargo: membro.cargo,
+            status: membro.status || 'Ativo',
+            historicoTurnos: membro.historicoTurnos || []
+        });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao carregar histórico completo de turnos.' });
+    }
+});
+
+app.get(['/api/membro/em-plantao', '/api/membro/em-plantao/:nickname'], async (req, res) => {
+    try {
+        let nickname = req.params.nickname || req.query.nickname;
+        if (!nickname) {
+            const membrosAtivos = await User.find({ emPlantao: true }, 'nickname cargo inicioPlantao fotoComprovanteAtiva').lean();
+            return res.json({ 
+                success: true, 
+                emPlantao: membrosAtivos, 
+                emPlantaoLista: membrosAtivos 
+            });
+        }
+
+        const membro = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') }).lean();
+        if (!membro) {
+            return res.json({ success: true, emPlantao: false, estadoTurno: 'parado', inicioPlantao: null, segundosAcumulados: 0 });
+        }
+
+        res.json({
+            success: true,
+            emPlantao: !!membro.emPlantao,
+            estadoTurno: membro.estadoTurno || 'parado',
+            inicioPlantao: membro.inicioPlantao || null,
+            segundosAcumulados: membro.segundosAcumulados || 0,
+            fotoComprovanteAtiva: membro.fotoComprovanteAtiva || ''
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erro ao verificar status de plantão.' });
+    }
+});
+
+// --- ROTAS DO ADMINISTRADOR & LOGS ---
+app.get('/api/admin/logs', async (req, res) => {
+    try {
+        const logs = await LogAdmin.find().sort({ data: -1 }).limit(100).lean();
+        res.json({ success: true, logs });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao carregar logs.' });
+    }
+});
+
 app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
     try {
         const nickname = req.params.nickname;
@@ -393,15 +555,21 @@ app.put('/api/admin/membro/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { status, cargo } = req.body;
+        const membroAntigo = await User.findById(id);
+        if (!membroAntigo) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
         const updateData = {};
         if (status) updateData.status = status;
         if (cargo) updateData.cargo = cargo;
 
         const membro = await User.findByIdAndUpdate(id, { $set: updateData }, { new: true });
-        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
         
-        if (cargo) {
-            await User.updateOne({ _id: id }, { $push: { historicoPromocoes: { novoCargo: cargo, data: new Date() } } });
+        if (cargo && cargo !== membroAntigo.cargo) {
+            await User.updateOne({ _id: id }, { $push: { historicoPromocoes: { novoCargo: cargo, cargoAnterior: membroAntigo.cargo, data: new Date() } } });
+            await registarLogAdmin('Comando', 'Promoção / Alteração de Cargo', `Membro ${membro.nickname} promovido de ${membroAntigo.cargo} para ${cargo}`);
+        }
+        if (status && status !== membroAntigo.status) {
+            await registarLogAdmin('Comando', 'Alteração de Status', `Membro ${membro.nickname} alterou status para ${status}`);
         }
 
         io.emit('atualizar_status_geral_tropa');
@@ -432,6 +600,7 @@ app.put('/api/admin/membro/forcar-fim-turno/:id', async (req, res) => {
 
         io.emit('atualizar_estado_turno_usuario', { nickname: membro.nickname.toLowerCase() });
         io.emit('atualizar_status_geral_tropa');
+        await registarLogAdmin('Comando', 'Fim de Turno Forçado', `Turno de ${membro.nickname} encerrado à força pelo Comando.`);
 
         res.json({ success: true, message: `Turno de ${membro.nickname} encerrado à força com sucesso!` });
     } catch (error) {
@@ -445,6 +614,7 @@ app.put('/api/admin/membro/resetar-turnos/:id', async (req, res) => {
         const membro = await User.findByIdAndUpdate(id, { $set: { historicoTurnos: [] } }, { new: true });
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
         io.emit('atualizar_status_geral_tropa');
+        await registarLogAdmin('Comando', 'Reset de Turnos', `Histórico de turnos de ${membro.nickname} foi limpo.`);
         res.json({ success: true, message: 'Turnos resetados com sucesso!' });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro ao resetar turnos.' });
@@ -457,6 +627,7 @@ app.delete('/api/admin/membro/:id', async (req, res) => {
         const membro = await User.findByIdAndDelete(id);
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
         io.emit('atualizar_status_geral_tropa');
+        await registarLogAdmin('Comando', 'Demissão / Exclusão', `Membro ${membro.nickname} foi demitido/removido.`);
         res.json({ success: true, message: 'Membro demitido/removido com sucesso!' });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro ao remover membro.' });
@@ -493,6 +664,7 @@ app.put('/api/admin/ranking/resetar', async (req, res) => {
         };
         await User.updateMany({}, { $push: { caixaEntrada: notif } });
         io.emit('atualizar_status_geral_tropa');
+        await registarLogAdmin('Comando', 'Reset de Ranking', 'Ranking semanal de turnos foi resetado.');
         res.json({ success: true, message: 'Ranking semanal resetado com sucesso!' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao resetar ranking.' });
@@ -503,7 +675,7 @@ app.post('/api/admin/notificar/ranking', async (req, res) => {
     try {
         const notif = {
             titulo: '📊 Posição do Ranking',
-            mensagem: 'O comando atualizou as notificações relativas ao ranking semanal de horas (17h às 02h).',
+            mensagem: 'O comando atualizou as notificações relativas ao ranking semanal de horas.',
             data: new Date()
         };
         await User.updateMany({}, { $push: { caixaEntrada: notif } });
@@ -518,7 +690,7 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
         const { adminNickname, targetNickname, horas, minutos, segundos, motivo } = req.body;
 
         if (!adminNickname || adminNickname.toLowerCase().trim() !== 'mestre') {
-            return res.status(403).json({ success: false, message: 'Acesso negado. Apenas a conta Mestre pode injetar tempo manualmente.' });
+            return res.status(403).json({ success: false, message: 'Acesso negado. Apenas a conta Mestre pode injetar tempo.' });
         }
         if (!targetNickname) {
             return res.status(400).json({ success: false, message: 'Nickname do membro alvo é obrigatório.' });
@@ -534,20 +706,7 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
         }
 
         const duracaoFormatada = converterSegundosParaDuracao(totalSegundos);
-
-        const partesData = new Intl.DateTimeFormat('en-US', {
-            timeZone: 'America/Sao_Paulo',
-            year: 'numeric',
-            month: 'numeric',
-            day: 'numeric',
-            hour12: false
-        }).formatToParts(new Date());
-
-        const ano = partesData.find(p => p.type === 'year').value;
-        const mes = partesData.find(p => p.type === 'month').value;
-        const dia = partesData.find(p => p.type === 'day').value;
-
-        const dataInjecao = new Date(`${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}T18:00:00-03:00`);
+        const dataInjecao = new Date();
 
         const novoTurnoManual = {
             data: dataInjecao,
@@ -566,16 +725,17 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
             { $push: { historicoTurnos: novoTurnoManual, caixaEntrada: notif } }
         );
 
-        if (resultado.matchedCount === 0) return res.status(404).json({ success: false, message: 'Membro alvo não encontrado na base de dados.' });
+        if (resultado.matchedCount === 0) return res.status(404).json({ success: false, message: 'Membro alvo não encontrado.' });
 
         io.emit('atualizar_status_geral_tropa');
-        res.json({ success: true, message: `Adicionado com sucesso ${duracaoFormatada} para o alvo! Computado no ranking e sorteio.` });
+        await registarLogAdmin(adminNickname, 'Injeção Manual de Tempo', `Adicionado ${duracaoFormatada} para ${targetNickname}. Motivo: ${motivo}`);
+        res.json({ success: true, message: `Adicionado com sucesso ${duracaoFormatada} para ${targetNickname}!` });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro interno ao adicionar tempo: ' + error.message });
     }
 });
 
-// --- ROTAS DE PROVAS E EXAMES ---
+// --- EXAMES E PROVAS ---
 app.get('/api/membro/provas/status/:nickname', async (req, res) => {
     try {
         const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }).lean();
@@ -586,12 +746,7 @@ app.get('/api/membro/provas/status/:nickname', async (req, res) => {
             const agora = new Date();
             if (agora < dataCooldown) {
                 const horasRestantes = Math.ceil((dataCooldown - agora) / (1000 * 60 * 60));
-                return res.json({
-                    success: true,
-                    bloqueadoPorCooldown: true,
-                    horasRestantes,
-                    message: `Estás em cooldown devido a uma reprovação recente. Podes tentar novamente em cerca de ${horasRestantes} hora(s).`
-                });
+                return res.json({ success: true, bloqueadoPorCooldown: true, horasRestantes });
             }
         }
 
@@ -615,15 +770,7 @@ app.get('/api/membro/provas/status/:nickname', async (req, res) => {
         }
 
         const horasFaltando = Math.max(0, (horasNecessarias - totalHoras).toFixed(1));
-
-        res.json({
-            success: true,
-            bloqueadoPorCooldown: false,
-            totalHoras: totalHoras.toFixed(1),
-            cargoAtual,
-            provaDisponivelPara,
-            horasFaltando
-        });
+        res.json({ success: true, bloqueadoPorCooldown: false, totalHoras: totalHoras.toFixed(1), cargoAtual, provaDisponivelPara, horasFaltando });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao verificar status de provas.' });
     }
@@ -632,28 +779,12 @@ app.get('/api/membro/provas/status/:nickname', async (req, res) => {
 app.post('/api/membro/provas/submeter', async (req, res) => {
     try {
         const { nickname, cargoAlvo, respostas } = req.body;
-        
         const membro = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
-        if (membro.cooldownProvaAte) {
-            const dataCooldown = new Date(membro.cooldownProvaAte);
-            if (new Date() < dataCooldown) {
-                return res.status(400).json({ success: false, message: 'Tentativa bloqueada. Estás no período de cooldown de 24 horas.' });
-            }
-        }
-
-        let gabarito = {};
-        if (cargoAlvo === 'Sargento') {
-            gabarito = { q1: 'a', q2: 'b', q3: 'b' };
-        } else if (cargoAlvo === 'Tenente') {
-            gabarito = { q1: 'a', q2: 'b', q3: 'b' };
-        } else if (cargoAlvo === 'Major') {
-            gabarito = { q1: 'a', q2: 'a', q3: 'c' };
-        }
-
+        let gabarito = { q1: 'a', q2: 'b', q3: 'b' };
         let acertos = 0;
-        let totalPerguntas = Object.keys(gabarito).length;
+        let totalPerguntas = 3;
 
         if (respostas && respostas.q1 === gabarito.q1) acertos++;
         if (respostas && respostas.q2 === gabarito.q2) acertos++;
@@ -667,44 +798,31 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
                 { 
                     $set: { cargo: cargoAlvo, cooldownProvaAte: null },
                     $push: { 
-                        historicoPromocoes: { novoCargo: cargoAlvo, data: new Date() },
+                        historicoPromocoes: { novoCargo: cargoAlvo, cargoAnterior: membro.cargo, data: new Date() },
                         caixaEntrada: {
                             titulo: '🎉 Aprovado na Prova!',
-                            mensagem: `Parabéns! Foste aprovado na prova do Exército Brasileiro e promovido para <b>${cargoAlvo}</b>!`,
+                            mensagem: `Parabéns! Foste aprovado na prova e promovido para <b>${cargoAlvo}</b>!`,
                             data: new Date()
                         }
                     }
                 }
             );
-
             io.emit('atualizar_status_geral_tropa');
-            res.json({ success: true, aprovado: true, message: `Parabéns! Passaste na prova com ${acertos}/${totalPerguntas} acertos e foste promovido a ${cargoAlvo}!` });
+            await registarLogAdmin(nickname, 'Aprovação em Exame', `Membro aprovado em exame e promovido a ${cargoAlvo}.`);
+            res.json({ success: true, aprovado: true, message: `Parabéns! Passaste na prova e foste promovido a ${cargoAlvo}!` });
         } else {
             const dataCooldown = new Date();
             dataCooldown.setHours(dataCooldown.getHours() + 24);
-
-            await User.updateOne(
-                { _id: membro._id },
-                { 
-                    $set: { cooldownProvaAte: dataCooldown },
-                    $push: { 
-                        caixaEntrada: {
-                            titulo: '❌ Reprovado na Prova (Cooldown 24h)',
-                            mensagem: `Obtiviste ${acertos}/${totalPerguntas} acertos na prova para ${cargoAlvo}. Estás em cooldown de 24 horas.`,
-                            data: new Date()
-                        }
-                    }
-                }
-            );
-
-            res.json({ success: true, aprovado: false, message: `Infelizmente obtiviste ${acertos}/${totalPerguntas} acertos. Foste reprovado e terás um cooldown de 24 horas para tentar novamente.` });
+            await User.updateOne({ _id: membro._id }, { $set: { cooldownProvaAte: dataCooldown } });
+            await registarLogAdmin(nickname, 'Reprovação em Exame', `Membro reprovado no exame para ${cargoAlvo}.`);
+            res.json({ success: true, aprovado: false, message: `Infelizmente obtiviste ${acertos}/${totalPerguntas} acertos. Cooldown de 24h ativado.` });
         }
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro interno ao processar prova.' });
     }
 });
 
-// --- ROTAS DO SORTEIO DIÁRIO ---
+// --- SORTEIOS ---
 app.get('/api/admin/sorteio/status', async (req, res) => {
   try {
     const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' }).lean();
@@ -717,31 +835,13 @@ app.get('/api/admin/sorteio/status', async (req, res) => {
 app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
   try {
     const membros = await User.find({}, 'nickname cargo sorteioExcluidoAte historicoTurnos.duracao historicoTurnos.data').lean();
-    
     const elegiveis = membros.filter(m => {
-      if (m.sorteioExcluidoAte) {
-        const dataExclusao = new Date(m.sorteioExcluidoAte);
-        const agora = new Date();
-        if (dataExclusao.getDate() === agora.getDate() &&
-            dataExclusao.getMonth() === agora.getMonth() &&
-            dataExclusao.getFullYear() === agora.getFullYear()) {
-          return false;
-        }
-      }
-
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
       const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoPertenceAoCicloAtual(t.data));
       const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
       return totalSegundosHoje >= 7200;
     });
-
-    const listaElegiveis = elegiveis.map(m => ({
-      id: m._id,
-      nickname: m.nickname,
-      cargo: m.cargo || 'Soldado',
-      totalTurnos: m.historicoTurnos.length
-    }));
-    res.json({ success: true, elegiveis: listaElegiveis });
+    res.json({ success: true, elegiveis: elegiveis.map(m => ({ id: m._id, nickname: m.nickname, cargo: m.cargo || 'Soldado' })) });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Erro ao carregar elegíveis.' });
   }
@@ -750,145 +850,46 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
 app.post('/api/admin/sorteio/agendar', async (req, res) => {
   try {
     const { dataAlvo, horarioAlvo, qtdGanhadores, premios } = req.body;
-    
-    await User.updateMany({}, { $set: { sorteioExcluidoAte: null } });
-
     await ConfigSorteio.findOneAndUpdate(
       { chave: 'sorteio_ativo' },
       { dataAlvo, horarioAlvo, qtdGanhadores: parseInt(qtdGanhadores) || 1, premios: premios || 'Prêmio Especial', executado: false },
       { upsert: true, new: true }
     );
-
-    const notifSorteio = {
-      titulo: '🎁 Novo Sorteio Agendado!',
-      mensagem: `O Comando agendou um novo sorteio para hoje às <b>${horarioAlvo}</b>.<br><b>Prémios:</b> ${premios || 'Prêmio Especial'}<br>Cumpre pelo menos 2h de plantão HOJE para participar automaticamente!`,
-      data: new Date()
-    };
-
-    await User.updateMany({}, { $push: { caixaEntrada: notifSorteio } });
-
-    res.json({ success: true, message: 'Sorteio agendado com sucesso e notificação enviada à tropa!' });
+    await registarLogAdmin('Comando', 'Sorteio Agendado', `Sorteio agendado para as ${horarioAlvo}. Prémios: ${premios}`);
+    res.json({ success: true, message: 'Sorteio agendado com sucesso!' });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Erro ao salvar agendamento e notificar.' });
+    res.status(500).json({ success: false, message: 'Erro ao salvar agendamento.' });
   }
-});
-
-app.put('/api/admin/sorteio/resetar-elegiveis', async (req, res) => {
-    try {
-        const membros = await User.find({}, 'historicoTurnos.duracao historicoTurnos.data').lean();
-        const idsParaExcluir = [];
-        const agora = new Date();
-
-        membros.forEach(m => {
-            if (m.historicoTurnos && m.historicoTurnos.length > 0) {
-                const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoPertenceAoCicloAtual(t.data));
-                const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
-                if (totalSegundosHoje >= 7200) {
-                    idsParaExcluir.push(m._id);
-                }
-            }
-        });
-
-        await User.updateMany(
-            { _id: { $in: idsParaExcluir } },
-            { $set: { sorteioExcluidoAte: agora } }
-        );
-
-        await ConfigSorteio.findOneAndUpdate(
-            { chave: 'sorteio_ativo' },
-            { $set: { executado: false } },
-            { upsert: true, new: true }
-        );
-
-        const notif = {
-            titulo: '🔄 Ciclo de Sorteio Reiniciado',
-            mensagem: 'O Comando reiniciou a lista de elegíveis deste ciclo. As horas do ranking semanal continuam 100% preservadas.',
-            data: new Date()
-        };
-        await User.updateMany({}, { $push: { caixaEntrada: notif } });
-
-        io.emit('atualizar_status_geral_tropa');
-        res.json({ success: true, message: 'Elegíveis deste ciclo removidos com sucesso!' });
-    } catch (e) {
-        res.status(500).json({ success: false, message: 'Erro ao resetar elegíveis do sorteio.' });
-    }
 });
 
 app.post('/api/admin/sorteio/realizar', async (req, res) => {
   try {
     const { qtdGanhadores, premios } = req.body;
-    const membros = await User.find({}, 'nickname cargo sorteioExcluidoAte historicoTurnos.duracao historicoTurnos.data').lean();
-    const agora = new Date();
-    
+    const membros = await User.find({}, 'nickname cargo historicoTurnos.duracao historicoTurnos.data').lean();
     const elegiveis = membros.filter(m => {
-      if (m.sorteioExcluidoAte) {
-        const dataExclusao = new Date(m.sorteioExcluidoAte);
-        if (dataExclusao.getDate() === agora.getDate() &&
-            dataExclusao.getMonth() === agora.getMonth() &&
-            dataExclusao.getFullYear() === agora.getFullYear()) {
-          return false;
-        }
-      }
-      if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
-      const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoPertenceAoCicloAtual(t.data));
-      const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
-      return totalSegundosHoje >= 7200;
+      const turnosDeHojeValidos = (m.historicoTurnos || []).filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoPertenceAoCicloAtual(t.data));
+      return turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0) >= 7200;
     });
 
-    if (elegiveis.length === 0) {
-      return res.json({ success: false, message: 'Não há operacionais elegíveis disponíveis para este sorteio.' });
-    }
+    if (elegiveis.length === 0) return res.json({ success: false, message: 'Não há elegíveis com 2h+.' });
 
-    const premiosLista = premios ? premios.split(',').map(p => p.trim()) : ['Prêmio Especial'];
+    const premiosLista = premios ? premios.split(',').map(p => p.trim()) : ['Prêmio'];
     const ganhadores = [];
-
     for (let i = 0; i < Math.min(parseInt(qtdGanhadores) || 1, elegiveis.length); i++) {
-      const randomIndex = Math.floor(Math.random() * elegiveis.length);
-      const escolhido = elegiveis.splice(randomIndex, 1)[0];
-      const premioSorteado = premiosLista[i % premiosLista.length];
-      ganhadores.push({ nickname: escolhido.nickname, cargo: escolhido.cargo || 'Privado', premio: premioSorteado });
-      await User.updateOne({ _id: escolhido._id }, { $push: { historicoSorteios: { descricaoPremio: premioSorteado, status: 'venceu', data: new Date() } } });
+      const rand = Math.floor(Math.random() * elegiveis.length);
+      const escolhido = elegiveis.splice(rand, 1)[0];
+      const premio = premiosLista[i % premiosLista.length];
+      ganhadores.push({ nickname: escolhido.nickname, cargo: escolhido.cargo, premio });
     }
 
+    await registarLogAdmin('Comando', 'Sorteio Realizado', `Ganhadores: ${ganhadores.map(g => g.nickname).join(', ')}`);
     res.json({ success: true, ganhadores });
   } catch (e) {
     res.status(500).json({ success: false, message: 'Erro ao realizar sorteio.' });
   }
 });
 
-app.post('/api/admin/sorteio/realizar-geral', async (req, res) => {
-  try {
-    const { qtdGanhadores, premios } = req.body;
-    const membros = await User.find({}, 'nickname cargo historicoTurnos.duracao historicoTurnos.data').lean();
-    
-    const participantesGerais = membros.filter(m => {
-      if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
-      const turnosCiclo = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoPertenceAoCicloAtual(t.data));
-      return turnosCiclo.length > 0;
-    });
-
-    if (participantesGerais.length === 0) {
-      return res.json({ success: false, message: 'Não há operacionais com turnos registados neste ciclo para o sorteio geral.' });
-    }
-
-    const premiosLista = premios ? premios.split(',').map(p => p.trim()) : ['Prêmio Especial'];
-    const ganhadores = [];
-
-    for (let i = 0; i < Math.min(parseInt(qtdGanhadores) || 1, participantesGerais.length); i++) {
-      const randomIndex = Math.floor(Math.random() * participantesGerais.length);
-      const escolhido = participantesGerais.splice(randomIndex, 1)[0];
-      const premioSorteado = premiosLista[i % premiosLista.length];
-      ganhadores.push({ nickname: escolhido.nickname, cargo: escolhido.cargo || 'Privado', premio: premioSorteado });
-      await User.updateOne({ _id: escolhido._id }, { $push: { historicoSorteios: { descricaoPremio: premioSorteado, status: 'venceu', data: new Date() } } });
-    }
-
-    res.json({ success: true, ganhadores });
-  } catch (e) {
-    res.status(500).json({ success: false, message: 'Erro ao realizar sorteio geral.' });
-  }
-});
-
-// --- CONTROLO DE SOCKET.IO ---
+// --- SOCKET.IO ---
 const usuariosOnline = {}; 
 io.on('connection', (socket) => {
   socket.on('entrar_sala', (data) => {
