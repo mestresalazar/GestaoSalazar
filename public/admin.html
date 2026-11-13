@@ -217,6 +217,7 @@
         .btn-demitir { background-color: rgba(220, 38, 38, 0.9); }
         .btn-parar-turno { background-color: rgba(245, 158, 11, 0.9); color: #000; }
         .btn-prints { background-color: rgba(234, 179, 8, 0.9); color: #000; }
+        .btn-perfil { background-color: rgba(147, 51, 234, 0.9); }
 
         .status-dot-offline { display: inline-block; width: 8px; height: 8px; background: #64748b; border-radius: 50%; margin-right: 5px; }
         .status-dot-online { display: inline-block; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; margin-right: 5px; box-shadow: 0 0 6px #22c55e; }
@@ -483,6 +484,26 @@
             <h3 id="tituloModalHistorico" style="color: #38bdf8; margin-bottom: 15px;">📜 Histórico de Membro</h3>
             <div id="conteudoAdminHistorico" style="font-size: 13px; color: #e2e8f0; display: flex; flex-direction: column; gap: 15px;">
                 <p>A carregar dados...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Inspeção de Perfil pelo ADM -->
+    <div id="modalPerfilAdmin" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 10000;">
+        <div style="background: rgba(18, 31, 51, 0.98); width: 90%; max-width: 450px; border-radius: 8px; padding: 25px; border: 1px solid #38bdf8; text-align: center; color: #fff;">
+            <button class="close-modal" onclick="document.getElementById('modalPerfilAdmin').style.display='none'">X</button>
+            <h3 style="color: #38bdf8; margin-bottom: 20px;">👤 Perfil do Operacional (Comando)</h3>
+            
+            <div id="avatarContainerAdmin" style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 2px solid #38bdf8; box-shadow: 0 0 15px rgba(56, 189, 248, 0.4); background: rgba(15, 23, 42, 0.8); display: flex; align-items: center; justify-content: center; font-size: 32px; color: #38bdf8; margin: 0 auto 15px auto;">
+                🛡️
+            </div>
+
+            <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; padding: 15px; text-align: left; font-size: 13px; display: flex; flex-direction: column; gap: 8px;">
+                <p><b>Nickname:</b> <span id="perfilAdminNickname" style="color: #38bdf8;">-</span></p>
+                <p><b>Cargo Atual:</b> <span id="perfilAdminCargo">-</span></p>
+                <p><b>⏱️ Total de Horas Acumuladas:</b> <span id="perfilAdminTotalHoras" style="color: #22c55e; font-weight: bold;">-</span></p>
+                <p><b>⏳ Tempo na Organização:</b> <span id="perfilAdminTempoGestao" style="color: #eab308; font-weight: bold;">-</span></p>
+                <p><b>📌 Último Turno Salvo:</b> <span id="perfilAdminUltimoPlantao">-</span></p>
             </div>
         </div>
     </div>
@@ -827,6 +848,7 @@
                             ${membro.emPlantao ? `<button class="btn-action btn-parar-turno" style="width:auto;" onclick="forcarFimTurno('${membro._id}', '${membro.nickname}')">⏹️ Parar Turno</button>` : ''}
                             <button class="btn-action btn-historico" style="width:auto;" onclick="verHistoricoMembro('${membro.nickname}', '${membro._id}')">Ver Histórico</button>
                             <button class="btn-action btn-prints" style="width:auto;" onclick="abrirModalPrintsMissoes('${membro._id}', '${membro.nickname}')">📸 Prints Missões</button>
+                            <button class="btn-action btn-perfil" style="width:auto;" onclick="abrirPerfilAdmin('${membro.nickname}')">👤 Perfil</button>
                             <button class="btn-action btn-promover" style="width:auto;" onclick="promoverMembro('${membro._id}', '${membro.cargo}')">Promover</button>
                             <button class="btn-action btn-demitir" style="width:auto;" onclick="demitirMembro('${membro._id}')">Demitir</button>
                         </td>
@@ -835,6 +857,34 @@
                 });
             } else {
                 tabela.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #94a3b8;">Nenhum membro encontrado.</td></tr>`;
+            }
+        }
+
+        async function abrirPerfilAdmin(nickname) {
+            document.getElementById('modalPerfilAdmin').style.display = 'flex';
+            document.getElementById('perfilAdminNickname').innerText = nickname;
+            document.getElementById('perfilAdminCargo').innerText = 'A carregar...';
+            document.getElementById('perfilAdminTotalHoras').innerText = '-';
+            document.getElementById('perfilAdminTempoGestao').innerText = '-';
+            document.getElementById('perfilAdminUltimoPlantao').innerText = '-';
+            document.getElementById('avatarContainerAdmin').innerHTML = '🛡️';
+
+            try {
+                const res = await fetch(`/api/membro/perfil/${encodeURIComponent(nickname)}`);
+                const data = await res.json();
+                if (data.success) {
+                    const p = data.perfil;
+                    document.getElementById('perfilAdminCargo').innerText = p.cargo || 'Privado';
+                    document.getElementById('perfilAdminTotalHoras').innerText = p.totalHoras || '00:00:00';
+                    document.getElementById('perfilAdminTempoGestao').innerText = p.tempoGestao || '-';
+                    document.getElementById('perfilAdminUltimoPlantao').innerText = p.ultimoPlantao || 'Nenhum plantão';
+
+                    if (p.avatar) {
+                        document.getElementById('avatarContainerAdmin').innerHTML = `<img src="${p.avatar}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+                    }
+                }
+            } catch (e) {
+                console.error(e);
             }
         }
 
