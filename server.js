@@ -608,7 +608,7 @@ app.get('/api/admin/estatisticas', async (req, res) => {
     }
 });
 
-// --- ROTA DE ATUALIZAÇÃO DE MEMBRO COM LOG REGISTADO ---
+// --- ROTA DE ATUALIZAÇÃO DE MEMBRO COM LOG REGISTADO E SOCKET EMIT ---
 app.put('/api/admin/membro/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -632,13 +632,18 @@ app.put('/api/admin/membro/:id', async (req, res) => {
         const nomeAutor = autor || 'Comando';
         
         if (cargo && cargo !== membroAntigo.cargo) {
+            const acaoStr = cargoAniPrecedencia(cargo, membroAntigo.cargo) ? 'Promoção de Cargo' : 'Alteração / Rebaixamento de Cargo';
             await User.updateOne({ _id: id }, { $push: { historicoPromocoes: { novoCargo: cargo, cargoAnterior: membroAntigo.cargo, data: new Date() } } });
-            await registarLogAdmin(nomeAutor, 'Promoção / Alteração de Cargo', `Membro ${membro.nickname} promovido de ${membroAntigo.cargo} para ${cargo}`);
-            
-            io.emit('atualizar_cargo_usuario', { nickname: membro.nickname.toLowerCase(), novoCargo: cargo });
+            await registarLogAdmin(nomeAutor, acaoStr, `Membro ${membro.nickname} alterado de ${membroAntigo.cargo} para ${cargo}`);
         }
+
         if (status && status !== membroAntigo.status) {
             await registarLogAdmin(nomeAutor, 'Alteração de Status', `Membro ${membro.nickname} alterou status para ${status}`);
+        }
+
+        // EMIT GLOBAL PARA ATUALIZAR O CARGO DO OPERACIONAL EM TEMPO REAL (tanto para cima quanto para baixo)
+        if (cargo) {
+            io.emit('atualizar_cargo_usuario', { nickname: membro.nickname.toLowerCase(), novoCargo: cargo });
         }
 
         io.emit('atualizar_status_geral_tropa');
@@ -647,6 +652,12 @@ app.put('/api/admin/membro/:id', async (req, res) => {
         res.status(500).json({ success: false, message: 'Erro ao atualizar membro.' });
     }
 });
+
+// Auxiliar simples para definir o texto do log entre promoção ou rebaixamento
+function cargoAniPrecedencia(novo, antigo) {
+    const hierarquia = ['Privado', 'Soldado', 'Sargento', 'Tenente', 'Major', 'Coronel', 'Coronel All', 'General'];
+    return hierarquia.indexOf(novo) > hierarquia.indexOf(antigo);
+}
 
 app.put('/api/admin/membro/forcar-fim-turno/:id', async (req, res) => {
     try {
