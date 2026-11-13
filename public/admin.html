@@ -500,7 +500,7 @@
         if (!userStr) { window.location.href = 'index.html'; }
 
         const user = JSON.parse(userStr);
-        const cargosAdminPermitidos = ['General', 'Coronel All'];
+        const cargosAdminPermitidos = ['General', 'Coronel All', 'Coronel'];
         if (user.role !== 'admin' && !cargosAdminPermitidos.includes(user.cargo)) {
             mostrarModalCustomizado('Acesso Restrito', 'Acesso restrito ao Alto Comando (General e Coronel All).', 'alerta', () => { window.location.href = 'dashboard.html'; });
         }
@@ -544,6 +544,22 @@
 
         socket.on('atualizar_logs_admin', () => {
             carregarLogsAdmin();
+        });
+
+        // OUVINTE EM TEMPO REAL PARA REBAIXAMENTO OU ALTERAÇÃO DE CARGO
+        socket.on('atualizar_cargo_usuario', (data) => {
+            if (data.nickname.toLowerCase() === user.nickname.toLowerCase()) {
+                user.cargo = data.novoCargo;
+                localStorage.setItem('user', JSON.stringify(user));
+
+                const cargosPermitidos = ['General', 'Coronel All', 'Coronel'];
+                const temAcesso = user.role === 'admin' || cargosPermitidos.includes(user.cargo);
+
+                if (!temAcesso) {
+                    alert('O seu cargo foi alterado e já não tem permissão para aceder ao Painel ADM.');
+                    window.location.replace('dashboard.html');
+                }
+            }
         });
 
         socket.on('receber_mensagem', (data) => {
@@ -1087,9 +1103,8 @@
 
         function promoverMembro(id, cargoAtual) {
             const modal = document.getElementById('customModal');
-            document.getElementById('modalCustomTitle').innerText = 'Promover Operacional';
+            document.getElementById('modalCustomTitle').innerText = 'Promover / Alterar Cargo';
             
-            // Apenas a conta 'Mestre' pode ver e selecionar Coronel ou Coronel All
             let cargosDisponiveis = ['Privado', 'Soldado', 'Sargento', 'Tenente', 'Major', 'Coronel'];
             const nicknameAtual = (user.nickname || '').toLowerCase().trim();
             if (nicknameAtual === 'mestre') {
@@ -1119,7 +1134,7 @@
             btnCancelar.onclick = () => { modal.style.display = 'none'; };
 
             const btnConfirmar = document.createElement('button');
-            btnConfirmar.innerText = 'Confirmar Promoção';
+            btnConfirmar.innerText = 'Confirmar Alteração';
             btnConfirmar.className = 'btn-action btn-aprovar';
             btnConfirmar.style.padding = '8px 20px';
             btnConfirmar.onclick = async () => {
@@ -1134,7 +1149,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ cargo: novoCargo, autor: user.nickname })
                     });
-                    const data = await res.json();
+                    const data = varJsonParse = await res.json();
                     if (data.success) {
                         carregarEfetivo();
                         carregarElegiveisSorteio();
