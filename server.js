@@ -155,7 +155,66 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-// --- ROTAS DO MEMBRO ---
+// --- ROTAS DO MEMBRO (INCLUINDO PERFIL E AVATAR) ---
+app.get('/api/membro/perfil/:nickname', async (req, res) => {
+    try {
+        const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }).lean();
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        let totalSegundos = 0;
+        if (membro.historicoTurnos) {
+            membro.historicoTurnos.forEach(t => {
+                totalSegundos += converterDuracaoParaSegundos(t.duracao);
+            });
+        }
+        const h = Math.floor(totalSegundos / 3600);
+        const m = Math.floor((totalSegundos % 3600) / 60);
+        const s = totalSegundos % 60;
+        const totalHorasFormatado = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+
+        const dataCriacao = membro._id.getTimestamp();
+        const agora = new Date();
+        const diffTempo = Math.abs(agora - dataCriacao);
+        const diffDias = Math.floor(diffTempo / (1000 * 60 * 60 * 24));
+        const tempoGestaoStr = diffDias === 0 ? 'Menos de 1 dia' : `${diffDias} dia(s) na organização`;
+
+        const ultimoTurno = membro.historicoTurnos && membro.historicoTurnos.length > 0 
+            ? `${membro.historicoTurnos[membro.historicoTurnos.length - 1].duracao} (${new Date(membro.historicoTurnos[membro.historicoTurnos.length - 1].data).toLocaleDateString()})` 
+            : 'Nenhum';
+
+        res.json({
+            success: true,
+            perfil: {
+                nickname: membro.nickname,
+                cargo: membro.cargo || 'Soldado',
+                status: membro.status || 'ativo',
+                avatar: membro.avatar || '',
+                totalHoras: totalHorasFormatado,
+                tempoGestao: tempoGestaoStr,
+                ultimoPlantao: ultimoTurno
+            }
+        });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao carregar perfil.' });
+    }
+});
+
+app.put('/api/membro/atualizar-avatar', async (req, res) => {
+    try {
+        const { nickname, avatar } = req.body;
+        if (!nickname) return res.status(400).json({ success: false, message: 'Nickname obrigatório.' });
+
+        await User.updateOne(
+            { nickname: new RegExp('^' + nickname.trim() + '$', 'i') },
+            { $set: { avatar: avatar || '' } }
+        );
+
+        res.json({ success: true, message: 'Avatar atualizado com sucesso!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao atualizar avatar.' });
+    }
+});
+
 app.get('/api/membro/historico/:nickname', async (req, res) => {
     try {
         const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }, '-password -historicoTurnos.fotoComprovante').lean();
@@ -320,7 +379,6 @@ app.post('/api/membro/turno', async (req, res) => {
     }
 });
 
-// --- CARTEIRA E MISSÕES DIÁRIAS COM CORREÇÃO DE LOG E SALDO ---
 app.get('/api/membro/carteira/:nickname', async (req, res) => {
     try {
         const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }).lean();
@@ -376,7 +434,6 @@ app.post('/api/membro/carteira/atualizar', async (req, res) => {
     }
 });
 
-// --- ROTA CORRIGIDA PARA O ADM VER OS COMPROVANTES DE MISSÕES ---
 app.get('/api/admin/membro/missoes/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -414,7 +471,6 @@ app.get('/api/admin/membro/missoes/:id', async (req, res) => {
     }
 });
 
-// --- ROTA DE HISTÓRICO COMPLETO DE TURNOS COM FOTOS (SOB DEMANDA) ---
 app.get('/api/admin/membro/historico-completo/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -468,7 +524,6 @@ app.get(['/api/membro/em-plantao', '/api/membro/em-plantao/:nickname'], async (r
     }
 });
 
-// --- ROTAS DO ADMINISTRADOR & LOGS ---
 app.get('/api/admin/logs', async (req, res) => {
     try {
         const logs = await LogAdmin.find().sort({ data: -1 }).limit(100).lean();
@@ -567,7 +622,6 @@ app.put('/api/admin/membro/:id', async (req, res) => {
             await User.updateOne({ _id: id }, { $push: { historicoPromocoes: { novoCargo: cargo, cargoAnterior: membroAntigo.cargo, data: new Date() } } });
             await registarLogAdmin('Comando', 'Promoção / Alteração de Cargo', `Membro ${membro.nickname} promovido de ${membroAntigo.cargo} para ${cargo}`);
             
-            // EMITE EVENTO PARA ATUALIZAR O CARGO EM TEMPO REAL NO DASHBOARD DO MEMBRO
             io.emit('atualizar_cargo_usuario', { nickname: membro.nickname.toLowerCase(), novoCargo: cargo });
         }
         if (status && status !== membroAntigo.status) {
@@ -737,7 +791,6 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
     }
 });
 
-// --- EXAMES E PROVAS ---
 app.get('/api/membro/provas/status/:nickname', async (req, res) => {
     try {
         const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }).lean();
@@ -825,7 +878,6 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
     }
 });
 
-// --- SORTEIOS ---
 app.get('/api/admin/sorteio/status', async (req, res) => {
   try {
     const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' }).lean();
@@ -892,7 +944,6 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
   }
 });
 
-// --- SOCKET.IO ---
 const usuariosOnline = {}; 
 io.on('connection', (socket) => {
   socket.on('entrar_sala', (data) => {

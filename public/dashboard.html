@@ -142,6 +142,29 @@
             margin-left: 10px;
         }
         .status-ativo { background-color: #22c55e; color: #fff; }
+        
+        /* Cores Dinâmicas por Cargo */
+        .badge-cargo-general, .badge-cargo-coronel { background: linear-gradient(135deg, #ef4444, #b91c1c); color: #fff; padding: 3px 8px; border-radius: 4px; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+        .badge-cargo-major, .badge-cargo-tenente { background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; padding: 3px 8px; border-radius: 4px; font-weight: bold; }
+        .badge-cargo-sargento { background: linear-gradient(135deg, #38bdf8, #0284c7); color: #000; padding: 3px 8px; border-radius: 4px; font-weight: bold; }
+        .badge-cargo-soldado, .badge-cargo-privado { background: rgba(51, 65, 85, 0.8); color: #e2e8f0; padding: 3px 8px; border-radius: 4px; font-weight: bold; }
+
+        .avatar-preview {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #38bdf8;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+            background: rgba(15, 23, 42, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: #38bdf8;
+            margin: 0 auto 15px auto;
+        }
+
         .timer-display {
             font-size: 28px;
             font-weight: bold;
@@ -268,7 +291,7 @@
             color: #e2e8f0;
             font-size: 13px;
         }
-        #modalHistorico, #modalMissaoComprovante {
+        #modalHistorico, #modalMissaoComprovante, #modalPerfil {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -309,6 +332,7 @@
             <a href="dashboard.html" class="active">Painel de Turnos</a>
             <a href="admin.html" id="navAdminLink" style="display: none; background: rgba(3, 105, 161, 0.8); color: #fff;">Painel ADM</a>
             <button class="btn-action" style="margin-top:0; padding: 6px 12px; font-size: 13px; background: rgba(51, 65, 85, 0.8); width: auto;" onclick="abrirHistorico()">Meu Histórico 📜</button>
+            <button class="btn-action" style="margin-top:0; padding: 6px 12px; font-size: 13px; background: rgba(147, 51, 234, 0.8); width: auto;" onclick="abrirPerfilModal()">Meu Perfil 👤</button>
             <span id="userBadgeInfo" style="font-size: 13px; color: #e2e8f0; margin-left: 10px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);"></span>
             <button class="logout-btn" onclick="logout()">Sair</button>
         </div>
@@ -450,6 +474,33 @@
         </div>
     </div>
 
+    <!-- Modal de Perfil do Membro -->
+    <div id="modalPerfil">
+        <div style="background: rgba(18, 31, 51, 0.98); width: 90%; max-width: 450px; border-radius: 8px; padding: 25px; border: 1px solid #38bdf8; text-align: center;">
+            <button class="close-modal" onclick="fecharPerfilModal()">X</button>
+            <h3 style="color: #38bdf8; margin-bottom: 20px;">👤 Perfil do Operacional</h3>
+            
+            <div id="avatarContainer">
+                <div class="avatar-preview" id="imgAvatarVisualizar">🛡️</div>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="font-size: 12px; color: #94a3b8;">Alterar Foto de Avatar (Imagem):</label>
+                <input type="file" id="inputFotoAvatar" accept="image/*" onchange="converterAvatarLocal(this)" style="width: 100%; padding: 6px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; color: white; font-size: 12px; margin-top: 5px;">
+            </div>
+
+            <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; padding: 15px; text-align: left; font-size: 13px; display: flex; flex-direction: column; gap: 8px;">
+                <p><b>Nickname:</b> <span id="perfilNickname" style="color: #38bdf8;">-</span></p>
+                <p><b>Cargo Atual:</b> <span id="perfilCargo">-</span></p>
+                <p><b>⏱️ Total de Horas Acumuladas:</b> <span id="perfilTotalHoras" style="color: #22c55e; font-weight: bold;">-</span></p>
+                <p><b>⏳ Tempo na Organização (Gestão):</b> <span id="perfilTempoGestao" style="color: #eab308; font-weight: bold;">-</span></p>
+                <p><b>📌 Último Turno Salvo:</b> <span id="perfilUltimoPlantao">-</span></p>
+            </div>
+
+            <button class="btn-action" style="background-color: rgba(22, 163, 74, 0.9); margin-top: 20px;" onclick="fecharPerfilModal()">Guardar & Fechar</button>
+        </div>
+    </div>
+
     <!-- Modal de Envio de Comprovante de Missão -->
     <div id="modalMissaoComprovante">
         <div class="modal-content">
@@ -517,6 +568,59 @@
             }
         }
         atualizarBadgeUsuarioUI();
+
+        // --- FUNÇÕES DO MODAL DE PERFIL ---
+        async function abrirPerfilModal() {
+            document.getElementById('modalPerfil').style.display = 'flex';
+            try {
+                const res = await fetch(`/api/membro/perfil/${encodeURIComponent(user.nickname)}`);
+                const data = await res.json();
+                if (data.success) {
+                    const p = data.perfil;
+                    document.getElementById('perfilNickname').innerText = p.nickname;
+                    
+                    const cargoClass = `badge-cargo-${(p.cargo || 'soldado').toLowerCase()}`;
+                    document.getElementById('perfilCargo').innerHTML = `<span class="${cargoClass}">${p.cargo}</span>`;
+                    
+                    document.getElementById('perfilTotalHoras').innerText = p.totalHoras;
+                    document.getElementById('perfilTempoGestao').innerText = p.tempoGestao;
+                    document.getElementById('perfilUltimoPlantao').innerText = p.ultimoPlantao;
+
+                    const avatarDiv = document.getElementById('imgAvatarVisualizar');
+                    if (p.avatar) {
+                        avatarDiv.innerHTML = `<img src="${p.avatar}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+                    } else {
+                        avatarDiv.innerHTML = `🛡️`;
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function fecharPerfilModal() {
+            document.getElementById('modalPerfil').style.display = 'none';
+        }
+
+        function converterAvatarLocal(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                comprimirImagemBase64(file, async function(base64Avatar) {
+                    const avatarDiv = document.getElementById('imgAvatarVisualizar');
+                    avatarDiv.innerHTML = `<img src="${base64Avatar}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+
+                    try {
+                        await fetch('/api/membro/atualizar-avatar', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ nickname: user.nickname, avatar: base64Avatar })
+                        });
+                    } catch (err) {
+                        console.error('Erro ao salvar avatar:', err);
+                    }
+                });
+            }
+        }
 
         function obterDataCicloOperacional() {
             const agora = new Date();
@@ -641,7 +745,6 @@
             });
             localStorage.setItem(chaveMissoes, JSON.stringify(concluidasLocal));
 
-            // GARANTE QUE O SALDO SÓ FICA NEGATIVO APÓS 02:00 DO DIA SEGUINTE
             const ultimoCicloVerificado = localStorage.getItem(`ultimo_ciclo_${user.nickname}`);
             let saldoBase = saldoServidor !== null ? saldoServidor : parseInt(localStorage.getItem(`carteira_saldo_${user.nickname}`) || '0', 10);
             
@@ -1042,7 +1145,6 @@
             emPlantao: (localStorage.getItem(`estado_turno_${user.nickname}`) === 'ativo')
         });
 
-        // ATUALIZAÇÃO IMEDIATA DE CARGO EM TEMPO REAL VIA SOCKET
         socket.on('atualizar_cargo_usuario', (dadosNovos) => {
             if (dadosNovos && dadosNovos.nickname && dadosNovos.nickname.toLowerCase() === user.nickname.toLowerCase()) {
                 user.cargo = dadosNovos.novoCargo;
