@@ -388,7 +388,6 @@ app.get('/api/admin/membro/missoes/:id', async (req, res) => {
         const membro = await User.findOne(query, 'nickname cargo historicoMissoes missoesDiarias carteiraSaldo').lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
-        // Garante compatibilidade caso o print esteja guardado em formato alternativo nas missões diárias
         let listaMissoes = membro.historicoMissoes || [];
         if (listaMissoes.length === 0 && membro.missoesDiarias) {
             membro.missoesDiarias.forEach(m => {
@@ -567,6 +566,9 @@ app.put('/api/admin/membro/:id', async (req, res) => {
         if (cargo && cargo !== membroAntigo.cargo) {
             await User.updateOne({ _id: id }, { $push: { historicoPromocoes: { novoCargo: cargo, cargoAnterior: membroAntigo.cargo, data: new Date() } } });
             await registarLogAdmin('Comando', 'Promoção / Alteração de Cargo', `Membro ${membro.nickname} promovido de ${membroAntigo.cargo} para ${cargo}`);
+            
+            // EMITE EVENTO PARA ATUALIZAR O CARGO EM TEMPO REAL NO DASHBOARD DO MEMBRO
+            io.emit('atualizar_cargo_usuario', { nickname: membro.nickname.toLowerCase(), novoCargo: cargo });
         }
         if (status && status !== membroAntigo.status) {
             await registarLogAdmin('Comando', 'Alteração de Status', `Membro ${membro.nickname} alterou status para ${status}`);
@@ -808,6 +810,7 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
                 }
             );
             io.emit('atualizar_status_geral_tropa');
+            io.emit('atualizar_cargo_usuario', { nickname: nickname.toLowerCase(), novoCargo: cargoAlvo });
             await registarLogAdmin(nickname, 'Aprovação em Exame', `Membro aprovado em exame e promovido a ${cargoAlvo}.`);
             res.json({ success: true, aprovado: true, message: `Parabéns! Passaste na prova e foste promovido a ${cargoAlvo}!` });
         } else {

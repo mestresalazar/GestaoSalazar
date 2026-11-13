@@ -510,11 +510,13 @@
             window.location.href = 'index.html';
         }
 
-        document.getElementById('userBadgeInfo').innerHTML = `${user.nickname} (${user.cargo || 'Privado'}) <span class="status-badge status-${user.status || 'ativo'}">${(user.status || 'ativo').toUpperCase()}</span>`;
-
-        if (user.role === 'admin' || user.cargo === 'General' || user.cargo === 'Coronel') {
-            document.getElementById('navAdminLink').style.display = 'inline-block';
+        function atualizarBadgeUsuarioUI() {
+            document.getElementById('userBadgeInfo').innerHTML = `${user.nickname} (${user.cargo || 'Privado'}) <span class="status-badge status-${user.status || 'ativo'}">${(user.status || 'ativo').toUpperCase()}</span>`;
+            if (user.role === 'admin' || user.cargo === 'General' || user.cargo === 'Coronel') {
+                document.getElementById('navAdminLink').style.display = 'inline-block';
+            }
         }
+        atualizarBadgeUsuarioUI();
 
         function obterDataCicloOperacional() {
             const agora = new Date();
@@ -587,7 +589,6 @@
             document.getElementById('patenteAtualTexto').innerText = user.cargo || 'Soldado';
             const containerMissoes = document.getElementById('conteudoMissoesDiarias');
 
-            // 1. Verifica histórico de turnos cumpridos no ciclo de hoje
             let plantaoOkHoje = localStorage.getItem(`plantao_cumprido_${user.nickname}_${cicloAtual}`) === 'true';
             try {
                 const resHist = await fetch(`/api/membro/historico/${encodeURIComponent(user.nickname)}`);
@@ -614,7 +615,6 @@
                 }
             } catch (e) {}
 
-            // 2. Busca saldo e missões no servidor
             let saldoServidor = null;
             try {
                 const res = await fetch(`/api/membro/carteira/${encodeURIComponent(user.nickname)}`);
@@ -634,7 +634,6 @@
             const chaveMissoes = `missoes_ciclo_${user.nickname}_${cicloAtual}`;
             const concluidasLocal = JSON.parse(localStorage.getItem(chaveMissoes)) || {};
 
-            // Sincroniza missões concluídas que vieram do servidor para o ciclo atual
             missoesServidorCache.forEach(ms => {
                 if (ms.ciclo === cicloAtual && ms.concluida) {
                     concluidasLocal[ms.id] = true;
@@ -642,9 +641,13 @@
             });
             localStorage.setItem(chaveMissoes, JSON.stringify(concluidasLocal));
 
-            // 3. Verifica virada de ciclo para descontar -R$ 1.000 se turno anterior foi incompleto (< 30 min)
+            // GARANTE QUE O SALDO SÓ FICA NEGATIVO APÓS 02:00 DO DIA SEGUINTE
             const ultimoCicloVerificado = localStorage.getItem(`ultimo_ciclo_${user.nickname}`);
             let saldoBase = saldoServidor !== null ? saldoServidor : parseInt(localStorage.getItem(`carteira_saldo_${user.nickname}`) || '0', 10);
+            
+            if (saldoBase < 0 && !ultimoCicloVerificado) {
+                saldoBase = Math.max(0, saldoBase);
+            }
 
             if (ultimoCicloVerificado && ultimoCicloVerificado !== cicloAtual) {
                 const cumpriuCicloAnterior = localStorage.getItem(`plantao_cumprido_${user.nickname}_${ultimoCicloVerificado}`) === 'true';
@@ -699,8 +702,7 @@
                 `;
             });
 
-            // Garante consistência mínima com as missões concluídas hoje
-            if (saldoBase < ganhoHoje && !ultimoCicloVerificado) {
+            if (saldoBase < ganhoHoje) {
                 saldoBase = ganhoHoje;
             }
             saldoCarteiraAtual = saldoBase;
@@ -764,7 +766,6 @@
             saldoCarteiraAtual += 1000;
             localStorage.setItem(`carteira_saldo_${user.nickname}`, saldoCarteiraAtual.toString());
 
-            // Atualiza lista completa de missões do ciclo para enviar ao backend
             const definicoes = obterDefinicoesMissoesPorCargo();
             const missoesAtualizadasPayload = definicoes.map(d => ({
                 id: d.id,
@@ -1039,6 +1040,17 @@
             nickname: user.nickname, 
             cargo: user.cargo || 'Soldado',
             emPlantao: (localStorage.getItem(`estado_turno_${user.nickname}`) === 'ativo')
+        });
+
+        // ATUALIZAÇÃO IMEDIATA DE CARGO EM TEMPO REAL VIA SOCKET
+        socket.on('atualizar_cargo_usuario', (dadosNovos) => {
+            if (dadosNovos && dadosNovos.nickname && dadosNovos.nickname.toLowerCase() === user.nickname.toLowerCase()) {
+                user.cargo = dadosNovos.novoCargo;
+                localStorage.setItem('user', JSON.stringify(user));
+                atualizarBadgeUsuarioUI();
+                sincronizarCarteiraEMissoes();
+                verificarProgressoProvas();
+            }
         });
 
         socket.on('atualizar_usuarios_online', (usuarios) => {
@@ -1387,7 +1399,7 @@
 
             if (segundosTotais < TEMPO_MINIMO_SEGUNDOS) {
                 const mins = Math.floor(segundosTotais / 60);
-                mostrarModalCustomizado('⚠️ Atenção', `Você está com ${mins} min de plantão. Se fechar agora, o progresso abaixo de 30 minutos será perdido (e descontará -R$ 1.000 da carteira se não houver outro turno válido hoje). Deseja mesmo fechar?`, 'confirmacao', async () => {
+                mostrarModalCustomizado('⚠️ Atenção', `Você está com ${mins} min de plantão. Se fechar agora, o progresso abaixo de 30 minutos será descartado (o desconto só ocorrerá após as 02:00 se não cumprir 30m no dia). Deseja mesmo fechar?`, 'confirmacao', async () => {
                     await executarEncerramentoDescartado();
                 });
                 return;
@@ -1432,30 +1444,6 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ nickname: user.nickname, emPlantao: false, estadoTurno: 'parado', inicioPlantao: null, segundosAcumulados: 0, fotoComprovanteAtiva: '' })
             });
-
-            // Deduz R$ 1.000 da carteira se o operacional descartar o turno incompleto e não tiver plantão válido hoje
-            const cicloAtual = obterDataCicloOperacional();
-            const plantaoOkHoje = localStorage.getItem(`plantao_cumprido_${user.nickname}_${cicloAtual}`) === 'true';
-
-            if (!plantaoOkHoje) {
-                saldoCarteiraAtual -= 1000;
-                localStorage.setItem(`carteira_saldo_${user.nickname}`, saldoCarteiraAtual.toString());
-
-                try {
-                    await fetch('/api/membro/carteira/atualizar', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            nickname: user.nickname,
-                            variacao: -1000,
-                            saldoTotal: saldoCarteiraAtual,
-                            motivo: 'Turno encerrado incompleto (< 30 minutos)',
-                            ciclo: cicloAtual
-                        })
-                    });
-                } catch (e) {}
-            }
-
             window.location.reload();
         }
 
