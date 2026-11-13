@@ -16,11 +16,12 @@
             }
             try {
                 const user = JSON.parse(userStr);
-                const cargosPermitidos = ['General', 'Coronel All', 'Coronel'];
+                // APENAS Coronel All e General têm acesso ao painel ADM
+                const cargosPermitidos = ['General', 'Coronel All'];
                 const isAdmin = user.role === 'admin' || cargosPermitidos.includes(user.cargo);
 
                 if (!isAdmin) {
-                    alert('Acesso Negado: Área restrita ao Alto Comando.');
+                    alert('Acesso Negado: Área restrita ao Comando Superior (Coronel All / General).');
                     window.location.replace('dashboard.html');
                     return;
                 }
@@ -500,9 +501,10 @@
         if (!userStr) { window.location.href = 'index.html'; }
 
         const user = JSON.parse(userStr);
-        const cargosAdminPermitidos = ['General', 'Coronel All', 'Coronel'];
+        // APENAS Coronel All e General dão acesso ao painel
+        const cargosAdminPermitidos = ['General', 'Coronel All'];
         if (user.role !== 'admin' && !cargosAdminPermitidos.includes(user.cargo)) {
-            mostrarModalCustomizado('Acesso Restrito', 'Acesso restrito ao Alto Comando (General e Coronel All).', 'alerta', () => { window.location.href = 'dashboard.html'; });
+            mostrarModalCustomizado('Acesso Restrito', 'Acesso restrito ao Comando Superior (Coronel All / General).', 'alerta', () => { window.location.href = 'dashboard.html'; });
         }
 
         document.getElementById('userBadgeInfo').innerText = `${user.nickname} (${user.cargo || 'General'})`;
@@ -546,21 +548,21 @@
             carregarLogsAdmin();
         });
 
-        // OUVINTE EM TEMPO REAL: Se for promovido ganha acesso instantâneo; se for rebaixado perde e sai do painel
+        // OUVINTE EM TEMPO REAL: Se for promovido para Coronel All ganha acesso instantâneo; se for rebaixado perde e sai do painel
         socket.on('atualizar_cargo_usuario', (data) => {
             if (data.nickname.toLowerCase() === user.nickname.toLowerCase()) {
                 user.cargo = data.novoCargo;
                 localStorage.setItem('user', JSON.stringify(user));
 
-                const cargosPermitidos = ['General', 'Coronel All', 'Coronel'];
+                const cargosPermitidos = ['General', 'Coronel All'];
                 const temAcesso = user.role === 'admin' || cargosPermitidos.includes(user.cargo);
 
                 if (!temAcesso) {
                     alert('O seu cargo foi alterado e já não tem permissão para aceder ao Painel ADM.');
                     window.location.replace('dashboard.html');
                 } else {
-                    // Se foi promovido para um cargo com acesso e estiver num painel restrito ou dashboard, atualiza os dados visuais
                     document.getElementById('userBadgeInfo').innerText = `${user.nickname} (${user.cargo})`;
+                    document.documentElement.style.display = '';
                 }
             }
         });
