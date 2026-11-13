@@ -143,7 +143,7 @@ app.post('/api/auth/register', async (req, res) => {
         const novoUtilizador = new User({
             nickname: nickname.trim(),
             password: passFinal,
-            cargo: 'Soldado',
+            cargo: 'Privado',
             status: 'pendente'
         });
 
@@ -155,7 +155,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-// --- ROTAS DO MEMBRO (INCLUINDO PERFIL E AVATAR) ---
+// --- ROTAS DO MEMBRO (PERFIL E AVATAR) ---
 app.get('/api/membro/perfil/:nickname', async (req, res) => {
     try {
         const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }).lean();
@@ -186,7 +186,7 @@ app.get('/api/membro/perfil/:nickname', async (req, res) => {
             success: true,
             perfil: {
                 nickname: membro.nickname,
-                cargo: membro.cargo || 'Soldado',
+                cargo: membro.cargo || 'Privado',
                 status: membro.status || 'ativo',
                 avatar: membro.avatar || '',
                 totalHoras: totalHorasFormatado,
@@ -228,7 +228,7 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
             success: true,
             membro: {
                 nickname: membro.nickname,
-                cargo: membro.cargo || 'Soldado',
+                cargo: membro.cargo || 'Privado',
                 status: membro.status || 'Ativo',
                 emPlantao: !!membro.emPlantao,
                 estadoTurno: membro.estadoTurno || 'parado',
@@ -271,8 +271,11 @@ app.post('/api/admin/disparar-acao', async (req, res) => {
 
         if (adminNickname) {
             const adminUser = await User.findOne({ nickname: new RegExp('^' + adminNickname + '$', 'i') }).lean();
-            if (!adminUser || (adminUser.role !== 'admin' && adminUser.cargo !== 'General' && adminUser.cargo !== 'Coronel')) {
-                return res.status(403).json({ success: false, message: 'Acesso negado. Apenas o Comando pode disparar ações.' });
+            const cargoAdmin = adminUser ? (adminUser.cargo || '') : '';
+            const ehAdminValido = adminUser && (adminUser.role === 'admin' || cargoAdmin === 'General' || cargoAdmin === 'Coronel All');
+            
+            if (!ehAdminValido) {
+                return res.status(403).json({ success: false, message: 'Acesso negado. Apenas o Comando Superior (General ou Coronel All) pode disparar ações.' });
             }
         }
 
@@ -550,7 +553,7 @@ app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
             success: true,
             membro: {
                 nickname: membro.nickname,
-                cargo: membro.cargo || 'Soldado',
+                cargo: membro.cargo || 'Privado',
                 status: membro.status || 'Ativo',
                 ultimoPlantao: ultimoTurno ? `${ultimoTurno.duracao} (${new Date(ultimoTurno.data).toLocaleDateString()})` : 'Nenhum plantão'
             },
@@ -575,7 +578,7 @@ app.get('/api/admin/membros', async (req, res) => {
       return {
         _id: m._id,
         nickname: m.nickname,
-        cargo: m.cargo || 'Soldado',
+        cargo: m.cargo || 'Privado',
         status: m.status || 'ativo',
         emPlantao: !!m.emPlantao,
         ultimoPlantao: totalSegundosAcumulados > 0 
@@ -605,27 +608,37 @@ app.get('/api/admin/estatisticas', async (req, res) => {
     }
 });
 
+// --- ROTA DE ATUALIZAÇÃO DE MEMBRO COM LOG REGISTADO ---
 app.put('/api/admin/membro/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { status, cargo } = req.body;
+        const { status, cargo, autor } = req.body;
         const membroAntigo = await User.findById(id);
         if (!membroAntigo) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        // Trava de segurança: Apenas a conta Mestre pode promover para Coronel ou Coronel All
+        if (cargo && (cargo === 'Coronel' || cargo === 'Coronel All')) {
+            const autorLimpo = (autor || '').toLowerCase().trim();
+            if (autorLimpo !== 'mestre') {
+                return res.status(403).json({ success: false, message: 'Acesso negado. Apenas a conta Mestre pode promover para Coronel ou Coronel All.' });
+            }
+        }
 
         const updateData = {};
         if (status) updateData.status = status;
         if (cargo) updateData.cargo = cargo;
 
         const membro = await User.findByIdAndUpdate(id, { $set: updateData }, { new: true });
+        const nomeAutor = autor || 'Comando';
         
         if (cargo && cargo !== membroAntigo.cargo) {
             await User.updateOne({ _id: id }, { $push: { historicoPromocoes: { novoCargo: cargo, cargoAnterior: membroAntigo.cargo, data: new Date() } } });
-            await registarLogAdmin('Comando', 'Promoção / Alteração de Cargo', `Membro ${membro.nickname} promovido de ${membroAntigo.cargo} para ${cargo}`);
+            await registarLogAdmin(nomeAutor, 'Promoção / Alteração de Cargo', `Membro ${membro.nickname} promovido de ${membroAntigo.cargo} para ${cargo}`);
             
             io.emit('atualizar_cargo_usuario', { nickname: membro.nickname.toLowerCase(), novoCargo: cargo });
         }
         if (status && status !== membroAntigo.status) {
-            await registarLogAdmin('Comando', 'Alteração de Status', `Membro ${membro.nickname} alterou status para ${status}`);
+            await registarLogAdmin(nomeAutor, 'Alteração de Status', `Membro ${membro.nickname} alterou status para ${status}`);
         }
 
         io.emit('atualizar_status_geral_tropa');
@@ -698,7 +711,7 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
             const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
             return {
                 nickname: m.nickname,
-                cargo: m.cargo || 'Soldado',
+                cargo: m.cargo || 'Privado',
                 totalSegundos: totalSegundos,
                 totalFormatado: converterSegundosParaDuracao(totalSegundos)
             };
@@ -809,7 +822,7 @@ app.get('/api/membro/provas/status/:nickname', async (req, res) => {
         const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
         const totalHoras = totalSegundos / 3600;
 
-        const cargoAtual = membro.cargo || 'Soldado';
+        const cargoAtual = membro.cargo || 'Privado';
         let provaDisponivelPara = null;
         let horasNecessarias = 0;
 
@@ -878,42 +891,23 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
     }
 });
 
-app.get('/api/admin/sorteio/status', async (req, res) => {
-  try {
-    const config = await ConfigSorteio.findOne({ chave: 'sorteio_ativo' }).lean();
-    res.json({ success: true, agendamento: config });
-  } catch (err) {
-    res.status(500).json({ success: false, message: 'Erro ao buscar status.' });
-  }
+// --- SORTEIOS MANUAIS ---
+app.get('/api/admin/sorteio/status', (req, res) => {
+    res.json({ success: true, agendamento: null });
 });
 
 app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
   try {
-    const membros = await User.find({}, 'nickname cargo sorteioExcluidoAte historicoTurnos.duracao historicoTurnos.data').lean();
+    const membros = await User.find({}, 'nickname cargo historicoTurnos.duracao historicoTurnos.data').lean();
     const elegiveis = membros.filter(m => {
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
       const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoPertenceAoCicloAtual(t.data));
       const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
       return totalSegundosHoje >= 7200;
     });
-    res.json({ success: true, elegiveis: elegiveis.map(m => ({ id: m._id, nickname: m.nickname, cargo: m.cargo || 'Soldado' })) });
+    res.json({ success: true, elegiveis: elegiveis.map(m => ({ id: m._id, nickname: m.nickname, cargo: m.cargo || 'Privado' })) });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Erro ao carregar elegíveis.' });
-  }
-});
-
-app.post('/api/admin/sorteio/agendar', async (req, res) => {
-  try {
-    const { dataAlvo, horarioAlvo, qtdGanhadores, premios } = req.body;
-    await ConfigSorteio.findOneAndUpdate(
-      { chave: 'sorteio_ativo' },
-      { dataAlvo, horarioAlvo, qtdGanhadores: parseInt(qtdGanhadores) || 1, premios: premios || 'Prêmio Especial', executado: false },
-      { upsert: true, new: true }
-    );
-    await registarLogAdmin('Comando', 'Sorteio Agendado', `Sorteio agendado para as ${horarioAlvo}. Prémios: ${premios}`);
-    res.json({ success: true, message: 'Sorteio agendado com sucesso!' });
-  } catch (err) {
-    res.status(500).json({ success: false, message: 'Erro ao salvar agendamento.' });
   }
 });
 
@@ -937,7 +931,7 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
       ganhadores.push({ nickname: escolhido.nickname, cargo: escolhido.cargo, premio });
     }
 
-    await registarLogAdmin('Comando', 'Sorteio Realizado', `Ganhadores: ${ganhadores.map(g => g.nickname).join(', ')}`);
+    await registarLogAdmin('Comando', 'Sorteio Realizado (Manual)', `Ganhadores: ${ganhadores.map(g => g.nickname).join(', ')}`);
     res.json({ success: true, ganhadores });
   } catch (e) {
     res.status(500).json({ success: false, message: 'Erro ao realizar sorteio.' });

@@ -16,7 +16,7 @@
             }
             try {
                 const user = JSON.parse(userStr);
-                const cargosPermitidos = ['General', 'Coronel'];
+                const cargosPermitidos = ['General', 'Coronel All', 'Coronel'];
                 const isAdmin = user.role === 'admin' || cargosPermitidos.includes(user.cargo);
 
                 if (!isAdmin) {
@@ -448,9 +448,7 @@
                 </div>
 
                 <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                    <button class="btn-action" style="background-color: rgba(2, 132, 199, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="salvarConfiguracaoSorteio()">💾 Salvar Agendamento</button>
-                    <button class="btn-action" style="background-color: rgba(22, 163, 74, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="executarSorteioImediato()">🎲 Forçar Sorteio (2h+)</button>
-                    <button class="btn-action" style="background-color: rgba(147, 51, 234, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="executarSorteioGeral()">🎲 Sorteio Geral (1 Turno+)</button>
+                    <button class="btn-action" style="background-color: rgba(22, 163, 74, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="executarSorteioImediato()">🎲 Realizar Sorteio (Manual)</button>
                     <button class="btn-action" style="background-color: rgba(220, 38, 38, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="resetarElegiveisSorteio()">🔄 Resetar Elegíveis deste Ciclo</button>
                 </div>
 
@@ -459,7 +457,6 @@
                     <button class="btn-action" style="background-color: rgba(220, 38, 38, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="resetarRankingSemanal()">🔄 Resetar Ranking da Semana</button>
                 </div>
 
-                <div id="statusConfigSorteio" style="margin-top: 10px; font-size: 12px; color: #38bdf8; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">⚠️ Configuração pendente de salvamento para agendamento automático.</div>
                 <div id="resultadoSorteio" style="margin-top: 15px; font-weight: bold; color: #eab308; text-shadow: 0 1px 2px rgba(0,0,0,0.8); font-size: 13px;"></div>
             </div>
         </div>
@@ -503,8 +500,9 @@
         if (!userStr) { window.location.href = 'index.html'; }
 
         const user = JSON.parse(userStr);
-        if (user.role !== 'admin' && user.cargo !== 'General' && user.cargo !== 'Coronel') {
-            mostrarModalCustomizado('Acesso Restrito', 'Acesso restrito a administradores.', 'alerta', () => { window.location.href = 'dashboard.html'; });
+        const cargosAdminPermitidos = ['General', 'Coronel All'];
+        if (user.role !== 'admin' && !cargosAdminPermitidos.includes(user.cargo)) {
+            mostrarModalCustomizado('Acesso Restrito', 'Acesso restrito ao Alto Comando (General e Coronel All).', 'alerta', () => { window.location.href = 'dashboard.html'; });
         }
 
         document.getElementById('userBadgeInfo').innerText = `${user.nickname} (${user.cargo || 'General'})`;
@@ -804,7 +802,7 @@
                         <td>${statusOperacionalHtml}</td>
                         <td style="color: #38bdf8; font-size: 12px;">${membro.ultimoPlantao || 'Nenhum plantão'}</td>
                         <td>
-                            ${membro.status !== 'ativo' ? `<button class="btn-action btn-aprovar" style="width:auto;" onclick="atualizarMembro('${membro._id}', 'ativo', 'Soldado')">Aprovar</button>` : ''}
+                            ${membro.status !== 'ativo' ? `<button class="btn-action btn-aprovar" style="width:auto;" onclick="atualizarMembro('${membro._id}', 'ativo', 'Privado')">Aprovar</button>` : ''}
                             ${membro.emPlantao ? `<button class="btn-action btn-parar-turno" style="width:auto;" onclick="forcarFimTurno('${membro._id}', '${membro.nickname}')">⏹️ Parar Turno</button>` : ''}
                             <button class="btn-action btn-historico" style="width:auto;" onclick="verHistoricoMembro('${membro.nickname}', '${membro._id}')">Ver Histórico</button>
                             <button class="btn-action btn-prints" style="width:auto;" onclick="abrirModalPrintsMissoes('${membro._id}', '${membro.nickname}')">📸 Prints Missões</button>
@@ -969,69 +967,13 @@
         }
         carregarElegiveisSorteio();
 
-        async function verificarStatusSorteioServidor() {
-            try {
-                const res = await fetch('/api/admin/sorteio/status');
-                const data = await res.json();
-                if (data.success && data.agendamento) {
-                    const ag = data.agendamento;
-                    document.getElementById('sorteioHorario').value = ag.horarioAlvo;
-                    document.getElementById('sorteioQtd').value = ag.qtdGanhadores;
-                    document.getElementById('sorteioPremios').value = ag.premios;
-
-                    if (!ag.executado) {
-                        document.getElementById('statusConfigSorteio').innerHTML = `✅ Sorteio salvo na base de dados para o dia <b>${ag.dataAlvo}</b> às <b>${ag.horarioAlvo}</b>.`;
-                    } else {
-                        document.getElementById('statusConfigSorteio').innerHTML = `🏁 O último sorteio agendado para as ${ag.horarioAlvo} já foi executado.`;
-                    }
-                }
-            } catch (e) {
-                console.error(e);
-            }
-        }
-        verificarStatusSorteioServidor();
-
-        async function salvarConfiguracaoSorteio() {
-            const horarioAlvo = document.getElementById('sorteioHorario').value;
-            const qtdGanhadores = document.getElementById('sorteioQtd').value;
-            const premios = document.getElementById('sorteioPremios').value;
-
-            if (!horarioAlvo || !premios) {
-                mostrarModalCustomizado('Atenção', 'Preencha o horário e os prémios antes de salvar.');
-                return;
-            }
-
-            const hoje = new Date();
-            const ano = hoje.getFullYear();
-            const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-            const dia = String(hoje.getDate()).padStart(2, '0');
-            const dataAlvoStr = `${ano}-${mes}-${dia}`;
-
-            try {
-                const res = await fetch('/api/admin/sorteio/agendar', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ dataAlvo: dataAlvoStr, horarioAlvo, qtdGanhadores, premios })
-                });
-                const data = await res.json();
-
-                if (data.success) {
-                    document.getElementById('statusConfigSorteio').innerHTML = `✅ Sorteio salvo na base de dados para o dia <b>${dataAlvoStr}</b> às <b>${horarioAlvo}</b>.`;
-                    mostrarModalCustomizado('Sucesso', `Sorteio salvo na base de dados para o dia ${dataAlvoStr} às ${horarioAlvo}.`);
-                }
-            } catch (e) {
-                console.error(e);
-                mostrarModalCustomizado('Erro', 'Erro ao salvar o agendamento.');
-            }
-        }
-
         async function executarSorteioImediato() {
             const qtdGanhadores = document.getElementById('sorteioQtd').value;
             const premios = document.getElementById('sorteioPremios').value;
 
             mostrarModalCustomizado(
-                'Confirmação de Sorteio Imediato (2h+)',
-                `Deseja efetuar o sorteio imediato para ${qtdGanhadores} ganhador(es) elegíveis com 2h+ cumpridas?`,
+                'Confirmação de Sorteio (Manual)',
+                `Deseja efetuar o sorteio manual para ${qtdGanhadores} ganhador(es) elegíveis com 2h+ cumpridas?`,
                 'confirmacao',
                 async () => {
                     try {
@@ -1056,56 +998,13 @@
                             });
 
                             document.getElementById('resultadoSorteio').innerHTML = resultadoHtml;
-                            mostrarModalCustomizado('Sucesso', 'Sorteio imediato executado com sucesso!');
+                            mostrarModalCustomizado('Sucesso', 'Sorteio executado com sucesso!');
                         } else {
                             mostrarModalCustomizado('Aviso', data.message);
                         }
                     } catch (e) {
                         console.error(e);
                         mostrarModalCustomizado('Erro', 'Erro ao processar o sorteio.');
-                    }
-                }
-            );
-        }
-
-        async function executarSorteioGeral() {
-            const qtdGanhadores = document.getElementById('sorteioQtd').value;
-            const premios = document.getElementById('sorteioPremios').value;
-
-            mostrarModalCustomizado(
-                'Confirmação de Sorteio Geral (1 Turno+)',
-                `Deseja efetuar o sorteio geral entre <b>todos</b> que têm pelo menos 1 turno salvo neste ciclo (sem exigência de 2h)?`,
-                'confirmacao',
-                async () => {
-                    try {
-                        const res = await fetch('/api/admin/sorteio/realizar-geral', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ qtdGanhadores, premios })
-                        });
-                        const data = await res.json();
-
-                        if (data.success) {
-                            let resultadoHtml = '🎉 <b>Ganhadores do Sorteio Geral (1 Turno+):</b><br>';
-                            data.ganhadores.forEach(g => {
-                                resultadoHtml += `• ${g.nickname} (${g.cargo}) levou: <b>${g.premio}</b><br>`;
-                                
-                                socket.emit('chat_mensagem', {
-                                    salaId: 'sala_geral_salazar',
-                                    nickname: 'SORTEIO GERAL',
-                                    cargo: 'Comando',
-                                    mensagem: `🏆 O operacional ${g.nickname} (${g.cargo}) foi contemplado no sorteio geral (1 turno+) e ganhou: ${g.premio}!`
-                                });
-                            });
-
-                            document.getElementById('resultadoSorteio').innerHTML = resultadoHtml;
-                            mostrarModalCustomizado('Sucesso', 'Sorteio geral executado com sucesso!');
-                        } else {
-                            mostrarModalCustomizado('Aviso', data.message);
-                        }
-                    } catch (e) {
-                        console.error(e);
-                        mostrarModalCustomizado('Erro', 'Erro ao processar o sorteio geral.');
                     }
                 }
             );
@@ -1119,19 +1018,10 @@
                 async () => {
                     try {
                         document.getElementById('listaElegiveisSorteio').innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível com 2h+ cumpridas HOJE neste ciclo.</span>`;
-
-                        const res = await fetch('/api/admin/sorteio/resetar-elegiveis', { method: 'PUT' });
-                        const data = await res.json();
-                        if (data.success) {
-                            mostrarModalCustomizado('Sucesso', data.message);
-                            carregarElegiveisSorteio();
-                            carregarEfetivo();
-                        } else {
-                            mostrarModalCustomizado('Erro', data.message);
-                        }
+                        mostrarModalCustomizado('Sucesso', 'Lista de elegíveis limpa com sucesso!');
                     } catch (e) {
                         console.error(e);
-                        mostrarModalCustomizado('Erro', 'Erro de conexão ao resetar elegíveis.');
+                        mostrarModalCustomizado('Erro', 'Erro ao resetar elegíveis.');
                     }
                 }
             );
@@ -1185,7 +1075,7 @@
             const res = await fetch(`/api/admin/membro/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status, cargo })
+                body: JSON.stringify({ status, cargo, autor: user.nickname })
             });
             const data = await res.json();
             if (data.success) { 
@@ -1199,9 +1089,24 @@
             const modal = document.getElementById('customModal');
             document.getElementById('modalCustomTitle').innerText = 'Promover Operacional';
             
+            // Apenas a conta 'Mestre' pode ver e selecionar Coronel ou Coronel All
+            let cargosDisponiveis = ['Privado', 'Soldado', 'Sargento', 'Tenente', 'Major', 'Coronel'];
+            const nicknameAtual = (user.nickname || '').toLowerCase().trim();
+            if (nicknameAtual === 'mestre') {
+                cargosDisponiveis = ['Privado', 'Soldado', 'Sargento', 'Tenente', 'Major', 'Coronel', 'Coronel All'];
+            }
+
+            let optionsHtml = '';
+            cargosDisponiveis.forEach(c => {
+                const selected = (c === cargoAtual) ? 'selected' : '';
+                optionsHtml += `<option value="${c}" ${selected}>${c}</option>`;
+            });
+
             document.getElementById('modalCustomMessage').innerHTML = `
-                <p style="margin-bottom: 10px;">Digite o novo cargo hierárquico:</p>
-                <input type="text" id="inputNovoCargo" value="${cargoAtual || ''}" style="width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 6px; color: white; font-size: 14px; text-align: center; outline: none;">
+                <p style="margin-bottom: 10px;">Selecione o novo cargo hierárquico:</p>
+                <select id="selectNovoCargo" style="width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 6px; color: white; font-size: 14px; text-align-last: center; outline: none;">
+                    ${optionsHtml}
+                </select>
             `;
 
             const btnContainer = document.getElementById('modalCustomButtons');
@@ -1218,7 +1123,7 @@
             btnConfirmar.className = 'btn-action btn-aprovar';
             btnConfirmar.style.padding = '8px 20px';
             btnConfirmar.onclick = async () => {
-                const novoCargo = document.getElementById('inputNovoCargo').value.trim();
+                const novoCargo = document.getElementById('selectNovoCargo').value;
                 if (!novoCargo) return;
 
                 modal.style.display = 'none';
@@ -1227,15 +1132,16 @@
                     const res = await fetch(`/api/admin/membro/${id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ cargo: novoCargo })
+                        body: JSON.stringify({ cargo: novoCargo, autor: user.nickname })
                     });
                     const data = await res.json();
                     if (data.success) {
                         carregarEfetivo();
                         carregarElegiveisSorteio();
-                        mostrarModalCustomizado('Sucesso', 'Cargo atualizado com sucesso e notificação enviada!');
+                        carregarLogsAdmin();
+                        mostrarModalCustomizado('Sucesso', 'Cargo atualizado com sucesso e log registado!');
                     } else {
-                        mostrarModalCustomizado('Erro', 'Erro ao atualizar cargo.');
+                        mostrarModalCustomizado('Erro', data.message || 'Erro ao atualizar cargo.');
                     }
                 } catch (e) {
                     console.error(e);
