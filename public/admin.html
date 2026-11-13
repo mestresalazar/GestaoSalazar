@@ -16,12 +16,12 @@
             }
             try {
                 const user = JSON.parse(userStr);
-                // APENAS Coronel All e General têm acesso ao painel ADM
+                // EXCLUSIVO: Apenas Coronel All e General. Coronel normal NÃO tem acesso ao ADM.
                 const cargosPermitidos = ['General', 'Coronel All'];
                 const isAdmin = user.role === 'admin' || cargosPermitidos.includes(user.cargo);
 
                 if (!isAdmin) {
-                    alert('Acesso Negado: Área restrita ao Comando Superior (Coronel All / General).');
+                    alert('Acesso Negado: Área restrita exclusivamente ao Coronel All e General.');
                     window.location.replace('dashboard.html');
                     return;
                 }
@@ -504,7 +504,7 @@
         // APENAS Coronel All e General dão acesso ao painel
         const cargosAdminPermitidos = ['General', 'Coronel All'];
         if (user.role !== 'admin' && !cargosAdminPermitidos.includes(user.cargo)) {
-            mostrarModalCustomizado('Acesso Restrito', 'Acesso restrito ao Comando Superior (Coronel All / General).', 'alerta', () => { window.location.href = 'dashboard.html'; });
+            mostrarModalCustomizado('Acesso Restrito', 'Acesso restrito exclusivamente ao Coronel All e General.', 'alerta', () => { window.location.href = 'dashboard.html'; });
         }
 
         document.getElementById('userBadgeInfo').innerText = `${user.nickname} (${user.cargo || 'General'})`;
@@ -548,7 +548,7 @@
             carregarLogsAdmin();
         });
 
-        // OUVINTE EM TEMPO REAL: Se for promovido para Coronel All ganha acesso instantâneo; se for rebaixado perde e sai do painel
+        // OUVINTE EM TEMPO REAL: Se for promovido a Coronel All ganha acesso; se for rebaixado ou promovido a Coronel normal, perde o acesso e sai instantaneamente
         socket.on('atualizar_cargo_usuario', (data) => {
             if (data.nickname.toLowerCase() === user.nickname.toLowerCase()) {
                 user.cargo = data.novoCargo;
