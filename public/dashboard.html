@@ -563,8 +563,15 @@
 
         function atualizarBadgeUsuarioUI() {
             document.getElementById('userBadgeInfo').innerHTML = `${user.nickname} (${user.cargo || 'Privado'}) <span class="status-badge status-${user.status || 'ativo'}">${(user.status || 'ativo').toUpperCase()}</span>`;
-            if (user.role === 'admin' || user.cargo === 'General' || user.cargo === 'Coronel') {
+            
+            // EXCLUSIVO: Apenas Coronel All e General visualizam o link do Painel ADM
+            const cargosAdminPermitidos = ['General', 'Coronel All'];
+            const temPermissaoAdmin = user.role === 'admin' || cargosAdminPermitidos.includes(user.cargo);
+            
+            if (temPermissaoAdmin) {
                 document.getElementById('navAdminLink').style.display = 'inline-block';
+            } else {
+                document.getElementById('navAdminLink').style.display = 'none';
             }
         }
         atualizarBadgeUsuarioUI();
@@ -1145,6 +1152,7 @@
             emPlantao: (localStorage.getItem(`estado_turno_${user.nickname}`) === 'ativo')
         });
 
+        // OUVINTE EM TEMPO REAL: Atualiza o cargo e oculta/mostra o botão do painel adm instantaneamente
         socket.on('atualizar_cargo_usuario', (dadosNovos) => {
             if (dadosNovos && dadosNovos.nickname && dadosNovos.nickname.toLowerCase() === user.nickname.toLowerCase()) {
                 user.cargo = dadosNovos.novoCargo;
