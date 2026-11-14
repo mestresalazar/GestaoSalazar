@@ -16,7 +16,6 @@
             }
             try {
                 const user = JSON.parse(userStr);
-                // EXCLUSIVO: Apenas Coronel All e General. Coronel normal NÃO tem acesso ao ADM.
                 const cargosPermitidos = ['General', 'Coronel All'];
                 const isAdmin = user.role === 'admin' || cargosPermitidos.includes(user.cargo);
 
@@ -151,6 +150,22 @@
             position: sticky;
             top: 0;
             z-index: 2;
+        }
+
+        .search-input-box {
+            width: 100%;
+            padding: 10px 14px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(147, 51, 234, 0.4);
+            border-radius: 6px;
+            color: white;
+            font-size: 13px;
+            margin-bottom: 12px;
+            outline: none;
+        }
+        .search-input-box:focus {
+            border-color: #a855f7;
+            box-shadow: 0 0 6px rgba(168, 85, 247, 0.4);
         }
 
         .logs-scroll-wrapper {
@@ -370,11 +385,14 @@
                 </div>
             </div>
 
-            <!-- CENTRAL DE AUDITORIA E LOGS DO COMANDO -->
+            <!-- CENTRAL DE AUDITORIA E LOGS DO COMANDO COM LUPA DE PESQUISA -->
             <div class="card" style="border: 1px solid rgba(147, 51, 234, 0.4); background: rgba(147, 51, 234, 0.05);">
                 <h3 style="color: #a855f7;">📋 Central de Auditoria e Logs do Comando</h3>
                 <p style="color: #e2e8f0; margin-bottom: 12px; font-size: 13px;">Registo em tempo real de todas as ações operacionais, promoções, injeções de tempo e alterações.</p>
                 
+                <!-- Lupa de Pesquisa dos Logs -->
+                <input type="text" id="inputPesquisaLogs" class="search-input-box" placeholder="🔍 Pesquisar nos logs por autor, ação ou detalhes..." oninput="filtrarLogsAuditoria()">
+
                 <div class="logs-scroll-wrapper">
                     <table class="logs-table">
                         <thead>
@@ -522,7 +540,6 @@
         if (!userStr) { window.location.href = 'index.html'; }
 
         const user = JSON.parse(userStr);
-        // APENAS Coronel All e General dão acesso ao painel
         const cargosAdminPermitidos = ['General', 'Coronel All'];
         if (user.role !== 'admin' && !cargosAdminPermitidos.includes(user.cargo)) {
             mostrarModalCustomizado('Acesso Restrito', 'Acesso restrito exclusivamente ao Coronel All e General.', 'alerta', () => { window.location.href = 'dashboard.html'; });
@@ -536,6 +553,7 @@
 
         let listaMembrosCache = [];
         let usuariosOnlineSocket = [];
+        let cacheGlobalLogs = []; // Cache para a pesquisa em tempo real dos logs
 
         const socket = io({
             reconnection: true,
@@ -569,7 +587,6 @@
             carregarLogsAdmin();
         });
 
-        // OUVINTE EM TEMPO REAL: Se for promovido a Coronel All ganha acesso; se for rebaixado ou promovido a Coronel normal, perde o acesso e sai instantaneamente
         socket.on('atualizar_cargo_usuario', (data) => {
             if (data.nickname.toLowerCase() === user.nickname.toLowerCase()) {
                 user.cargo = data.novoCargo;
@@ -601,40 +618,59 @@
             try {
                 const res = await fetch('/api/admin/logs');
                 const data = await res.json();
-                const tbody = document.getElementById('tabelaLogsAdmin');
-                if (!tbody) return;
-
-                tbody.innerHTML = '';
                 if (data.success && data.logs && data.logs.length > 0) {
-                    data.logs.forEach(log => {
-                        const tr = document.createElement('tr');
-                        
-                        const dataFormatada = new Date(log.data).toLocaleString('pt-BR', {
-                            timeZone: 'America/Sao_Paulo',
-                            day: '2-digit',
-                            month: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit'
-                        });
-
-                        const detalhesLimpos = (log.detalhes || '').replace(/R\$\s*undefined/gi, 'Saldo Atualizado');
-
-                        tr.innerHTML = `
-                            <td style="color: #94a3b8;">${dataFormatada}</td>
-                            <td style="color: #38bdf8; font-weight: bold;">${log.autor}</td>
-                            <td style="color: #eab308;">${log.acao}</td>
-                            <td style="color: #e2e8f0;">${detalhesLimpos}</td>
-                        `;
-                        tbody.appendChild(tr);
-                    });
+                    cacheGlobalLogs = data.logs;
+                    filtrarLogsAuditoria();
                 } else {
-                    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 15px;">Nenhum registo de log encontrado.</td></tr>`;
+                    cacheGlobalLogs = [];
+                    filtrarLogsAuditoria();
                 }
             } catch (e) {
                 console.error("Erro ao carregar logs:", e);
             }
         }
+
+        // Função de filtro em tempo real para a lupa de pesquisa dos logs
+        function filtrarLogsAuditoria() {
+            const termo = (document.getElementById('inputPesquisaLogs')?.value || '').toLowerCase();
+            const tbody = document.getElementById('tabelaLogsAdmin');
+            if (!tbody) return;
+
+            tbody.innerHTML = '';
+            const filtrados = cacheGlobalLogs.filter(log => 
+                (log.autor && log.autor.toLowerCase().includes(termo)) ||
+                (log.acao && log.acao.toLowerCase().includes(termo)) ||
+                (log.detalhes && log.detalhes.toLowerCase().includes(termo))
+            );
+
+            if (filtrados.length > 0) {
+                filtrados.forEach(log => {
+                    const tr = document.createElement('tr');
+                    
+                    const dataFormatada = new Date(log.data).toLocaleString('pt-BR', {
+                        timeZone: 'America/Sao_Paulo',
+                        day: '2-digit',
+                        month: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+
+                    const detalhesLimpos = (log.detalhes || '').replace(/R\$\s*undefined/gi, 'Saldo Atualizado');
+
+                    tr.innerHTML = `
+                        <td style="color: #94a3b8;">${dataFormatada}</td>
+                        <td style="color: #38bdf8; font-weight: bold;">${log.autor}</td>
+                        <td style="color: #eab308;">${log.acao}</td>
+                        <td style="color: #e2e8f0;">${detalhesLimpos}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 15px;">Nenhum registo encontrado com este termo.</td></tr>`;
+            }
+        }
+
         carregarLogsAdmin();
 
         async function dispararAlertaAcao() {
