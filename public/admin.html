@@ -40,11 +40,13 @@
     </script>
     <script src="/socket.io/socket.io.js"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+            letter-spacing: -0.01em;
         }
         body {
             background-image: linear-gradient(rgba(11, 19, 30, 0.2), rgba(11, 19, 30, 0.2)), url('/background.jpg');
@@ -59,18 +61,18 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background-color: rgba(18, 31, 51, 0.35);
-            backdrop-filter: blur(8px);
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.78), rgba(11, 19, 30, 0.88)) !important;
+            backdrop-filter: blur(14px) !important;
             padding: 15px 25px;
-            border-radius: 8px;
+            border-radius: 12px !important;
             margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-            border: 1px solid rgba(56, 189, 248, 0.2);
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.65) !important;
+            border: 1px solid rgba(56, 189, 248, 0.22) !important;
         }
         .nav-brand {
             color: #38bdf8;
             font-size: 20px;
-            font-weight: bold;
+            font-weight: 800;
             text-shadow: 0 2px 4px rgba(0,0,0,0.8);
         }
         .nav-links {
@@ -84,11 +86,11 @@
             font-weight: 600;
             font-size: 14px;
             padding: 8px 12px;
-            border-radius: 6px;
-            transition: background 0.2s, color 0.2s;
+            border-radius: 8px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .nav-links a:hover, .nav-links a.active {
-            background-color: rgba(30, 41, 59, 0.6);
+            background-color: rgba(30, 41, 59, 0.8);
             color: #38bdf8;
         }
         .logout-btn {
@@ -96,14 +98,15 @@
             color: white;
             border: none;
             padding: 8px 16px;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
-            font-weight: bold;
+            font-weight: 700;
             font-size: 13px;
-            transition: background 0.2s;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .logout-btn:hover {
             background-color: #dc2626;
+            transform: translateY(-1px);
         }
 
         .grid-container {
@@ -117,13 +120,13 @@
             }
         }
         .card {
-            background-color: rgba(18, 31, 51, 0.4);
-            backdrop-filter: blur(8px);
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.78), rgba(11, 19, 30, 0.88)) !important;
+            backdrop-filter: blur(14px) !important;
             padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            border-radius: 12px !important;
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.65) !important;
             margin-bottom: 20px;
-            border: 1px solid rgba(56, 189, 248, 0.25);
+            border: 1px solid rgba(56, 189, 248, 0.22) !important;
         }
         .card h3 {
             color: #38bdf8;
@@ -132,6 +135,7 @@
             border-bottom: 1px solid rgba(56, 189, 248, 0.2);
             padding-bottom: 10px;
             text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            font-weight: 700;
         }
         table {
             width: 100%;
@@ -157,7 +161,7 @@
             padding: 10px 14px;
             background: rgba(15, 23, 42, 0.8);
             border: 1px solid rgba(147, 51, 234, 0.4);
-            border-radius: 6px;
+            border-radius: 8px;
             color: white;
             font-size: 13px;
             margin-bottom: 12px;
@@ -174,14 +178,14 @@
             overflow-x: hidden;
             background: rgba(15, 23, 42, 0.75);
             border: 1px solid rgba(147, 51, 234, 0.35);
-            border-radius: 6px;
+            border-radius: 8px;
         }
         .logs-scroll-wrapper::-webkit-scrollbar {
             width: 6px;
         }
         .logs-scroll-wrapper::-webkit-scrollbar-track {
             background: rgba(15, 23, 42, 0.5);
-            border-radius: 0 6px 6px 0;
+            border-radius: 0 8px 8px 0;
         }
         .logs-scroll-wrapper::-webkit-scrollbar-thumb {
             background: rgba(168, 85, 247, 0.6);
@@ -212,19 +216,19 @@
         }
 
         .btn-action {
-            padding: 5px 10px;
+            padding: 6px 12px;
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
             color: white;
             cursor: pointer;
-            font-weight: bold;
+            font-weight: 700;
             font-size: 12px;
             margin-right: 4px;
             margin-bottom: 4px;
-            transition: opacity 0.2s;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
-        .btn-action:hover { opacity: 0.85; }
+        .btn-action:hover { transform: translateY(-1px); filter: brightness(1.1); }
         .btn-aprovar { background-color: rgba(22, 163, 74, 0.9); }
         .btn-promover { background-color: rgba(2, 132, 199, 0.9); }
         .btn-historico { background-color: rgba(99, 102, 241, 0.9); }
@@ -248,7 +252,7 @@
             height: 250px;
             background: rgba(15, 23, 42, 0.75);
             border: 1px solid rgba(56, 189, 248, 0.25);
-            border-radius: 6px;
+            border-radius: 8px;
             padding: 10px;
             overflow-y: auto;
             margin-bottom: 12px;
@@ -260,7 +264,7 @@
             font-size: 13px;
             background: rgba(30, 41, 59, 0.65);
             padding: 8px;
-            border-radius: 6px;
+            border-radius: 8px;
             border-left: 3px solid #38bdf8;
         }
         .chat-msg span.autor {
@@ -282,7 +286,7 @@
             width: 90%;
             max-width: 680px;
             max-height: 85vh;
-            border-radius: 8px;
+            border-radius: 12px;
             padding: 25px;
             overflow-y: auto;
             box-shadow: 0 4px 20px rgba(0,0,0,0.8);
@@ -294,7 +298,7 @@
             color: white;
             border: none;
             padding: 5px 10px;
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer;
             font-weight: bold;
         }
@@ -321,12 +325,12 @@
                 
                 <div style="margin-bottom: 12px;">
                     <label style="font-size: 12px; color: #38bdf8;">Título da Ação (Ex: Invasão na Favela / Defesa):</label>
-                    <input type="text" id="acaoTitulo" placeholder="Ex: Ação Urgente na Favela BMRP" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px;">
+                    <input type="text" id="acaoTitulo" placeholder="Ex: Ação Urgente na Favela BMRP" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; margin-top: 4px;">
                 </div>
 
                 <div style="margin-bottom: 15px;">
                     <label style="font-size: 12px; color: #38bdf8;">Descrição / Instruções:</label>
-                    <textarea id="acaoDescricao" rows="3" placeholder="Ex: Todos os soldados equipados no QG principal. Comparecer em 5 minutos!" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px; resize: none;"></textarea>
+                    <textarea id="acaoDescricao" rows="3" placeholder="Ex: Todos os soldados equipados no QG principal. Comparecer em 5 minutos!" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; margin-top: 4px; resize: none;"></textarea>
                 </div>
 
                 <button class="btn-action" style="background-color: rgba(239, 68, 68, 0.95); color: white; font-size: 14px; padding: 12px 20px; width: 100%; font-weight: bold;" onclick="dispararAlertaAcao()">🚨 DISPARAR ALERTA DE AÇÃO PARA A TROPA</button>
@@ -339,27 +343,27 @@
                 
                 <div style="margin-bottom: 12px;">
                     <label style="font-size: 12px; color: #38bdf8;">Nickname do Operacional:</label>
-                    <input type="text" id="mestreTargetNickname" placeholder="Ex: Mestre, teste..." style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px;">
+                    <input type="text" id="mestreTargetNickname" placeholder="Ex: Mestre, teste..." style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; margin-top: 4px;">
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px;">
                     <div>
                         <label style="font-size: 12px; color: #38bdf8;">Horas:</label>
-                        <input type="number" id="mestreHoras" value="0" min="0" max="10" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px;">
+                        <input type="number" id="mestreHoras" value="0" min="0" max="10" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; margin-top: 4px;">
                     </div>
                     <div>
                         <label style="font-size: 12px; color: #38bdf8;">Minutos:</label>
-                        <input type="number" id="mestreMinutos" value="30" min="0" max="59" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px;">
+                        <input type="number" id="mestreMinutos" value="30" min="0" max="59" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; margin-top: 4px;">
                     </div>
                     <div>
                         <label style="font-size: 12px; color: #38bdf8;">Segundos:</label>
-                        <input type="number" id="mestreSegundos" value="0" min="0" max="59" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px;">
+                        <input type="number" id="mestreSegundos" value="0" min="0" max="59" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; margin-top: 4px;">
                     </div>
                 </div>
 
                 <div style="margin-bottom: 15px;">
                     <label style="font-size: 12px; color: #38bdf8;">Motivo / Justificativa:</label>
-                    <input type="text" id="mestreMotivo" value="Queda de conexão / Turno não salvou" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px;">
+                    <input type="text" id="mestreMotivo" value="Queda de conexão / Turno não salvou" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; margin-top: 4px;">
                 </div>
 
                 <button class="btn-action" style="background-color: rgba(234, 179, 8, 0.9); color: #000; font-size: 13px; padding: 10px 18px; width: auto;" onclick="mestreAdicionarTempo()">⚡ Injetar Tempo no Histórico</button>
@@ -367,19 +371,19 @@
 
             <!-- CARTÕES DE CONTAGEM DE MEMBROS -->
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 20px;">
-                <div style="background: rgba(18, 31, 51, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 12px; text-align: center;">
+                <div style="background: rgba(18, 31, 51, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 12px; text-align: center;">
                     <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Total Registados</span>
                     <h2 id="counterTotal" style="color: #38bdf8; font-size: 22px; margin-top: 4px;">0</h2>
                 </div>
-                <div style="background: rgba(18, 31, 51, 0.6); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px; padding: 12px; text-align: center;">
+                <div style="background: rgba(18, 31, 51, 0.6); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 8px; padding: 12px; text-align: center;">
                     <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Ativos</span>
                     <h2 id="counterAtivos" style="color: #22c55e; font-size: 22px; margin-top: 4px;">0</h2>
                 </div>
-                <div style="background: rgba(18, 31, 51, 0.6); border: 1px solid rgba(234, 179, 8, 0.3); border-radius: 6px; padding: 12px; text-align: center;">
+                <div style="background: rgba(18, 31, 51, 0.6); border: 1px solid rgba(234, 179, 8, 0.3); border-radius: 8px; padding: 12px; text-align: center;">
                     <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Pendentes</span>
                     <h2 id="counterPendentes" style="color: #eab308; font-size: 22px; margin-top: 4px;">0</h2>
                 </div>
-                <div style="background: rgba(18, 31, 51, 0.6); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 6px; padding: 12px; text-align: center;">
+                <div style="background: rgba(18, 31, 51, 0.6); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; padding: 12px; text-align: center;">
                     <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Em Plantão</span>
                     <h2 id="counterPlantao" style="color: #a855f7; font-size: 22px; margin-top: 4px;">0</h2>
                 </div>
@@ -417,10 +421,10 @@
                 <p style="color: #e2e8f0; margin-bottom: 12px; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Ordenação prioritária: Plantão ➔ Online ➔ Offline.</p>
                 
                 <div style="margin-bottom: 15px;">
-                    <input type="text" id="inputBuscaMembro" placeholder="🔍 Pesquisar operacional por nickname..." oninput="filtrarTabelaEfetivo()" style="width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; font-size: 13px; outline: none;">
+                    <input type="text" id="inputBuscaMembro" placeholder="🔍 Pesquisar operacional por nickname..." oninput="filtrarTabelaEfetivo()" style="width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; font-size: 13px; outline: none;">
                 </div>
 
-                <div style="max-height: 350px; overflow-y: auto; border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; background: rgba(15, 23, 42, 0.5);">
+                <div style="max-height: 350px; overflow-y: auto; border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; background: rgba(15, 23, 42, 0.5);">
                     <table>
                         <thead>
                             <tr>
@@ -447,29 +451,29 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px;">
                     <div>
                         <label style="font-size: 12px; color: #38bdf8;">Horário Previsto:</label>
-                        <input type="time" id="sorteioHorario" value="20:00" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px;">
+                        <input type="time" id="sorteioHorario" value="20:00" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; margin-top: 4px;">
                     </div>
                     <div>
                         <label style="font-size: 12px; color: #38bdf8;">Qtd. de Ganhadores:</label>
-                        <input type="number" id="sorteioQtd" value="1" min="1" max="10" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px;">
+                        <input type="number" id="sorteioQtd" value="1" min="1" max="10" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; margin-top: 4px;">
                     </div>
                 </div>
 
                 <div style="margin-bottom: 15px;">
                     <label style="font-size: 12px; color: #38bdf8;">Prêmios (separados por vírgula):</label>
-                    <input type="text" id="sorteioPremios" value="R$ 100.000 no Jogo, Viatura Blindada" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: white; margin-top: 4px;">
+                    <input type="text" id="sorteioPremios" value="R$ 100.000 no Jogo, Viatura Blindada" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; margin-top: 4px;">
                 </div>
 
                 <div style="margin-bottom: 15px;">
                     <h4 style="color: #38bdf8; font-size: 14px; margin-bottom: 8px;">🛡️ Operacionais Elegíveis (Com 2h+ HOJE):</h4>
-                    <div id="listaElegiveisSorteio" style="max-height: 220px; overflow-y: auto; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; padding: 10px; font-size: 12px; color: #cbd5e1;">
+                    <div id="listaElegiveisSorteio" style="max-height: 220px; overflow-y: auto; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 10px; font-size: 12px; color: #cbd5e1;">
                         A carregar elegíveis...
                     </div>
                 </div>
 
                 <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                    <button class="btn-action" style="background-color: rgba(22, 163, 74, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="executarSorteioImediato()">🎲 Realizar Sorteio (Manual)</button>
-                    <button class="btn-action" style="background-color: rgba(220, 38, 38, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="resetarElegiveisSorteio()">🔄 Resetar Elegíveis deste Ciclo</button>
+                    <button class="btn-action" style="background-color: rgba(22, 163, 74, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="executarSorteioImediato()">🎲 Girar Roleta Ao Vivo</button>
+                    <button class="btn-action" style="background-color: rgba(220, 38, 38, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="resetarElegiveisSorteio()">🔄 Resetar Ciclo da Roleta</button>
                 </div>
 
                 <div style="margin-top: 15px; border-top: 1px solid rgba(56, 189, 248, 0.2); padding-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
@@ -488,7 +492,7 @@
                     <div class="chat-msg"><span class="autor">Sistema (Rádio):</span> Canal de rádio seguro conectado.</div>
                 </div>
                 <div style="display: flex; gap: 8px;">
-                    <input type="text" id="chatInput" placeholder="Digite sua mensagem..." style="flex: 1; padding: 10px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; color: white; font-size: 13px;">
+                    <input type="text" id="chatInput" placeholder="Digite sua mensagem..." style="flex: 1; padding: 10px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; color: white; font-size: 13px;">
                     <button class="btn-action btn-promover" style="margin-top: 0; width: auto; padding: 10px 15px;" onclick="enviarMensagem()">Transmitir</button>
                 </div>
             </div>
@@ -508,7 +512,7 @@
 
     <!-- Modal de Inspeção de Perfil pelo ADM -->
     <div id="modalPerfilAdmin" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 10000;">
-        <div style="background: rgba(18, 31, 51, 0.98); width: 90%; max-width: 450px; border-radius: 8px; padding: 25px; border: 1px solid #38bdf8; text-align: center; color: #fff;">
+        <div style="background: rgba(18, 31, 51, 0.98); width: 90%; max-width: 450px; border-radius: 12px; padding: 25px; border: 1px solid #38bdf8; text-align: center; color: #fff;">
             <button class="close-modal" onclick="document.getElementById('modalPerfilAdmin').style.display='none'">X</button>
             <h3 style="color: #38bdf8; margin-bottom: 20px;">👤 Perfil do Operacional (Comando)</h3>
             
@@ -516,7 +520,7 @@
                 🛡️
             </div>
 
-            <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; padding: 15px; text-align: left; font-size: 13px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 15px; text-align: left; font-size: 13px; display: flex; flex-direction: column; gap: 8px;">
                 <p><b>Nickname:</b> <span id="perfilAdminNickname" style="color: #38bdf8;">-</span></p>
                 <p><b>Cargo Atual:</b> <span id="perfilAdminCargo">-</span></p>
                 <p><b>⏱️ Total de Horas Acumuladas:</b> <span id="perfilAdminTotalHoras" style="color: #22c55e; font-weight: bold;">-</span></p>
@@ -528,7 +532,7 @@
 
     <!-- Modal Profissional -->
     <div id="customModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(4px);">
-        <div style="background: rgba(18, 31, 51, 0.95); width: 90%; max-width: 400px; border-radius: 8px; padding: 25px; box-shadow: 0 4px 25px rgba(0,0,0,0.9); border: 1px solid #38bdf8; text-align: center;">
+        <div style="background: rgba(18, 31, 51, 0.95); width: 90%; max-width: 400px; border-radius: 12px; padding: 25px; box-shadow: 0 4px 25px rgba(0,0,0,0.9); border: 1px solid #38bdf8; text-align: center;">
             <h3 id="modalCustomTitle" style="color: #38bdf8; margin-bottom: 12px; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">Gestão Salazar</h3>
             <p id="modalCustomMessage" style="color: #e2e8f0; font-size: 14px; margin-bottom: 20px; line-height: 1.4; text-shadow: 0 1px 2px rgba(0,0,0,0.8);"></p>
             <div id="modalCustomButtons" style="display: flex; gap: 10px; justify-content: center;"></div>
@@ -553,7 +557,7 @@
 
         let listaMembrosCache = [];
         let usuariosOnlineSocket = [];
-        let cacheGlobalLogs = []; // Cache para a pesquisa em tempo real dos logs
+        let cacheGlobalLogs = [];
 
         const socket = io({
             reconnection: true,
@@ -630,7 +634,6 @@
             }
         }
 
-        // Função de filtro em tempo real para a lupa de pesquisa dos logs
         function filtrarLogsAuditoria() {
             const termo = (document.getElementById('inputPesquisaLogs')?.value || '').toLowerCase();
             const tbody = document.getElementById('tabelaLogsAdmin');
@@ -969,20 +972,20 @@
 
                 if (data.success) {
                     container.innerHTML = `
-                        <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2); display: flex; justify-content: space-between; align-items: center;">
+                        <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2); display: flex; justify-content: space-between; align-items: center;">
                             <div>
                                 <p><b>Operacional:</b> ${data.nickname} | <b>Cargo:</b> ${data.cargo}</p>
                             </div>
                             <button class="btn-action btn-reset" style="padding: 8px 12px;" onclick="resetarTurnosMembro('${membroIdAtualModal}')">🗑️ Resetar Turnos</button>
                         </div>
-                        <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2);">
+                        <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2);">
                             <h4 style="color: #38bdf8; margin-bottom: 8px;">🛡️ Turnos Cumpridos (${data.historicoTurnos.length})</h4>
                             ${data.historicoTurnos.length > 0 ? data.historicoTurnos.slice().reverse().map((t) => `
-                                <div style="background: rgba(30, 41, 59, 0.6); padding: 10px; border-radius: 6px; margin-bottom: 10px; border: 1px solid rgba(56, 189, 248, 0.25);">
+                                <div style="background: rgba(30, 41, 59, 0.6); padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(56, 189, 248, 0.25);">
                                     <p style="margin-bottom: 5px;">• Duração: <b style="color: #38bdf8;">${t.duracao}</b> | Data: ${new Date(t.data).toLocaleString()}</p>
                                     ${t.fotoComprovante && t.fotoComprovante.startsWith('data:image') ? `
                                         <div style="text-align: center; margin-top: 8px;">
-                                            <img src="${t.fotoComprovante}" style="max-width: 100%; max-height: 220px; border-radius: 4px; border: 1px solid #38bdf8; cursor: pointer;" onclick="window.open('${t.fotoComprovante}')" title="Clique para ampliar">
+                                            <img src="${t.fotoComprovante}" style="max-width: 100%; max-height: 220px; border-radius: 8px; border: 1px solid #38bdf8; cursor: pointer;" onclick="window.open('${t.fotoComprovante}')" title="Clique para ampliar">
                                             <p style="font-size: 10px; color: #94a3b8; margin-top: 4px;">Print do Turno (Clique na imagem para ampliar)</p>
                                         </div>
                                     ` : `<p style="font-size: 11px; color: #94a3b8;">Comprovante: ${t.fotoComprovante || 'Sem foto registada'}</p>`}
@@ -1003,8 +1006,8 @@
                 modal.id = 'modalPrintsAdmin';
                 modal.style.cssText = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); justify-content:center; align-items:center; z-index:10000;";
                 modal.innerHTML = `
-                    <div style="background: rgba(18, 31, 51, 0.98); width: 90%; max-width: 650px; max-height: 85vh; border-radius: 8px; padding: 25px; border: 1px solid #38bdf8; overflow-y: auto; color: #fff;">
-                        <button onclick="document.getElementById('modalPrintsAdmin').style.display='none'" style="float:right; background:#ef4444; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold;">X</button>
+                    <div style="background: rgba(18, 31, 51, 0.98); width: 90%; max-width: 650px; max-height: 85vh; border-radius: 12px; padding: 25px; border: 1px solid #38bdf8; overflow-y: auto; color: #fff;">
+                        <button onclick="document.getElementById('modalPrintsAdmin').style.display='none'" style="float:right; background:#ef4444; color:white; border:none; padding:5px 10px; border-radius:6px; cursor:pointer; font-weight:bold;">X</button>
                         <h3 id="tituloPrintsAdmin" style="color: #38bdf8; margin-bottom: 15px;">📸 Prints de Missões</h3>
                         <div id="conteudoPrintsAdmin" style="display: flex; flex-direction: column; gap: 15px;">A carregar comprovantes...</div>
                     </div>
@@ -1027,12 +1030,12 @@
                         const div = document.createElement('div');
                         div.style.background = 'rgba(15, 23, 42, 0.7)';
                         div.style.padding = '12px';
-                        div.style.borderRadius = '6px';
+                        div.style.borderRadius = '8px';
                         div.style.border = '1px solid rgba(56, 189, 248, 0.3)';
                         div.innerHTML = `
                             <p style="font-weight: bold; color: #38bdf8; margin-bottom: 5px;">${item.motivo} <span style="font-size: 11px; color: #94a3b8; float: right;">Ciclo: ${item.ciclo} | ${new Date(item.data).toLocaleString()}</span></p>
                             <div style="margin-top: 8px; text-align: center;">
-                                <img src="${item.comprovante}" style="max-width: 100%; max-height: 300px; border-radius: 4px; border: 1px solid #38bdf8; cursor: pointer;" onclick="window.open('${item.comprovante}')" title="Clique para ampliar">
+                                <img src="${item.comprovante}" style="max-width: 100%; max-height: 300px; border-radius: 8px; border: 1px solid #38bdf8; cursor: pointer;" onclick="window.open('${item.comprovante}')" title="Clique para ampliar">
                                 <p style="font-size: 10px; color: #94a3b8; margin-top: 4px;">Clique na imagem para abrir em tamanho real</p>
                             </div>
                         `;
@@ -1075,43 +1078,40 @@
         carregarElegiveisSorteio();
 
         async function executarSorteioImediato() {
-            const qtdGanhadores = document.getElementById('sorteioQtd').value;
             const premios = document.getElementById('sorteioPremios').value;
 
             mostrarModalCustomizado(
-                'Confirmação de Sorteio (Manual)',
-                `Deseja efetuar o sorteio manual para ${qtdGanhadores} ganhador(es) elegíveis com 2h+ cumpridas?`,
+                'Girar Roleta Ao Vivo',
+                `Deseja acionar a roleta visual ao vivo para sortear 1 vencedor entre os elegíveis (2h+)? O vencedor sairá automaticamente da roleta para o próximo giro.`,
                 'confirmacao',
                 async () => {
                     try {
                         const res = await fetch('/api/admin/sorteio/realizar', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ qtdGanhadores, premios })
+                            body: JSON.stringify({ premios })
                         });
                         const data = await res.json();
 
                         if (data.success) {
-                            let resultadoHtml = '🎉 <b>Ganhadores Sorteados (Elegíveis 2h+):</b><br>';
-                            data.ganhadores.forEach(g => {
-                                resultadoHtml += `• ${g.nickname} (${g.cargo}) levou: <b>${g.premio}</b><br>`;
-                                
-                                socket.emit('chat_mensagem', {
-                                    salaId: 'sala_geral_salazar',
-                                    nickname: 'SORTEIO OFICIAL',
-                                    cargo: 'Comando',
-                                    mensagem: `🏆 O operacional ${g.nickname} (${g.cargo}) foi contemplado no sorteio oficial e ganhou: ${g.premio}!`
-                                });
+                            const g = data.ganhadores[0];
+                            document.getElementById('resultadoSorteio').innerHTML = `🎉 <b>Último Vencedor na Roleta:</b> ${g.nickname} (${g.cargo}) levou <b>${g.premio}</b>`;
+                            
+                            socket.emit('chat_mensagem', {
+                                salaId: 'sala_geral_salazar',
+                                nickname: 'ROLETA OFICIAL',
+                                cargo: 'Comando',
+                                mensagem: `🎰 A roleta girou! ${g.nickname} (${g.cargo}) ganhou: ${g.premio}!`
                             });
 
-                            document.getElementById('resultadoSorteio').innerHTML = resultadoHtml;
-                            mostrarModalCustomizado('Sucesso', 'Sorteio executado com sucesso!');
+                            carregarElegiveisSorteio();
+                            mostrarModalCustomizado('Sucesso', `A roleta girou com sucesso! Vencedor: <b>${g.nickname}</b> (${g.premio}).`);
                         } else {
                             mostrarModalCustomizado('Aviso', data.message);
                         }
                     } catch (e) {
                         console.error(e);
-                        mostrarModalCustomizado('Erro', 'Erro ao processar o sorteio.');
+                        mostrarModalCustomizado('Erro', 'Erro ao girar a roleta.');
                     }
                 }
             );
@@ -1119,16 +1119,21 @@
 
         async function resetarElegiveisSorteio() {
             mostrarModalCustomizado(
-                'Confirmação de Reset de Elegíveis',
-                'Tem a certeza que deseja limpar os elegíveis deste ciclo? Os nomes vão sair da lista instantaneamente, mantendo as horas do ranking intactas.',
+                'Resetar Ciclo da Roleta',
+                'Tem a certeza que deseja limpar a lista de quem já ganhou neste ciclo para que todos os elegíveis com 2h+ possam participar novamente?',
                 'confirmacao',
                 async () => {
                     try {
-                        document.getElementById('listaElegiveisSorteio').innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível com 2h+ cumpridas HOJE neste ciclo.</span>`;
-                        mostrarModalCustomizado('Sucesso', 'Lista de elegíveis limpa com sucesso!');
+                        const res = await fetch('/api/admin/sorteio/resetar-ciclo', { method: 'POST' });
+                        const data = await res.json();
+                        if (data.success) {
+                            carregarElegiveisSorteio();
+                            document.getElementById('resultadoSorteio').innerHTML = '';
+                            mostrarModalCustomizado('Sucesso', 'Ciclo da roleta resetado! Todos com 2h+ voltaram para a roleta.');
+                        }
                     } catch (e) {
                         console.error(e);
-                        mostrarModalCustomizado('Erro', 'Erro ao resetar elegíveis.');
+                        mostrarModalCustomizado('Erro', 'Erro ao resetar ciclo.');
                     }
                 }
             );
@@ -1210,7 +1215,7 @@
 
             document.getElementById('modalCustomMessage').innerHTML = `
                 <p style="margin-bottom: 10px;">Selecione o novo cargo hierárquico:</p>
-                <select id="selectNovoCargo" style="width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 6px; color: white; font-size: 14px; text-align-last: center; outline: none;">
+                <select id="selectNovoCargo" style="width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 8px; color: white; font-size: 14px; text-align-last: center; outline: none;">
                     ${optionsHtml}
                 </select>
             `;

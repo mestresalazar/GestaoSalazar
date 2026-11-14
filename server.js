@@ -40,7 +40,8 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors());
 
-// Servir ficheiros estáticos da pasta public
+// CORREÇÃO: Servir ficheiros estáticos tanto da raiz como da pasta public (resolve o erro 404 do manifest.json)
+app.use(express.static(__dirname));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Rota raiz para abrir o index.html (Login) automaticamente ao entrar no link principal
@@ -916,8 +917,11 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
     }
 });
 
+// --- CONTROLE DE SORTEIO E ROLETA AO VIVO ---
+let ganhadoresDoCicloAtual = [];
+
 app.get('/api/admin/sorteio/status', (req, res) => {
-    res.json({ success: true, agendamento: null });
+    res.json({ success: true, agendamento: null, ganhadoresCiclo: ganhadoresDoCicloAtual });
 });
 
 app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
@@ -925,6 +929,8 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
     const membros = await User.find({}, 'nickname cargo historicoTurnos.duracao historicoTurnos.data').lean();
     const elegiveis = membros.filter(m => {
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
+      if (ganhadoresDoCicloAtual.includes(m.nickname.toLowerCase())) return false;
+
       const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoPertenceAoCicloAtual(t.data));
       const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
       return totalSegundosHoje >= 7200;
@@ -935,30 +941,67 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
   }
 });
 
+app.post('/api/admin/sorteio/resetar-ciclo', async (req, res) => {
+    ganhadoresDoCicloAtual = [];
+    io.emit('atualizar_status_geral_tropa');
+    await registarLogAdmin('Comando', 'Reset de Ciclo da Roleta', 'Lista de vencedores do ciclo limpa. Todos com 2h+ voltaram para a roleta.');
+    res.json({ success: true, message: 'Ciclo da roleta resetado!' });
+});
+
 app.post('/api/admin/sorteio/realizar', async (req, res) => {
   try {
-    const { qtdGanhadores, premios } = req.body;
+    const { premios } = req.body;
     const membros = await User.find({}, 'nickname cargo historicoTurnos.duracao historicoTurnos.data').lean();
+    
     const elegiveis = membros.filter(m => {
+      if (ganhadoresDoCicloAtual.includes(m.nickname.toLowerCase())) return false;
       const turnosDeHojeValidos = (m.historicoTurnos || []).filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoPertenceAoCicloAtual(t.data));
       return turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0) >= 7200;
     });
 
-    if (elegiveis.length === 0) return res.json({ success: false, message: 'Não há elegíveis com 2h+.' });
-
-    const premiosLista = premios ? premios.split(',').map(p => p.trim()) : ['Prêmio'];
-    const ganhadores = [];
-    for (let i = 0; i < Math.min(parseInt(qtdGanhadores) || 1, elegiveis.length); i++) {
-      const rand = Math.floor(Math.random() * elegiveis.length);
-      const escolhido = elegiveis.splice(rand, 1)[0];
-      const premio = premiosLista[i % premiosLista.length];
-      ganhadores.push({ nickname: escolhido.nickname, cargo: escolhido.cargo, premio });
+    if (elegiveis.length === 0) {
+        return res.json({ success: false, message: 'Não há elegíveis disponíveis (ou todos os elegíveis já ganharam neste ciclo).' });
     }
 
-    await registarLogAdmin('Comando', 'Sorteio Realizado (Manual)', `Ganhadores: ${ganhadores.map(g => g.nickname).join(', ')}`);
-    res.json({ success: true, ganhadores });
+    const premiosLista = premios ? premios.split(',').map(p => p.trim()).filter(Boolean) : ['Prêmio Oficial'];
+    const premioSorteado = premiosLista[0] || 'Prêmio Oficial';
+
+    const indiceVencedor = Math.floor(Math.random() * elegiveis.length);
+    const vencedor = elegiveis[indiceVencedor];
+
+    ganhadoresDoCicloAtual.push(vencedor.nickname.toLowerCase());
+    const participantesNomes = elegiveis.map(e => e.nickname);
+
+    await User.updateOne(
+        { _id: vencedor._id },
+        {
+            $push: {
+                historicoSorteios: { premio: premioSorteado, data: new Date() },
+                caixaEntrada: {
+                    titulo: '🏆 Vencedor da Roleta Oficial!',
+                    mensagem: `Parabéns! Foste sorteado na roleta ao vivo e ganhaste: <b>${premioSorteado}</b>!`,
+                    data: new Date()
+                }
+            }
+        }
+    );
+
+    io.emit('girar_roleta_ao_vivo', {
+        participantes: participantesNomes,
+        vencedor: vencedor.nickname,
+        cargoVencedor: vencedor.cargo || 'Privado',
+        indiceVencedor: indiceVencedor,
+        premio: premioSorteado
+    });
+
+    await registarLogAdmin('Comando', 'Giro da Roleta Oficial', `Vencedor: ${vencedor.nickname} | Prêmio: ${premioSorteado}`);
+    
+    res.json({ 
+        success: true, 
+        ganhadores: [{ nickname: vencedor.nickname, cargo: vencedor.cargo, premio: premioSorteado }] 
+    });
   } catch (e) {
-    res.status(500).json({ success: false, message: 'Erro ao realizar sorteio.' });
+    res.status(500).json({ success: false, message: 'Erro ao realizar sorteio na roleta.' });
   }
 });
 
