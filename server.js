@@ -81,6 +81,16 @@ function converterSegundosParaDuracao(segundosTotais) {
   return `${horas}:${minutos}:${segundos}`;
 }
 
+// CORRIGIDO: Força estritamente o relógio de Brasília (America/Sao_Paulo)
+function obterDataCicloBrasil() {
+    const agoraBrasilStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+    const agoraBrasil = new Date(agoraBrasilStr);
+    if (agoraBrasil.getHours() < 2) {
+        agoraBrasil.setDate(agoraBrasil.getDate() - 1);
+    }
+    return agoraBrasil.toISOString().split('T')[0];
+}
+
 function turnoEstaNoHorarioPermitido(dataTurno) {
     if (!dataTurno) return false;
     const d = new Date(dataTurno);
@@ -410,6 +420,7 @@ app.post('/api/membro/carteira/atualizar', async (req, res) => {
         if (!nickname) return res.status(400).json({ success: false, message: 'Nickname obrigatório.' });
 
         const saldoFinal = saldoTotal !== undefined ? saldoTotal : 0;
+        const cicloAtualBrasil = obterDataCicloBrasil();
 
         const updateObj = {
             carteiraSaldo: saldoFinal
@@ -423,7 +434,7 @@ app.post('/api/membro/carteira/atualizar', async (req, res) => {
         if (comprovantePrint) {
             const novaMissaoHistorico = {
                 data: new Date(),
-                ciclo: ciclo || new Date().toISOString().split('T')[0],
+                ciclo: ciclo || cicloAtualBrasil,
                 motivo: motivo || 'Missão Diária',
                 comprovante: comprovantePrint
             };
