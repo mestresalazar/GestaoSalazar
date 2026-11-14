@@ -197,6 +197,21 @@
             color: #34d399;
             text-shadow: 0 2px 4px rgba(0,0,0,0.8);
         }
+        .search-input-box {
+            width: 100%;
+            padding: 8px 12px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 6px;
+            color: white;
+            font-size: 13px;
+            margin-bottom: 10px;
+            outline: none;
+        }
+        .search-input-box:focus {
+            border-color: #38bdf8;
+            box-shadow: 0 0 5px rgba(56, 189, 248, 0.4);
+        }
         .chat-container-wrapper {
             display: flex;
             gap: 12px;
@@ -369,12 +384,13 @@
                 </p>
             </div>
 
-            <!-- FISCALIZAÇÃO DE PLANTÃO PÚBLICA -->
+            <!-- FISCALIZAÇÃO DE PLANTÃO PÚBLICA COM LUPA DE PESQUISA -->
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(56, 189, 248, 0.2); padding-bottom: 10px; margin-bottom: 15px;">
                     <h3 style="border: none; margin: 0; padding: 0;">👀 Fiscalização de Plantão (Tropa)</h3>
                     <button onclick="atualizarFiscalizacaoServidor()" style="background: rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; color: #38bdf8; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;">🔄 Atualizar</button>
                 </div>
+                <input type="text" id="inputPesquisaFiscalizacao" class="search-input-box" placeholder="🔍 Pesquisar operacional em plantão..." oninput="filtrarFiscalizacaoPlantao()">
                 <p style="color: #e2e8f0; margin-bottom: 10px; font-size: 13px;">Operacionais atualmente em plantão ativo no sistema:</p>
                 <div id="listaFiscalizacaoPlantao" style="max-height: 200px; overflow-y: auto; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; padding: 10px; font-size: 13px;">
                     <span style="color: #94a3b8;">A carregar efetivo em plantão...</span>
@@ -567,7 +583,6 @@
         function atualizarBadgeUsuarioUI() {
             document.getElementById('userBadgeInfo').innerHTML = `${user.nickname} (${user.cargo || 'Privado'}) <span class="status-badge status-${user.status || 'ativo'}">${(user.status || 'ativo').toUpperCase()}</span>`;
             
-            // EXCLUSIVO: Apenas Coronel All e General visualizam o link do Painel ADM
             const cargosAdminPermitidos = ['General', 'Coronel All'];
             const temPermissaoAdmin = user.role === 'admin' || cargosAdminPermitidos.includes(user.cargo);
             
@@ -579,7 +594,6 @@
         }
         atualizarBadgeUsuarioUI();
 
-        // --- FUNÇÕES DO MODAL DE PERFIL ---
         async function abrirPerfilModal() {
             document.getElementById('modalPerfil').style.display = 'flex';
             try {
@@ -1090,13 +1104,26 @@
         carregarCaixaEntrada();
         setInterval(carregarCaixaEntrada, 8000);
 
+        let cacheFiscalizacaoMembros = [];
+
         function renderizarListaFiscalizacao(listaMembrosEmPlantao) {
+            cacheFiscalizacaoMembros = listaMembrosEmPlantao || [];
+            filtrarFiscalizacaoPlantao();
+        }
+
+        function filtrarFiscalizacaoPlantao() {
             const containerFiscalizacao = document.getElementById('listaFiscalizacaoPlantao');
+            const termoBusca = (document.getElementById('inputPesquisaFiscalizacao')?.value || '').toLowerCase();
             if (!containerFiscalizacao) return;
 
             containerFiscalizacao.innerHTML = '';
-            if (listaMembrosEmPlantao && listaMembrosEmPlantao.length > 0) {
-                listaMembrosEmPlantao.forEach(u => {
+            const filtrados = cacheFiscalizacaoMembros.filter(u => 
+                (u.nickname && u.nickname.toLowerCase().includes(termoBusca)) || 
+                (u.cargo && u.cargo.toLowerCase().includes(termoBusca))
+            );
+
+            if (filtrados.length > 0) {
+                filtrados.forEach(u => {
                     const item = document.createElement('div');
                     item.style.padding = '8px 10px';
                     item.style.marginBottom = '6px';
@@ -1122,7 +1149,7 @@
                     containerFiscalizacao.appendChild(item);
                 });
             } else {
-                containerFiscalizacao.innerHTML = '<span style="font-size: 12px; color: #94a3b8;">Nenhum operacional em plantão neste momento.</span>';
+                containerFiscalizacao.innerHTML = '<span style="font-size: 12px; color: #94a3b8;">Nenhum operacional encontrado com este termo.</span>';
             }
         }
 
@@ -1155,7 +1182,6 @@
             emPlantao: (localStorage.getItem(`estado_turno_${user.nickname}`) === 'ativo')
         });
 
-        // OUVINTE EM TEMPO REAL: Atualiza o cargo e oculta/mostra o botão do painel adm instantaneamente
         socket.on('atualizar_cargo_usuario', (dadosNovos) => {
             if (dadosNovos && dadosNovos.nickname && dadosNovos.nickname.toLowerCase() === user.nickname.toLowerCase()) {
                 user.cargo = dadosNovos.novoCargo;
