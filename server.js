@@ -40,7 +40,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors());
 
-// Servir ficheiros estáticos da pasta public[cite: 5]
+// Servir ficheiros estáticos da pasta public
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Rota raiz para abrir o index.html (Login) automaticamente ao entrar no link principal
