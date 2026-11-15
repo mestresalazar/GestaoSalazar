@@ -188,7 +188,7 @@ async function verificarFechamentoAutomaticoTurnos() {
 }
 setInterval(verificarFechamentoAutomaticoTurnos, 60000);
 
-// --- SISTEMA DE ALERTA DE INATIVIDADE (+3 DIAS SEM TURNO) ---
+// --- SISTEMA AUTOMÁTICO DE ALERTA DE INATIVIDADE (+3 DIAS SEM TURNO) ---
 async function verificarInatividadeTropa() {
     try {
         const agora = new Date();
@@ -205,7 +205,7 @@ async function verificarInatividadeTropa() {
             }
 
             if (ultimoTurnoData < tresDiasAtras) {
-                // Verifica se já foi notificado recentemente para não spamar
+                // Verifica se já foi notificado nas últimas 24 horas para evitar spam
                 const jaNotificadoRecente = (membro.caixaEntrada || []).some(n => 
                     n.titulo && n.titulo.includes('Inatividade') && (agora - new Date(n.data)) < 24 * 60 * 60 * 1000
                 );
@@ -216,8 +216,8 @@ async function verificarInatividadeTropa() {
                         {
                             $push: {
                                 caixaEntrada: {
-                                    titulo: '⚠️ Alerta de Inatividade',
-                                    mensagem: 'Atenção Operacional! Estás há mais de 3 dias sem registar turnos na organização. Regulariza a tua situação para evitar sanções do Comando.',
+                                    titulo: '⚠️ Aviso de Inatividade',
+                                    mensagem: 'Atenção: Detetámos que está há mais de 3 dias sem registar turnos na organização!',
                                     data: new Date()
                                 }
                             }
@@ -1182,7 +1182,7 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
   }
 });
 
-// --- NOVAS ROTAS PARA SORTEIO DE QUEM FEZ 1 TURNO HOJE (NÃO ACUMULATIVO) ---
+// --- ROTAS PARA SORTEIO DE QUEM FEZ 1 TURNO HOJE (NÃO ACUMULATIVO) ---
 app.get('/api/admin/sorteio/elegiveis-um-turno', async (req, res) => {
   try {
     const membros = await User.find({}, 'nickname cargo historicoTurnos.data').lean();
