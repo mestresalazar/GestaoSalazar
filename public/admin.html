@@ -466,14 +466,24 @@
 
                 <div style="margin-bottom: 15px;">
                     <h4 style="color: #38bdf8; font-size: 14px; margin-bottom: 8px;">🛡️ Operacionais Elegíveis (Com 2h+ HOJE):</h4>
-                    <div id="listaElegiveisSorteio" style="max-height: 220px; overflow-y: auto; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 10px; font-size: 12px; color: #cbd5e1;">
+                    <div id="listaElegiveisSorteio" style="max-height: 180px; overflow-y: auto; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 10px; font-size: 12px; color: #cbd5e1;">
                         A carregar elegíveis...
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                    <button class="btn-action" style="background-color: rgba(22, 163, 74, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="executarSorteioImediato()">🎲 Girar Roleta Ao Vivo</button>
-                    <button class="btn-action" style="background-color: rgba(220, 38, 38, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="resetarElegiveisSorteio()">🔄 Resetar Ciclo da Roleta</button>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 15px;">
+                    <button class="btn-action" style="background-color: rgba(22, 163, 74, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="executarSorteioImediato()">🎲 Girar Roleta Ao Vivo (2h+)</button>
+                    <button class="btn-action" style="background-color: rgba(220, 38, 38, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="resetarElegiveisSorteio()">🔄 Resetar Ciclo</button>
+                    <button class="btn-action" style="background-color: rgba(217, 119, 6, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="limparElegiveis()">🧹 Limpar Elegíveis</button>
+                </div>
+
+                <!-- NOVO CARD / BOTÃO PARA QUEM FEZ APENAS 1 TURNO NO DIA -->
+                <div style="border-top: 1px dashed rgba(56, 189, 248, 0.4); padding-top: 15px; margin-top: 15px;">
+                    <h4 style="color: #38bdf8; font-size: 14px; margin-bottom: 8px;">⭐ Sorteio de Quem Fez 1 Turno (HOJE - Não Acumulativo):</h4>
+                    <div id="listaElegiveisUmTurno" style="max-height: 150px; overflow-y: auto; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 10px; font-size: 12px; color: #cbd5e1; margin-bottom: 12px;">
+                        A carregar quem fez 1 turno hoje...
+                    </div>
+                    <button class="btn-action" style="background-color: rgba(147, 51, 234, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="executarSorteioUmTurno()">🎯 Girar Roleta (Quem Fez 1 Turno Hoje)</button>
                 </div>
 
                 <div style="margin-top: 15px; border-top: 1px solid rgba(56, 189, 248, 0.2); padding-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
@@ -585,6 +595,7 @@
             carregarEfetivo();
             carregarEstatisticasMembros();
             carregarElegiveisSorteio();
+            carregarElegiveisUmTurno();
         });
 
         socket.on('atualizar_logs_admin', () => {
@@ -786,6 +797,7 @@
                             carregarEfetivo();
                             carregarEstatisticasMembros();
                             carregarElegiveisSorteio();
+                            carregarElegiveisUmTurno();
                         } else {
                             mostrarModalCustomizado('Erro', data.message);
                         }
@@ -1060,14 +1072,24 @@
                 const container = document.getElementById('listaElegiveisSorteio');
                 container.innerHTML = '';
 
+                const ignorados = JSON.parse(localStorage.getItem('elegiveisLimposManual') || '[]');
+
                 if (data.success && data.elegiveis.length > 0) {
-                    data.elegiveis.forEach(m => {
-                        const div = document.createElement('div');
-                        div.style.padding = '4px 0';
-                        div.style.borderBottom = '1px solid rgba(56, 189, 248, 0.1)';
-                        div.innerHTML = `• <b>${m.nickname}</b> (${m.cargo}) — <i style="color: #38bdf8;">Elegível (2h+ cumpridas HOJE)</i>`;
-                        container.appendChild(div);
-                    });
+                    const elegiveisFiltrados = data.elegiveis.filter(m => !ignorados.includes(m.nickname.toLowerCase()));
+
+                    if (elegiveisFiltrados.length > 0) {
+                        elegiveisFiltrados.forEach(m => {
+                            const div = document.createElement('div');
+                            div.className = 'item-elegivel-sorteio';
+                            div.dataset.nickname = m.nickname.toLowerCase();
+                            div.style.padding = '4px 0';
+                            div.style.borderBottom = '1px solid rgba(56, 189, 248, 0.1)';
+                            div.innerHTML = `• <b>${m.nickname}</b> (${m.cargo}) — <i style="color: #38bdf8;">Elegível (2h+ cumpridas HOJE)</i>`;
+                            container.appendChild(div);
+                        });
+                    } else {
+                        container.innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível com 2h+ cumpridas HOJE neste ciclo.</span>`;
+                    }
                 } else {
                     container.innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível com 2h+ cumpridas HOJE neste ciclo.</span>`;
                 }
@@ -1076,6 +1098,72 @@
             }
         }
         carregarElegiveisSorteio();
+
+        // --- FUNÇÕES DO NOVO SORTEIO DE 1 TURNO NO DIA ---
+        async function carregarElegiveisUmTurno() {
+            try {
+                const res = await fetch('/api/admin/sorteio/elegiveis-um-turno?_=' + new Date().getTime());
+                const data = await res.json();
+                const container = document.getElementById('listaElegiveisUmTurno');
+                if (!container) return;
+                container.innerHTML = '';
+
+                if (data.success && data.elegiveis.length > 0) {
+                    data.elegiveis.forEach(m => {
+                        const div = document.createElement('div');
+                        div.style.padding = '4px 0';
+                        div.style.borderBottom = '1px solid rgba(56, 189, 248, 0.1)';
+                        div.innerHTML = `• <b>${m.nickname}</b> (${m.cargo}) — <i style="color: #a855f7;">Fez 1+ turno HOJE</i>`;
+                        container.appendChild(div);
+                    });
+                } else {
+                    container.innerHTML = `<span style="color: #94a3b8;">Nenhum operacional registou turno hoje ainda.</span>`;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        carregarElegiveisUmTurno();
+
+        async function executarSorteioUmTurno() {
+            const premios = document.getElementById('sorteioPremios').value;
+
+            mostrarModalCustomizado(
+                'Roleta: Quem Fez 1 Turno Hoje',
+                `Deseja sortear 1 vencedor entre os operacionais que realizaram pelo menos 1 turno <b>hoje</b> (não acumulativo)?`,
+                'confirmacao',
+                async () => {
+                    try {
+                        const res = await fetch('/api/admin/sorteio/realizar-um-turno', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ premios })
+                        });
+                        const data = await res.json();
+
+                        if (data.success) {
+                            const g = data.ganhadores[0];
+                            document.getElementById('resultadoSorteio').innerHTML = `🎉 <b>Vencedor (1 Turno Hoje):</b> ${g.nickname} (${g.cargo}) levou <b>${g.premio}</b>`;
+                            
+                            socket.emit('chat_mensagem', {
+                                salaId: 'sala_geral_salazar',
+                                nickname: 'ROLETA 1 TURNO',
+                                cargo: 'Comando',
+                                mensagem: `🎯 A roleta de 1 turno diário girou! ${g.nickname} (${g.cargo}) ganhou: ${g.premio}!`
+                            });
+
+                            carregarElegiveisUmTurno();
+                            mostrarModalCustomizado('Sucesso', `Sorteio realizado! Vencedor: <b>${g.nickname}</b> (${g.premio}).`);
+                        } else {
+                            mostrarModalCustomizado('Aviso', data.message);
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        mostrarModalCustomizado('Erro', 'Erro ao realizar sorteio de 1 turno.');
+                    }
+                }
+            );
+        }
 
         async function executarSorteioImediato() {
             const premios = document.getElementById('sorteioPremios').value;
@@ -1124,6 +1212,7 @@
                 'confirmacao',
                 async () => {
                     try {
+                        localStorage.removeItem('elegiveisLimposManual');
                         const res = await fetch('/api/admin/sorteio/resetar-ciclo', { method: 'POST' });
                         const data = await res.json();
                         if (data.success) {
@@ -1134,6 +1223,37 @@
                     } catch (e) {
                         console.error(e);
                         mostrarModalCustomizado('Erro', 'Erro ao resetar ciclo.');
+                    }
+                }
+            );
+        }
+
+        async function limparElegiveis() {
+            mostrarModalCustomizado(
+                'Limpar Elegíveis',
+                'Tem a certeza que deseja limpar/zerar todos os operacionais elegíveis atuais da lista?',
+                'confirmacao',
+                async () => {
+                    try {
+                        const itensAtuais = document.querySelectorAll('.item-elegivel-sorteio');
+                        const ignorados = JSON.parse(localStorage.getItem('elegiveisLimposManual') || '[]');
+                        itensAtuais.forEach(el => {
+                            if (el.dataset.nickname && !ignorados.includes(el.dataset.nickname)) {
+                                ignorados.push(el.dataset.nickname);
+                            }
+                        });
+                        localStorage.setItem('elegiveisLimposManual', JSON.stringify(ignorados));
+
+                        await fetch('/api/admin/sorteio/resetar-elegiveis', { method: 'POST' });
+
+                        const container = document.getElementById('listaElegiveisSorteio');
+                        container.innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível com 2h+ cumpridas HOJE neste ciclo.</span>`;
+                        document.getElementById('resultadoSorteio').innerHTML = '';
+
+                        mostrarModalCustomizado('Sucesso', 'Lista de elegíveis limpa com sucesso!');
+                    } catch (e) {
+                        console.error(e);
+                        mostrarModalCustomizado('Erro', 'Erro ao limpar elegíveis.');
                     }
                 }
             );
@@ -1194,6 +1314,7 @@
                 carregarEfetivo(); 
                 carregarEstatisticasMembros();
                 carregarElegiveisSorteio(); 
+                carregarElegiveisUmTurno();
             }
         }
 
@@ -1249,6 +1370,7 @@
                     if (data.success) {
                         carregarEfetivo();
                         carregarElegiveisSorteio();
+                        carregarElegiveisUmTurno();
                         carregarLogsAdmin();
                         mostrarModalCustomizado('Sucesso', 'Cargo atualizado com sucesso e log registado!');
                     } else {
@@ -1269,7 +1391,7 @@
             mostrarModalCustomizado('Confirmação de Reset', 'Tem certeza que deseja apagar todo o histórico de turnos deste membro?', 'confirmacao', async () => {
                 const res = await fetch(`/api/admin/membro/resetar-turnos/${id}`, { method: 'PUT' });
                 const data = await res.json();
-                if (data.success) { fecharHistoricoAdmin(); carregarEfetivo(); carregarElegiveisSorteio(); }
+                if (data.success) { fecharHistoricoAdmin(); carregarEfetivo(); carregarElegiveisSorteio(); carregarElegiveisUmTurno(); }
             });
         }
 
@@ -1281,6 +1403,7 @@
                     carregarEfetivo(); 
                     carregarEstatisticasMembros();
                     carregarElegiveisSorteio(); 
+                    carregarElegiveisUmTurno();
                 }
             });
         }

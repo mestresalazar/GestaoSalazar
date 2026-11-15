@@ -40,11 +40,9 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors());
 
-// CORREÇÃO: Servir ficheiros estáticos tanto da raiz como da pasta public (resolve o erro 404 do manifest.json)
 app.use(express.static(__dirname));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Rota raiz para abrir o index.html (Login) automaticamente ao entrar no link principal
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -82,7 +80,6 @@ function converterSegundosParaDuracao(segundosTotais) {
   return `${horas}:${minutos}:${segundos}`;
 }
 
-// CORRIGIDO: Força estritamente o relógio de Brasília (America/Sao_Paulo)
 function obterDataCicloBrasil() {
     const agoraBrasilStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
     const agoraBrasil = new Date(agoraBrasilStr);
@@ -92,6 +89,7 @@ function obterDataCicloBrasil() {
     return agoraBrasil.toISOString().split('T')[0];
 }
 
+// Horário permitido estrito: das 17:00 às 02:00
 function turnoEstaNoHorarioPermitido(dataTurno) {
     if (!dataTurno) return false;
     const d = new Date(dataTurno);
@@ -125,6 +123,116 @@ function turnoPertenceAoCicloAtual(dataTurno) {
         return dStr === hojeStr;
     }
 }
+
+// --- VERIFICAÇÃO AUTOMÁTICA DE FECHO DE TURNO ÀS 02:05 ---
+async function verificarFechamentoAutomaticoTurnos() {
+    try {
+        const agoraBrasilStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+        const agoraBrasil = new Date(agoraBrasilStr);
+        const hora = agoraBrasil.getHours();
+        const minuto = agoraBrasil.getMinutes();
+
+        if (hora === 2 && minuto >= 5 && minuto <= 7) {
+            const membrosEmPlantao = await User.find({ emPlantao: true }).lean();
+            
+            for (const membro of membrosEmPlantao) {
+                let segundosTotais = membro.segundosAcumulados || 0;
+                if (membro.inicioPlantao) {
+                    const inicio = new Date(membro.inicioPlantao);
+                    const agora = new Date();
+                    const segundosDecorridos = Math.floor((agora - inicio) / 1000);
+                    if (segundosDecorridos > 0) segundosTotais += segundosDecorridos;
+                }
+
+                if (segundosTotais >= 5) {
+                    const duracaoFormatada = converterSegundosParaDuracao(segundosTotais);
+                    const novoTurno = {
+                        data: new Date(),
+                        duracao: duracaoFormatada,
+                        fotoComprovante: 'Fechamento Automático (Limite 02:05)'
+                    };
+
+                    await User.updateOne(
+                        { _id: membro._id },
+                        { 
+                            $push: { 
+                                historicoTurnos: novoTurno,
+                                caixaEntrada: {
+                                    titulo: '⏱️ Turno Finalizado Automaticamente',
+                                    mensagem: `O teu plantão foi encerrado e salvo automaticamente pelo sistema devido ao atingimento do horário limite (02:05). Duração: <b>${duracaoFormatada}</b>.`,
+                                    data: new Date()
+                                }
+                            }, 
+                            $set: { 
+                                emPlantao: false, 
+                                estadoTurno: 'parado',
+                                inicioPlantao: null,
+                                segundosAcumulados: 0,
+                                fotoComprovanteAtiva: ''
+                            } 
+                        }
+                    );
+
+                    io.emit('atualizar_estado_turno_usuario', { nickname: membro.nickname.toLowerCase() });
+                    await registarLogAdmin(membro.nickname, 'Fechamento Automático', `Turno encerrado às 02:05. Duração salva: ${duracaoFormatada}`);
+                }
+            }
+            if (membrosEmPlantao.length > 0) {
+                io.emit('atualizar_status_geral_tropa');
+                console.log(`[AUTO-CLOSE] Fechados turnos automáticos de ${membrosEmPlantao.length} operacionais às 02:05.`);
+            }
+        }
+    } catch (e) {
+        console.error("Erro no processo automático de fecho de turnos:", e);
+    }
+}
+setInterval(verificarFechamentoAutomaticoTurnos, 60000);
+
+// --- SISTEMA DE ALERTA DE INATIVIDADE (+3 DIAS SEM TURNO) ---
+async function verificarInatividadeTropa() {
+    try {
+        const agora = new Date();
+        const tresDiasAtras = new Date(agora.getTime() - (3 * 24 * 60 * 60 * 1000));
+
+        const membros = await User.find({ status: 'ativo' }).lean();
+        for (const membro of membros) {
+            const turnos = membro.historicoTurnos || [];
+            let ultimoTurnoData = membro._id.getTimestamp(); // baseia-se na criação se nunca fez turno
+
+            if (turnos.length > 0) {
+                const ultimo = turnos[turnos.length - 1];
+                if (ultimo.data) ultimoTurnoData = new Date(ultimo.data);
+            }
+
+            if (ultimoTurnoData < tresDiasAtras) {
+                // Verifica se já foi notificado recentemente para não spamar
+                const jaNotificadoRecente = (membro.caixaEntrada || []).some(n => 
+                    n.titulo && n.titulo.includes('Inatividade') && (agora - new Date(n.data)) < 24 * 60 * 60 * 1000
+                );
+
+                if (!jaNotificadoRecente) {
+                    await User.updateOne(
+                        { _id: membro._id },
+                        {
+                            $push: {
+                                caixaEntrada: {
+                                    titulo: '⚠️ Alerta de Inatividade',
+                                    mensagem: 'Atenção Operacional! Estás há mais de 3 dias sem registar turnos na organização. Regulariza a tua situação para evitar sanções do Comando.',
+                                    data: new Date()
+                                }
+                            }
+                        }
+                    );
+                    await registarLogAdmin('Sistema', 'Alerta de Inatividade', `Operacional ${membro.nickname} está há mais de 3 dias sem turnos.`);
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Erro ao verificar inatividade:", e);
+    }
+}
+// Executa a verificação de inatividade a cada 4 horas
+setInterval(verificarInatividadeTropa, 4 * 60 * 60 * 1000);
 
 // --- ROTAS DE AUTENTICAÇÃO ---
 app.post('/api/auth/login', async (req, res) => {
@@ -173,7 +281,6 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-// --- ROTAS DO MEMBRO (PERFIL E AVATAR) ---
 app.get('/api/membro/perfil/:nickname', async (req, res) => {
     try {
         const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }).lean();
@@ -331,10 +438,28 @@ app.post('/api/admin/disparar-acao', async (req, res) => {
     }
 });
 
+// --- VALIDAÇÃO DE HORÁRIO PARA INICIAR/ATUALIZAR PLANTÕES ---
 app.put('/api/membro/status-plantao', async (req, res) => {
     try {
         const { nickname, emPlantao, estadoTurno, inicioPlantao, segundosAcumulados, fotoComprovanteAtiva } = req.body;
         if (!nickname) return res.status(400).json({ success: false, message: 'Nickname obrigatório.' });
+
+        if (emPlantao) {
+            const agoraBrasilStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+            const agoraBrasil = new Date(agoraBrasilStr);
+            const hora = agoraBrasil.getHours();
+
+            const membroUser = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') }).lean();
+            const cargo = membroUser ? (membroUser.cargo || '') : '';
+            const ehMestre = nickname.toLowerCase().trim() === 'mestre' || cargo === 'General' || cargo === 'Coronel All';
+
+            if (!ehMestre && !(hora >= 17 || hora < 2)) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'Plantões só podem ser iniciados a partir das 17:00 até às 02:00 da madrugada!' 
+                });
+            }
+        }
 
         const updateData = {
             emPlantao: !!emPlantao,
@@ -407,7 +532,7 @@ app.get('/api/membro/carteira/:nickname', async (req, res) => {
 
         res.json({
             success: true,
-            saldo: membro.carteiraSaldo || 0,
+            saldo: membro.carteiraSaldo !== undefined ? membro.carteiraSaldo : 0,
             missoes: membro.missoesDiarias || []
         });
     } catch (error) {
@@ -420,7 +545,8 @@ app.post('/api/membro/carteira/atualizar', async (req, res) => {
         const { nickname, missoes, saldoTotal, motivo, ciclo, comprovantePrint } = req.body;
         if (!nickname) return res.status(400).json({ success: false, message: 'Nickname obrigatório.' });
 
-        const saldoFinal = saldoTotal !== undefined ? saldoTotal : 0;
+        // Permite saldo negativo ou positivo sem travar em 0
+        const saldoFinal = saldoTotal !== undefined ? Number(saldoTotal) : 0;
         const cicloAtualBrasil = obterDataCicloBrasil();
 
         const updateObj = {
@@ -447,7 +573,7 @@ app.post('/api/membro/carteira/atualizar', async (req, res) => {
             queryUpdate.$push = pushObj;
         }
 
-        await User.updateOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, queryUpdate);
+        await User.updateOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') }, queryUpdate);
 
         await registarLogAdmin(nickname, 'Atualização de Missões', `Progresso de missões atualizado. Saldo atual: R$ ${saldoFinal}`);
         res.json({ success: true, message: 'Missões e carteira atualizadas com sucesso!' });
@@ -485,7 +611,7 @@ app.get('/api/admin/membro/missoes/:id', async (req, res) => {
             success: true,
             nickname: membro.nickname,
             cargo: membro.cargo,
-            saldo: membro.carteiraSaldo || 0,
+            saldo: membro.carteiraSaldo !== undefined ? membro.carteiraSaldo : 0,
             historicoMissoes: listaMissoes
         });
     } catch (e) {
@@ -917,50 +1043,95 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
     }
 });
 
-// --- CONTROLE DE SORTEIO E ROLETA AO VIVO ---
-let ganhadoresDoCicloAtual = [];
+async function obterConfigSorteio() {
+    let config = await ConfigSorteio.findOne().lean();
+    if (!config) {
+        const novo = await ConfigSorteio.create({ ganhadoresCiclo: [], dataUltimoReset: null });
+        return novo.toObject();
+    }
+    return config;
+}
 
-app.get('/api/admin/sorteio/status', (req, res) => {
-    res.json({ success: true, agendamento: null, ganhadoresCiclo: ganhadoresDoCicloAtual });
+app.get('/api/admin/sorteio/status', async (req, res) => {
+    try {
+        const config = await obterConfigSorteio();
+        res.json({ success: true, agendamento: null, ganhadoresCiclo: config.ganhadoresCiclo || [] });
+    } catch (e) {
+        res.json({ success: true, agendamento: null, ganhadoresCiclo: [] });
+    }
 });
 
 app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
   try {
+    const config = await obterConfigSorteio();
+    const ganhadoresCiclo = config.ganhadoresCiclo || [];
+    const dataCorte = config.dataUltimoReset ? new Date(config.dataUltimoReset) : null;
+
     const membros = await User.find({}, 'nickname cargo historicoTurnos.duracao historicoTurnos.data').lean();
     const elegiveis = membros.filter(m => {
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
-      if (ganhadoresDoCicloAtual.includes(m.nickname.toLowerCase())) return false;
+      
+      const nicknameLower = m.nickname.toLowerCase().trim();
+      if (ganhadoresCiclo.includes(nicknameLower)) return false;
 
-      const turnosDeHojeValidos = m.historicoTurnos.filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoPertenceAoCicloAtual(t.data));
-      const totalSegundosHoje = turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
-      return totalSegundosHoje >= 7200;
+      const turnosValidos = m.historicoTurnos.filter(t => {
+          const dTurno = new Date(t.data);
+          if (dataCorte && dTurno <= dataCorte) return false;
+          return turnoEstaNoHorarioPermitido(t.data) && turnoPertenceAoCicloAtual(t.data);
+      });
+
+      const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+      return totalSegundos >= 7200;
     });
+
     res.json({ success: true, elegiveis: elegiveis.map(m => ({ id: m._id, nickname: m.nickname, cargo: m.cargo || 'Privado' })) });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Erro ao carregar elegíveis.' });
   }
 });
 
-app.post('/api/admin/sorteio/resetar-ciclo', async (req, res) => {
-    ganhadoresDoCicloAtual = [];
-    io.emit('atualizar_status_geral_tropa');
-    await registarLogAdmin('Comando', 'Reset de Ciclo da Roleta', 'Lista de vencedores do ciclo limpa. Todos com 2h+ voltaram para a roleta.');
-    res.json({ success: true, message: 'Ciclo da roleta resetado!' });
-});
+async function executarResetCiclo(req, res) {
+    try {
+        await ConfigSorteio.collection.updateOne(
+            {},
+            { $set: { ganhadoresCiclo: [], dataUltimoReset: new Date() } },
+            { upsert: true }
+        );
+        io.emit('atualizar_status_geral_tropa');
+        await registarLogAdmin('Comando', 'Reset de Elegíveis', 'Lista de elegíveis zerada.');
+        res.json({ success: true, message: 'Elegíveis resetados com sucesso! A lista foi limpa.' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao resetar elegíveis.' });
+    }
+}
+
+app.post('/api/admin/sorteio/resetar-ciclo', executarResetCiclo);
+app.post('/api/admin/sorteio/resetar-elegiveis', executarResetCiclo);
 
 app.post('/api/admin/sorteio/realizar', async (req, res) => {
   try {
     const { premios } = req.body;
+    const config = await obterConfigSorteio();
+    const ganhadoresCiclo = config.ganhadoresCiclo || [];
+    const dataCorte = config.dataUltimoReset ? new Date(config.dataUltimoReset) : null;
+
     const membros = await User.find({}, 'nickname cargo historicoTurnos.duracao historicoTurnos.data').lean();
     
     const elegiveis = membros.filter(m => {
-      if (ganhadoresDoCicloAtual.includes(m.nickname.toLowerCase())) return false;
-      const turnosDeHojeValidos = (m.historicoTurnos || []).filter(t => turnoEstaNoHorarioPermitido(t.data) && turnoPertenceAoCicloAtual(t.data));
-      return turnosDeHojeValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0) >= 7200;
+      const nicknameLower = m.nickname.toLowerCase().trim();
+      if (ganhadoresCiclo.includes(nicknameLower)) return false;
+
+      const turnosValidos = (m.historicoTurnos || []).filter(t => {
+          const dTurno = new Date(t.data);
+          if (dataCorte && dTurno <= dataCorte) return false;
+          return turnoEstaNoHorarioPermitido(t.data) && turnoPertenceAoCicloAtual(t.data);
+      });
+
+      return turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0) >= 7200;
     });
 
     if (elegiveis.length === 0) {
-        return res.json({ success: false, message: 'Não há elegíveis disponíveis (ou todos os elegíveis já ganharam neste ciclo).' });
+        return res.json({ success: false, message: 'Não há elegíveis disponíveis no momento.' });
     }
 
     const premiosLista = premios ? premios.split(',').map(p => p.trim()).filter(Boolean) : ['Prêmio Oficial'];
@@ -968,8 +1139,14 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
 
     const indiceVencedor = Math.floor(Math.random() * elegiveis.length);
     const vencedor = elegiveis[indiceVencedor];
+    const vencedorLower = vencedor.nickname.toLowerCase().trim();
 
-    ganhadoresDoCicloAtual.push(vencedor.nickname.toLowerCase());
+    await ConfigSorteio.collection.updateOne(
+        {},
+        { $addToSet: { ganhadoresCiclo: vencedorLower } },
+        { upsert: true }
+    );
+
     const participantesNomes = elegiveis.map(e => e.nickname);
 
     await User.updateOne(
@@ -1001,7 +1178,67 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
         ganhadores: [{ nickname: vencedor.nickname, cargo: vencedor.cargo, premio: premioSorteado }] 
     });
   } catch (e) {
-    res.status(500).json({ success: false, message: 'Erro ao realizar sorteio na roleta.' });
+    res.status(500).json({ success: false, message: 'Erro ao realizar sorteio na roleta: ' + e.message });
+  }
+});
+
+// --- NOVAS ROTAS PARA SORTEIO DE QUEM FEZ 1 TURNO HOJE (NÃO ACUMULATIVO) ---
+app.get('/api/admin/sorteio/elegiveis-um-turno', async (req, res) => {
+  try {
+    const membros = await User.find({}, 'nickname cargo historicoTurnos.data').lean();
+    const elegiveis = membros.filter(m => {
+      if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
+      return m.historicoTurnos.some(t => turnoPertenceAoCicloAtual(t.data));
+    });
+
+    res.json({ success: true, elegiveis: elegiveis.map(m => ({ id: m._id, nickname: m.nickname, cargo: m.cargo || 'Privado' })) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Erro ao carregar elegíveis de 1 turno.' });
+  }
+});
+
+app.post('/api/admin/sorteio/realizar-um-turno', async (req, res) => {
+  try {
+    const { premios } = req.body;
+    const membros = await User.find({}, 'nickname cargo historicoTurnos.data').lean();
+    
+    const elegiveis = membros.filter(m => {
+      if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
+      return m.historicoTurnos.some(t => turnoPertenceAoCicloAtual(t.data));
+    });
+
+    if (elegiveis.length === 0) {
+        return res.json({ success: false, message: 'Não há operacionais com turnos registados hoje.' });
+    }
+
+    const premiosLista = premios ? premios.split(',').map(p => p.trim()).filter(Boolean) : ['Prêmio Oficial'];
+    const premioSorteado = premiosLista[0] || 'Prêmio Oficial';
+
+    const indiceVencedor = Math.floor(Math.random() * elegiveis.length);
+    const vencedor = elegiveis[indiceVencedor];
+
+    await User.updateOne(
+        { _id: vencedor._id },
+        {
+            $push: {
+                historicoSorteios: { premio: premioSorteado, data: new Date() },
+                caixaEntrada: {
+                    titulo: '🏆 Vencedor da Roleta (1 Turno Hoje)!',
+                    mensagem: `Parabéns! Foste sorteado na roleta diária de 1 turno e ganhaste: <b>${premioSorteado}</b>!`,
+                    data: new Date()
+                }
+            }
+        }
+    );
+
+    await registarLogAdmin('Comando', 'Giro Roleta 1 Turno Hoje', `Vencedor: ${vencedor.nickname} | Prêmio: ${premioSorteado}`);
+    
+    res.json({ 
+        success: true, 
+        ganhadores: [{ nickname: vencedor.nickname, cargo: vencedor.cargo, premio: premioSorteado }] 
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, message: 'Erro ao realizar sorteio: ' + e.message });
   }
 });
 
