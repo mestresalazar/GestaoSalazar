@@ -89,7 +89,6 @@ function obterDataCicloBrasil() {
     return agoraBrasil.toISOString().split('T')[0];
 }
 
-// Horário permitido estrito: das 17:00 às 02:00
 function turnoEstaNoHorarioPermitido(dataTurno) {
     if (!dataTurno) return false;
     const d = new Date(dataTurno);
@@ -123,6 +122,42 @@ function turnoPertenceAoCicloAtual(dataTurno) {
         return dStr === hojeStr;
     }
 }
+
+// --- ROTAS DO LINK DO WHATSAPP ---
+app.get('/api/admin/whatsapp-link', async (req, res) => {
+    try {
+        const config = await ConfigSorteio.collection.findOne({ chave: 'whatsapp_grupo' });
+        res.json({ success: true, link: config ? config.link : '' });
+    } catch (e) {
+        console.error("Erro ao buscar link WhatsApp:", e);
+        res.status(500).json({ success: false, message: 'Erro ao buscar link do WhatsApp' });
+    }
+});
+
+app.post('/api/admin/whatsapp-link', async (req, res) => {
+    try {
+        const { adminNickname, link } = req.body;
+        
+        await ConfigSorteio.collection.updateOne(
+            { chave: 'whatsapp_grupo' },
+            { 
+                $set: { 
+                    chave: 'whatsapp_grupo',
+                    link: link || '', 
+                    atualizadoPor: adminNickname || 'Comando', 
+                    data: new Date() 
+                } 
+            },
+            { upsert: true }
+        );
+
+        await registarLogAdmin(adminNickname || 'Comando', 'Atualizou Link do WhatsApp', `Novo link configurado: ${link}`);
+        res.json({ success: true, message: 'Link do WhatsApp atualizado com sucesso!' });
+    } catch (e) {
+        console.error("Erro ao salvar link WhatsApp:", e);
+        res.status(500).json({ success: false, message: 'Erro ao salvar link do WhatsApp' });
+    }
+});
 
 // --- VERIFICAÇÃO AUTOMÁTICA DE FECHO DE TURNO ÀS 02:05 ---
 async function verificarFechamentoAutomaticoTurnos() {
@@ -197,7 +232,7 @@ async function verificarInatividadeTropa() {
         const membros = await User.find({ status: 'ativo' }).lean();
         for (const membro of membros) {
             const turnos = membro.historicoTurnos || [];
-            let ultimoTurnoData = membro._id.getTimestamp(); // baseia-se na criação se nunca fez turno
+            let ultimoTurnoData = membro._id.getTimestamp();
 
             if (turnos.length > 0) {
                 const ultimo = turnos[turnos.length - 1];
@@ -205,7 +240,6 @@ async function verificarInatividadeTropa() {
             }
 
             if (ultimoTurnoData < tresDiasAtras) {
-                // Verifica se já foi notificado nas últimas 24 horas para evitar spam
                 const jaNotificadoRecente = (membro.caixaEntrada || []).some(n => 
                     n.titulo && n.titulo.includes('Inatividade') && (agora - new Date(n.data)) < 24 * 60 * 60 * 1000
                 );
@@ -231,7 +265,6 @@ async function verificarInatividadeTropa() {
         console.error("Erro ao verificar inatividade:", e);
     }
 }
-// Executa a verificação de inatividade a cada 4 horas
 setInterval(verificarInatividadeTropa, 4 * 60 * 60 * 1000);
 
 // --- ROTAS DE AUTENTICAÇÃO ---
@@ -314,6 +347,7 @@ app.get('/api/membro/perfil/:nickname', async (req, res) => {
                 cargo: membro.cargo || 'Privado',
                 status: membro.status || 'ativo',
                 avatar: membro.avatar || '',
+                telefone: membro.telefone || '',
                 totalHoras: totalHorasFormatado,
                 tempoGestao: tempoGestaoStr,
                 ultimoPlantao: ultimoTurno
@@ -337,6 +371,29 @@ app.put('/api/membro/atualizar-avatar', async (req, res) => {
         res.json({ success: true, message: 'Avatar atualizado com sucesso!' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao atualizar avatar.' });
+    }
+});
+
+app.put('/api/membro/atualizar-perfil', async (req, res) => {
+    try {
+        const { nickname, telefone, avatar } = req.body;
+        if (!nickname) return res.status(400).json({ success: false, message: 'Nickname obrigatório.' });
+
+        const updateData = {};
+        if (telefone !== undefined) {
+            updateData.telefone = telefone;
+            await registarLogAdmin(nickname, 'Atualizou Telemóvel / WhatsApp', `Operacional ${nickname} definiu o número de telemóvel: ${telefone}`);
+        }
+        if (avatar !== undefined) updateData.avatar = avatar;
+
+        await User.updateOne(
+            { nickname: new RegExp('^' + nickname.trim() + '$', 'i') },
+            { $set: updateData }
+        );
+
+        res.json({ success: true, message: 'Perfil atualizado com sucesso!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao atualizar perfil.' });
     }
 });
 
@@ -438,7 +495,6 @@ app.post('/api/admin/disparar-acao', async (req, res) => {
     }
 });
 
-// --- VALIDAÇÃO DE HORÁRIO PARA INICIAR/ATUALIZAR PLANTÕES ---
 app.put('/api/membro/status-plantao', async (req, res) => {
     try {
         const { nickname, emPlantao, estadoTurno, inicioPlantao, segundosAcumulados, fotoComprovanteAtiva } = req.body;
@@ -545,7 +601,6 @@ app.post('/api/membro/carteira/atualizar', async (req, res) => {
         const { nickname, missoes, saldoTotal, motivo, ciclo, comprovantePrint } = req.body;
         if (!nickname) return res.status(400).json({ success: false, message: 'Nickname obrigatório.' });
 
-        // Permite saldo negativo ou positivo sem travar em 0
         const saldoFinal = saldoTotal !== undefined ? Number(saldoTotal) : 0;
         const cicloAtualBrasil = obterDataCicloBrasil();
 
@@ -1044,10 +1099,14 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
 });
 
 async function obterConfigSorteio() {
-    let config = await ConfigSorteio.findOne().lean();
+    let config = await ConfigSorteio.collection.findOne({ chave: 'sorteio_ativo' });
     if (!config) {
-        const novo = await ConfigSorteio.create({ ganhadoresCiclo: [], dataUltimoReset: null });
-        return novo.toObject();
+        await ConfigSorteio.collection.updateOne(
+            { chave: 'sorteio_ativo' },
+            { $set: { chave: 'sorteio_ativo', ganhadoresCiclo: [], dataUltimoReset: null } },
+            { upsert: true }
+        );
+        return { chave: 'sorteio_ativo', ganhadoresCiclo: [], dataUltimoReset: null };
     }
     return config;
 }
@@ -1093,8 +1152,8 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
 async function executarResetCiclo(req, res) {
     try {
         await ConfigSorteio.collection.updateOne(
-            {},
-            { $set: { ganhadoresCiclo: [], dataUltimoReset: new Date() } },
+            { chave: 'sorteio_ativo' },
+            { $set: { chave: 'sorteio_ativo', ganhadoresCiclo: [], dataUltimoReset: new Date() } },
             { upsert: true }
         );
         io.emit('atualizar_status_geral_tropa');
@@ -1142,7 +1201,7 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
     const vencedorLower = vencedor.nickname.toLowerCase().trim();
 
     await ConfigSorteio.collection.updateOne(
-        {},
+        { chave: 'sorteio_ativo' },
         { $addToSet: { ganhadoresCiclo: vencedorLower } },
         { upsert: true }
     );
@@ -1182,7 +1241,6 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
   }
 });
 
-// --- ROTAS PARA SORTEIO DE QUEM FEZ 1 TURNO HOJE (NÃO ACUMULATIVO) ---
 app.get('/api/admin/sorteio/elegiveis-um-turno', async (req, res) => {
   try {
     const membros = await User.find({}, 'nickname cargo historicoTurnos.data').lean();

@@ -343,7 +343,6 @@
             font-weight: bold;
         }
 
-        /* MODAL DA ROLETA AO VIVO - DESIGN PROFISSIONAL E COLORIDO */
         #modalRoletaAoVivo {
             display: none;
             position: fixed;
@@ -398,6 +397,7 @@
             <a href="admin.html" id="navAdminLink" style="display: none; background: rgba(3, 105, 161, 0.8); color: #fff;">Painel ADM</a>
             <button class="btn-action" style="margin-top:0; padding: 6px 12px; font-size: 13px; background: rgba(51, 65, 85, 0.8); width: auto;" onclick="abrirHistorico()">Meu Histórico 📜</button>
             <button class="btn-action" style="margin-top:0; padding: 6px 12px; font-size: 13px; background: rgba(147, 51, 234, 0.8); width: auto;" onclick="abrirPerfilModal()">Meu Perfil 👤</button>
+            <button class="btn-action" id="btnGrupoWhatsappNav" style="display: none; margin-top:0; padding: 6px 12px; font-size: 13px; background: rgba(34, 197, 94, 0.9); width: auto;" onclick="abrirGrupoWhatsapp()">📱 Grupo WhatsApp</button>
             <span id="userBadgeInfo" style="font-size: 13px; color: #e2e8f0; margin-left: 10px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);"></span>
             <button class="logout-btn" onclick="logout()">Sair</button>
         </div>
@@ -540,7 +540,7 @@
         </div>
     </div>
 
-    <!-- MODAL DA ROLETA AO VIVO (PROFISSIONAL E COLORIDA) -->
+    <!-- MODAL DA ROLETA AO VIVO -->
     <div id="modalRoletaAoVivo">
         <div class="roleta-container">
             <span style="background: rgba(234, 179, 8, 0.2); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.5); padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">🎰 Roleta Tática Oficial</span>
@@ -568,20 +568,25 @@
                 <div class="avatar-preview" id="imgAvatarVisualizar">🛡️</div>
             </div>
 
-            <div style="margin-bottom: 15px;">
+            <div style="margin-bottom: 12px; text-align: left;">
                 <label style="font-size: 12px; color: #94a3b8;">Alterar Foto de Avatar (Imagem):</label>
-                <input type="file" id="inputFotoAvatar" accept="image/*" onchange="converterAvatarLocal(this)" style="width: 100%; padding: 6px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; color: white; font-size: 12px; margin-top: 5px;">
+                <input type="file" id="inputFotoAvatar" accept="image/*" onchange="converterAvatarLocal(this)" style="width: 100%; padding: 6px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; color: white; font-size: 12px; margin-top: 4px;">
+            </div>
+
+            <div style="margin-bottom: 15px; text-align: left;">
+                <label style="font-size: 12px; color: #94a3b8;">Número de Telemóvel / WhatsApp:</label>
+                <input type="text" id="inputTelefonePerfil" placeholder="Ex: +55 81 99920-0148" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; font-size: 13px; margin-top: 4px; outline: none;">
             </div>
 
             <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 15px; text-align: left; font-size: 13px; display: flex; flex-direction: column; gap: 8px;">
                 <p><b>Nickname:</b> <span id="perfilNickname" style="color: #38bdf8;">-</span></p>
                 <p><b>Cargo Atual:</b> <span id="perfilCargo">-</span></p>
                 <p><b>⏱️ Total de Horas Acumuladas:</b> <span id="perfilTotalHoras" style="color: #22c55e; font-weight: bold;">-</span></p>
-                <p><b>⏳ Tempo na Organização (Gestão):</b> <span id="perfilTempoGestao" style="color: #eab308; font-weight: bold;">-</span></p>
+                <p><b>⏳ Tempo na Organização:</b> <span id="perfilTempoGestao" style="color: #eab308; font-weight: bold;">-</span></p>
                 <p><b>📌 Último Turno Salvo:</b> <span id="perfilUltimoPlantao">-</span></p>
             </div>
 
-            <button class="btn-action" style="background-color: rgba(22, 163, 74, 0.9); margin-top: 20px;" onclick="fecharPerfilModal()">Guardar & Fechar</button>
+            <button class="btn-action" style="background-color: rgba(22, 163, 74, 0.9); margin-top: 20px;" onclick="salvarPerfilCompleto()">Guardar & Fechar</button>
         </div>
     </div>
 
@@ -659,6 +664,61 @@
         }
         atualizarBadgeUsuarioUI();
 
+        let linkGrupoWhatsappGlobal = '';
+        let telefoneMembroAtualCache = '';
+
+        async function carregarLinkWhatsappMembro() {
+            try {
+                const res = await fetch('/api/admin/whatsapp-link');
+                const data = await res.json();
+                if (data.success && data.link) {
+                    linkGrupoWhatsappGlobal = data.link;
+                    document.getElementById('btnGrupoWhatsappNav').style.display = 'inline-block';
+                }
+            } catch (e) {
+                console.error("Erro ao carregar link do WhatsApp:", e);
+            }
+
+            // Carrega também o perfil para saber se o telefone está preenchido
+            try {
+                const resPerfil = await fetch(`/api/membro/perfil/${encodeURIComponent(user.nickname)}`);
+                const dataPerfil = await resPerfil.json();
+                if (dataPerfil.success && dataPerfil.perfil) {
+                    telefoneMembroAtualCache = dataPerfil.perfil.telefone || '';
+                }
+            } catch (e) {}
+        }
+        carregarLinkWhatsappMembro();
+
+        async function abrirGrupoWhatsapp() {
+            // Valida se o telefone está preenchido antes de abrir o link
+            try {
+                const res = await fetch(`/api/membro/perfil/${encodeURIComponent(user.nickname)}`);
+                const data = await res.json();
+                if (data.success && data.perfil) {
+                    telefoneMembroAtualCache = data.perfil.telefone || '';
+                }
+            } catch (e) {}
+
+            if (!telefoneMembroAtualCache || telefoneMembroAtualCache.trim() === '') {
+                mostrarModalCustomizado(
+                    '⚠️ Contacto Obrigatório', 
+                    'Para entrar no Grupo do WhatsApp, deve primeiro registar o seu número de telemóvel/WhatsApp no seu <b>Perfil</b>.<br><br>Por favor, preencha o número agora.',
+                    'alerta',
+                    () => {
+                        abrirPerfilModal();
+                    }
+                );
+                return;
+            }
+
+            if (linkGrupoWhatsappGlobal) {
+                window.open(linkGrupoWhatsappGlobal, '_blank');
+            } else {
+                mostrarModalCustomizado('Aviso', 'O link do grupo do WhatsApp ainda não foi configurado pelo Comando.');
+            }
+        }
+
         async function abrirPerfilModal() {
             document.getElementById('modalPerfil').style.display = 'flex';
             try {
@@ -667,6 +727,8 @@
                 if (data.success) {
                     const p = data.perfil;
                     document.getElementById('perfilNickname').innerText = p.nickname;
+                    document.getElementById('inputTelefonePerfil').value = p.telefone || '';
+                    telefoneMembroAtualCache = p.telefone || '';
                     
                     const cargoClass = `badge-cargo-${(p.cargo || 'soldado').toLowerCase()}`;
                     document.getElementById('perfilCargo').innerHTML = `<span class="${cargoClass}">${p.cargo}</span>`;
@@ -691,6 +753,31 @@
             document.getElementById('modalPerfil').style.display = 'none';
         }
 
+        async function salvarPerfilCompleto() {
+            const telefoneNovo = document.getElementById('inputTelefonePerfil').value.trim();
+            if (!telefoneNovo) {
+                mostrarModalCustomizado('Atenção', 'O número de telemóvel/WhatsApp é obrigatório para ter acesso ao grupo e manter o registo atualizado.');
+                return;
+            }
+            try {
+                const res = await fetch('/api/membro/atualizar-perfil', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nickname: user.nickname, telefone: telefoneNovo })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    telefoneMembroAtualCache = telefoneNovo;
+                    mostrarModalCustomizado('Sucesso', 'Número de telefone atualizado e registado com sucesso nas logs do QG!');
+                    fecharPerfilModal();
+                } else {
+                    mostrarModalCustomizado('Erro', data.message || 'Não foi possível salvar o telefone.');
+                }
+            } catch (e) {
+                mostrarModalCustomizado('Erro', 'Não foi possível salvar o telefone.');
+            }
+        }
+
         function converterAvatarLocal(input) {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
@@ -699,7 +786,7 @@
                     avatarDiv.innerHTML = `<img src="${base64Avatar}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
 
                     try {
-                        await fetch('/api/membro/atualizar-avatar', {
+                        await fetch('/api/membro/atualizar-perfil', {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ nickname: user.nickname, avatar: base64Avatar })
@@ -1278,7 +1365,6 @@
             atualizarFiscalizacaoServidor();
         });
 
-        // ROLETA VISUAL AO VIVO (PROFISSIONAL E COLORIDA)
         function desenharRoleta(participantes, anguloAtual = 0) {
             const canvas = document.getElementById('canvasRoleta');
             if (!canvas) return;
@@ -1287,16 +1373,8 @@
             const arc = (2 * Math.PI) / total;
             const raio = canvas.width / 2;
             
-            // Paleta de cores vibrantes e profissionais (estilo cassino/tático)
             const cores = [
-                '#0284c7', // Azul Ciano
-                '#10b981', // Verde Esmeralda
-                '#f59e0b', // Dourado / Âmbar
-                '#8b5cf6', // Roxo / Violeta
-                '#ef4444', // Vermelho Coral
-                '#06b6d4', // Azul Turquesa
-                '#ec4899', // Rosa Choque
-                '#3b82f6'  // Azul Royal
+                '#0284c7', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#3b82f6'
             ];
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1304,7 +1382,6 @@
             for (let i = 0; i < total; i++) {
                 const angulo = anguloAtual + i * arc;
                 
-                // Desenhar Fatia
                 ctx.beginPath();
                 ctx.fillStyle = cores[i % cores.length];
                 ctx.moveTo(raio, raio);
@@ -1312,12 +1389,10 @@
                 ctx.lineTo(raio, raio);
                 ctx.fill();
 
-                // Borda brilhante entre as fatias
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
                 ctx.lineWidth = 2;
                 ctx.stroke();
 
-                // Texto do Participante (Nome)
                 ctx.save();
                 ctx.translate(raio, raio);
                 ctx.rotate(angulo + arc / 2);
@@ -1332,7 +1407,6 @@
                 ctx.restore();
             }
 
-            // Centro da Roleta (Miolo metálico dourado)
             ctx.beginPath();
             ctx.arc(raio, raio, 26, 0, 2 * Math.PI);
             const gradienteCentro = ctx.createRadialGradient(raio, raio, 5, raio, raio, 26);
@@ -1344,7 +1418,6 @@
             ctx.strokeStyle = '#ffffff';
             ctx.stroke();
 
-            // Ícone central
             ctx.fillStyle = '#0f172a';
             ctx.font = 'bold 14px Inter, sans-serif';
             ctx.textAlign = 'center';

@@ -14,6 +14,9 @@ const UserSchema = new mongoose.Schema({
     pushSubscription: { type: Object, default: null },
     cooldownProvaAte: { type: Date, default: null },
     
+    // Campo do WhatsApp do operacional
+    whatsapp: { type: String, default: '' },
+
     // Carteira e Missões
     carteiraSaldo: { type: Number, default: 0 },
     missoesDiarias: { type: Array, default: [] },
@@ -49,6 +52,6 @@ const UserSchema = new mongoose.Schema({
             data: { type: Date, default: Date.now }
         }
     ]
-}, { strict: false }); // strict: false garante que nenhum campo extra seja bloqueado
+}, { strict: false });
 
 module.exports = mongoose.model('User', UserSchema);
