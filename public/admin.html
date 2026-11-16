@@ -49,186 +49,158 @@
             letter-spacing: -0.01em;
         }
         body {
-            background-image: linear-gradient(rgba(11, 19, 30, 0.2), rgba(11, 19, 30, 0.2)), url('/background.jpg');
+            background-image: linear-gradient(rgba(7, 13, 22, 0.8), rgba(7, 13, 22, 0.9)), url('/background.jpg');
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
-            background-color: #0b131e;
+            background-color: #070d16;
             color: #ffffff;
-            padding: 20px;
+            padding: 16px;
         }
+
+        /* --- NAVBAR COM ABAS PROFISSIONAIS --- */
         .navbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: linear-gradient(145deg, rgba(15, 23, 42, 0.78), rgba(11, 19, 30, 0.88)) !important;
-            backdrop-filter: blur(14px) !important;
-            padding: 15px 25px;
-            border-radius: 12px !important;
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.92), rgba(7, 13, 22, 0.98)) !important;
+            backdrop-filter: blur(16px) !important;
+            padding: 14px 20px;
+            border-radius: 16px !important;
             margin-bottom: 20px;
-            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.65) !important;
-            border: 1px solid rgba(56, 189, 248, 0.22) !important;
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.75) !important;
+            border: 1px solid rgba(56, 189, 248, 0.25) !important;
+            flex-wrap: wrap;
+            gap: 12px;
         }
         .nav-brand {
             color: #38bdf8;
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 800;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            text-shadow: 0 2px 6px rgba(0,0,0,0.8);
         }
         .nav-links {
             display: flex;
-            gap: 15px;
+            gap: 8px;
             align-items: center;
+            flex-wrap: wrap;
         }
-        .nav-links a {
-            color: #e2e8f0;
-            text-decoration: none;
+        .nav-btn-aba {
+            background: rgba(30, 41, 59, 0.7);
+            color: #cbd5e1;
+            border: 1px solid rgba(56, 189, 248, 0.15);
+            padding: 8px 14px;
+            border-radius: 10px;
             font-weight: 600;
-            font-size: 14px;
-            padding: 8px 12px;
-            border-radius: 8px;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-decoration: none;
+            display: inline-block;
         }
-        .nav-links a:hover, .nav-links a.active {
-            background-color: rgba(30, 41, 59, 0.8);
+        .nav-btn-aba:hover, .nav-btn-aba.active {
+            background: rgba(56, 189, 248, 0.2);
             color: #38bdf8;
+            border-color: rgba(56, 189, 248, 0.5);
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
         }
         .logout-btn {
-            background-color: rgba(239, 68, 68, 0.85);
+            background-color: rgba(239, 68, 68, 0.9);
             color: white;
             border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
+            padding: 8px 14px;
+            border-radius: 10px;
             cursor: pointer;
             font-weight: 700;
             font-size: 13px;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.25s ease;
         }
-        .logout-btn:hover {
-            background-color: #dc2626;
-            transform: translateY(-1px);
+        .logout-btn:hover { background-color: #dc2626; }
+
+        /* --- SISTEMA DE ABAS (MÓDULOS) --- */
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .grid-container {
             display: grid;
-            grid-template-columns: 2fr 1fr;
+            grid-template-columns: 1fr 1fr;
             gap: 20px;
         }
-        @media(max-width: 1024px) {
-            .grid-container {
-                grid-template-columns: 1fr;
-            }
+        @media(max-width: 900px) {
+            .grid-container { grid-template-columns: 1fr; }
+            body { padding: 10px; }
+            .navbar { padding: 12px 14px; flex-direction: column; align-items: stretch; text-align: center; }
+            .nav-links { justify-content: center; gap: 6px; }
+            .nav-btn-aba { font-size: 12px; padding: 7px 10px; }
         }
+
         .card {
-            background: linear-gradient(145deg, rgba(15, 23, 42, 0.78), rgba(11, 19, 30, 0.88)) !important;
-            backdrop-filter: blur(14px) !important;
-            padding: 25px;
-            border-radius: 12px !important;
-            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.65) !important;
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.85), rgba(7, 13, 22, 0.95)) !important;
+            backdrop-filter: blur(16px) !important;
+            padding: 22px;
+            border-radius: 16px !important;
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.7) !important;
             margin-bottom: 20px;
             border: 1px solid rgba(56, 189, 248, 0.22) !important;
         }
         .card h3 {
             color: #38bdf8;
-            margin-bottom: 15px;
-            font-size: 18px;
+            margin-bottom: 14px;
+            font-size: 17px;
             border-bottom: 1px solid rgba(56, 189, 248, 0.2);
             padding-bottom: 10px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
             font-weight: 700;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            padding: 10px;
-            text-align: left;
-            border-bottom: 1px solid rgba(56, 189, 248, 0.15);
-            font-size: 13px;
-        }
-        th {
-            background-color: rgba(15, 23, 42, 0.95);
-            color: #38bdf8;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
-            position: sticky;
-            top: 0;
-            z-index: 2;
-        }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid rgba(56, 189, 248, 0.15); font-size: 13px; }
+        th { background-color: rgba(15, 23, 42, 0.85); color: #38bdf8; font-weight: 700; }
 
         .search-input-box {
             width: 100%;
             padding: 10px 14px;
-            background: rgba(15, 23, 42, 0.8);
-            border: 1px solid rgba(147, 51, 234, 0.4);
-            border-radius: 8px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 10px;
             color: white;
             font-size: 13px;
             margin-bottom: 12px;
             outline: none;
         }
-        .search-input-box:focus {
-            border-color: #a855f7;
-            box-shadow: 0 0 6px rgba(168, 85, 247, 0.4);
-        }
+        .search-input-box:focus { border-color: #38bdf8; box-shadow: 0 0 10px rgba(56, 189, 248, 0.4); }
 
         .logs-scroll-wrapper {
-            max-height: 260px;
+            max-height: 280px;
             overflow-y: auto;
-            overflow-x: hidden;
-            background: rgba(15, 23, 42, 0.75);
+            background: rgba(7, 13, 22, 0.75);
             border: 1px solid rgba(147, 51, 234, 0.35);
-            border-radius: 8px;
+            border-radius: 10px;
         }
-        .logs-scroll-wrapper::-webkit-scrollbar {
-            width: 6px;
-        }
-        .logs-scroll-wrapper::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.5);
-            border-radius: 0 8px 8px 0;
-        }
-        .logs-scroll-wrapper::-webkit-scrollbar-thumb {
-            background: rgba(168, 85, 247, 0.6);
-            border-radius: 3px;
-        }
-        .logs-table {
-            width: 100%;
-            border-collapse: collapse;
-            table-layout: fixed;
-        }
-        .logs-table th {
-            background-color: rgba(24, 20, 48, 0.98);
-            color: #a855f7;
-            padding: 10px 12px;
-            font-size: 12px;
-            border-bottom: 1px solid rgba(147, 51, 234, 0.3);
-            position: sticky;
-            top: 0;
-            z-index: 3;
-        }
-        .logs-table td {
-            padding: 8px 12px;
-            font-size: 12px;
-            border-bottom: 1px solid rgba(147, 51, 234, 0.15);
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            vertical-align: top;
-        }
+        .logs-table { width: 100%; border-collapse: collapse; }
+        .logs-table th { background-color: rgba(24, 20, 48, 0.95); color: #a855f7; font-size: 12px; }
+        .logs-table td { padding: 8px 12px; font-size: 12px; border-bottom: 1px solid rgba(147, 51, 234, 0.15); }
 
         .btn-action {
-            padding: 6px 12px;
+            padding: 7px 12px;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             color: white;
             cursor: pointer;
             font-weight: 700;
             font-size: 12px;
             margin-right: 4px;
             margin-bottom: 4px;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            transition: all 0.2s ease;
         }
-        .btn-action:hover { transform: translateY(-1px); filter: brightness(1.1); }
+        .btn-action:hover { filter: brightness(1.1); transform: translateY(-1px); }
         .btn-aprovar { background-color: rgba(22, 163, 74, 0.9); }
         .btn-promover { background-color: rgba(2, 132, 199, 0.9); }
         .btn-historico { background-color: rgba(99, 102, 241, 0.9); }
@@ -249,277 +221,283 @@
         }
 
         #chatBox {
-            height: 250px;
-            background: rgba(15, 23, 42, 0.75);
-            border: 1px solid rgba(56, 189, 248, 0.25);
-            border-radius: 8px;
-            padding: 10px;
+            height: 280px;
+            background: rgba(7, 13, 22, 0.85);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 10px;
+            padding: 12px;
             overflow-y: auto;
             margin-bottom: 12px;
             display: flex;
             flex-direction: column;
             gap: 8px;
         }
-        .chat-msg {
-            font-size: 13px;
-            background: rgba(30, 41, 59, 0.65);
-            padding: 8px;
-            border-radius: 8px;
-            border-left: 3px solid #38bdf8;
-        }
-        .chat-msg span.autor {
-            font-weight: bold;
-            color: #38bdf8;
-        }
+        .chat-msg { font-size: 13px; background: rgba(30, 41, 59, 0.75); padding: 8px 12px; border-radius: 8px; border-left: 3px solid #38bdf8; }
+        .chat-msg span.autor { font-weight: bold; color: #38bdf8; }
 
         #modalAdminHistorico {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8);
+            background: rgba(3, 7, 18, 0.85);
+            backdrop-filter: blur(8px);
             justify-content: center;
             align-items: center;
             z-index: 1000;
         }
         .modal-content {
-            background: rgba(18, 31, 51, 0.98);
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(7, 13, 22, 0.98));
             width: 90%;
             max-width: 680px;
             max-height: 85vh;
-            border-radius: 12px;
-            padding: 25px;
+            border-radius: 16px;
+            padding: 28px;
             overflow-y: auto;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.8);
-            border: 1px solid #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.4);
         }
-        .close-modal {
-            float: right;
-            background: #ef4444;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-        }
+        .close-modal { float: right; background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
 
+    <!-- NAVBAR COM ABAS PROFISSIONAIS ADM -->
     <div class="navbar">
         <div class="nav-brand">Gestão Salazar - Comando</div>
         <div class="nav-links">
-            <a href="dashboard.html">Painel de Turnos</a>
-            <a href="admin.html" class="active" style="background: rgba(3, 105, 161, 0.8); color: #fff;">Painel ADM</a>
-            <span id="userBadgeInfo" style="font-size: 13px; color: #e2e8f0; margin-left: 10px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);"></span>
+            <button class="nav-btn-aba active" onclick="mudarAba('efetivo', this)">👥 Efetivo & Membros</button>
+            <button class="nav-btn-aba" onclick="mudarAba('comandos', this)">⚡ Comandos & Ações</button>
+            <button class="nav-btn-aba" onclick="mudarAba('sorteios', this)">🎁 Sorteios & Roleta</button>
+            <button class="nav-btn-aba" onclick="mudarAba('auditoria', this)">📋 Auditoria & Logs</button>
+            <button class="nav-btn-aba" onclick="mudarAba('radio', this)">💬 Rádio Tático</button>
+            <a href="dashboard.html" class="nav-btn-aba" style="background: rgba(3, 105, 161, 0.25); color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">Painel de Turnos</a>
+            <span id="userBadgeInfo" style="font-size: 12px; color: #e2e8f0; font-weight: 600; margin-left: 6px;"></span>
             <button class="logout-btn" onclick="logout()">Sair</button>
         </div>
     </div>
 
-    <div class="grid-container">
-        <div>
-            <!-- PAINEL DE GESTÃO DO LINK DO WHATSAPP -->
-            <div class="card" style="border: 2px dashed #22c55e; background: rgba(34, 197, 94, 0.05);">
-                <h3 style="color: #22c55e;">📱 Configuração do Grupo do WhatsApp</h3>
-                <p style="color: #e2e8f0; margin-bottom: 12px; font-size: 13px;">Insira o link oficial do grupo do WhatsApp da comunidade. Os operacionais que já cadastrarão o número no perfil poderão aceder.</p>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <input type="text" id="inputLinkWhatsappAdmin" placeholder="https://chat.whatsapp.com/..." style="flex: 1; padding: 10px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 8px; color: white; font-size: 13px;">
-                    <button class="btn-action" style="background-color: rgba(34, 197, 94, 0.9); padding: 10px 18px; margin-bottom: 0;" onclick="salvarLinkWhatsappAdmin()">💾 Salvar Link</button>
-                </div>
+    <!-- ========================================== -->
+    <!-- ABA 1: EFETIVO E GESTÃO DE MEMBROS (PRINCIPAL) -->
+    <!-- ========================================== -->
+    <div id="aba-efetivo" class="tab-content active">
+        <!-- CARTÕES DE CONTAGEM DE MEMBROS -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 20px;">
+            <div class="card" style="margin-bottom: 0; text-align: center; border: 1px solid rgba(56, 189, 248, 0.3);">
+                <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Total Registados</span>
+                <h2 id="counterTotal" style="color: #38bdf8; font-size: 24px; margin-top: 4px;">0</h2>
             </div>
-
-            <!-- PAINEL DE DISPARAR AÇÃO -->
-            <div class="card" style="border: 2px dashed #ef4444; background: rgba(239, 68, 68, 0.05);">
-                <h3 style="color: #ef4444;">🚨 Central de Disparo de Ações (Alarme Geral)</h3>
-                <p style="color: #e2e8f0; margin-bottom: 15px; font-size: 13px;">Dispare uma notificação push imediata para o telemóvel/PC de todos os operacionais (mesmo com o navegador fechado) e toque o alarme tático.</p>
-                
-                <div style="margin-bottom: 12px;">
-                    <label style="font-size: 12px; color: #38bdf8;">Título da Ação (Ex: Invasão na Favela / Defesa):</label>
-                    <input type="text" id="acaoTitulo" placeholder="Ex: Ação Urgente na Favela BMRP" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; margin-top: 4px;">
-                </div>
-
-                <div style="margin-bottom: 15px;">
-                    <label style="font-size: 12px; color: #38bdf8;">Descrição / Instruções:</label>
-                    <textarea id="acaoDescricao" rows="3" placeholder="Ex: Todos os soldados equipados no QG principal. Comparecer em 5 minutos!" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; margin-top: 4px; resize: none;"></textarea>
-                </div>
-
-                <button class="btn-action" style="background-color: rgba(239, 68, 68, 0.95); color: white; font-size: 14px; padding: 12px 20px; width: 100%; font-weight: bold;" onclick="dispararAlertaAcao()">🚨 DISPARAR ALERTA DE AÇÃO PARA A TROPA</button>
+            <div class="card" style="margin-bottom: 0; text-align: center; border: 1px solid rgba(34, 197, 94, 0.3);">
+                <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Ativos</span>
+                <h2 id="counterAtivos" style="color: #22c55e; font-size: 24px; margin-top: 4px;">0</h2>
             </div>
-
-            <!-- PAINEL EXCLUSIVO DO MESTRE -->
-            <div class="card" id="cardInjecaoMestre" style="display: none; border: 2px dashed #eab308; background: rgba(234, 179, 8, 0.05);">
-                <h3 style="color: #eab308;">👑 Painel Exclusivo do Mestre: Adicionar Tempo Manual</h3>
-                <p style="color: #e2e8f0; margin-bottom: 15px; font-size: 13px;">Injete horas de plantão para operacionais cujo tempo não salvou.</p>
-                
-                <div style="margin-bottom: 12px;">
-                    <label style="font-size: 12px; color: #38bdf8;">Nickname do Operacional:</label>
-                    <input type="text" id="mestreTargetNickname" placeholder="Ex: Mestre, teste..." style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; margin-top: 4px;">
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px;">
-                    <div>
-                        <label style="font-size: 12px; color: #38bdf8;">Horas:</label>
-                        <input type="number" id="mestreHoras" value="0" min="0" max="10" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; margin-top: 4px;">
-                    </div>
-                    <div>
-                        <label style="font-size: 12px; color: #38bdf8;">Minutos:</label>
-                        <input type="number" id="mestreMinutos" value="30" min="0" max="59" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; margin-top: 4px;">
-                    </div>
-                    <div>
-                        <label style="font-size: 12px; color: #38bdf8;">Segundos:</label>
-                        <input type="number" id="mestreSegundos" value="0" min="0" max="59" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; margin-top: 4px;">
-                    </div>
-                </div>
-
-                <div style="margin-bottom: 15px;">
-                    <label style="font-size: 12px; color: #38bdf8;">Motivo / Justificativa:</label>
-                    <input type="text" id="mestreMotivo" value="Queda de conexão / Turno não salvou" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; margin-top: 4px;">
-                </div>
-
-                <button class="btn-action" style="background-color: rgba(234, 179, 8, 0.9); color: #000; font-size: 13px; padding: 10px 18px; width: auto;" onclick="mestreAdicionarTempo()">⚡ Injetar Tempo no Histórico</button>
+            <div class="card" style="margin-bottom: 0; text-align: center; border: 1px solid rgba(234, 179, 8, 0.3);">
+                <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Pendentes</span>
+                <h2 id="counterPendentes" style="color: #eab308; font-size: 24px; margin-top: 4px;">0</h2>
             </div>
-
-            <!-- CARTÕES DE CONTAGEM DE MEMBROS -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 20px;">
-                <div style="background: rgba(18, 31, 51, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 12px; text-align: center;">
-                    <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Total Registados</span>
-                    <h2 id="counterTotal" style="color: #38bdf8; font-size: 22px; margin-top: 4px;">0</h2>
-                </div>
-                <div style="background: rgba(18, 31, 51, 0.6); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 8px; padding: 12px; text-align: center;">
-                    <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Ativos</span>
-                    <h2 id="counterAtivos" style="color: #22c55e; font-size: 22px; margin-top: 4px;">0</h2>
-                </div>
-                <div style="background: rgba(18, 31, 51, 0.6); border: 1px solid rgba(234, 179, 8, 0.3); border-radius: 8px; padding: 12px; text-align: center;">
-                    <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Pendentes</span>
-                    <h2 id="counterPendentes" style="color: #eab308; font-size: 22px; margin-top: 4px;">0</h2>
-                </div>
-                <div style="background: rgba(18, 31, 51, 0.6); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; padding: 12px; text-align: center;">
-                    <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Em Plantão</span>
-                    <h2 id="counterPlantao" style="color: #a855f7; font-size: 22px; margin-top: 4px;">0</h2>
-                </div>
-            </div>
-
-            <!-- CENTRAL DE AUDITORIA E LOGS DO COMANDO COM LUPA DE PESQUISA -->
-            <div class="card" style="border: 1px solid rgba(147, 51, 234, 0.4); background: rgba(147, 51, 234, 0.05);">
-                <h3 style="color: #a855f7;">📋 Central de Auditoria e Logs do Comando</h3>
-                <p style="color: #e2e8f0; margin-bottom: 12px; font-size: 13px;">Registo em tempo real de todas as ações operacionais, promoções, injeções de tempo e alterações.</p>
-                
-                <!-- Lupa de Pesquisa dos Logs -->
-                <input type="text" id="inputPesquisaLogs" class="search-input-box" placeholder="🔍 Pesquisar nos logs por autor, ação ou detalhes..." oninput="filtrarLogsAuditoria()">
-
-                <div class="logs-scroll-wrapper">
-                    <table class="logs-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 18%;">Data/Hora</th>
-                                <th style="width: 17%;">Autor</th>
-                                <th style="width: 23%;">Ação</th>
-                                <th style="width: 42%;">Detalhes</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabelaLogsAdmin">
-                            <tr>
-                                <td colspan="4" style="text-align: center; color: #94a3b8; padding: 15px;">A carregar registos de auditoria...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="card">
-                <h3>👥 Gerenciamento de Efetivo, Históricos e Promoções</h3>
-                <p style="color: #e2e8f0; margin-bottom: 12px; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Ordenação prioritária: Plantão ➔ Online ➔ Offline.</p>
-                
-                <div style="margin-bottom: 15px;">
-                    <input type="text" id="inputBuscaMembro" placeholder="🔍 Pesquisar operacional por nickname..." oninput="filtrarTabelaEfetivo()" style="width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; font-size: 13px; outline: none;">
-                </div>
-
-                <div style="max-height: 350px; overflow-y: auto; border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; background: rgba(15, 23, 42, 0.5);">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Nickname</th>
-                                <th>Cargo</th>
-                                <th>Status Operacional</th>
-                                <th>Último Plantão</th>
-                                <th>Ações de Comando</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabelaEfetivo">
-                            <tr>
-                                <td colspan="5" style="text-align: center; color: #94a3b8;">A carregar efetivo...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="card">
-                <h3>🎁 Central de Sorteios Diários (Mínimo de 2h de Plantão HOJE)</h3>
-                <p style="color: #e2e8f0; margin-bottom: 15px; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Apenas operacionais com 2 horas ou mais acumuladas no dia atual participam automaticamente.</p>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px;">
-                    <div>
-                        <label style="font-size: 12px; color: #38bdf8;">Horário Previsto:</label>
-                        <input type="time" id="sorteioHorario" value="20:00" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; margin-top: 4px;">
-                    </div>
-                    <div>
-                        <label style="font-size: 12px; color: #38bdf8;">Qtd. de Ganhadores:</label>
-                        <input type="number" id="sorteioQtd" value="1" min="1" max="10" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; margin-top: 4px;">
-                    </div>
-                </div>
-
-                <div style="margin-bottom: 15px;">
-                    <label style="font-size: 12px; color: #38bdf8;">Prêmios (separados por vírgula):</label>
-                    <input type="text" id="sorteioPremios" value="R$ 100.000 no Jogo, Viatura Blindada" style="width: 100%; padding: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; color: white; margin-top: 4px;">
-                </div>
-
-                <div style="margin-bottom: 15px;">
-                    <h4 style="color: #38bdf8; font-size: 14px; margin-bottom: 8px;">🛡️ Operacionais Elegíveis (Com 2h+ HOJE):</h4>
-                    <div id="listaElegiveisSorteio" style="max-height: 180px; overflow-y: auto; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 10px; font-size: 12px; color: #cbd5e1;">
-                        A carregar elegíveis...
-                    </div>
-                </div>
-
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 15px;">
-                    <button class="btn-action" style="background-color: rgba(22, 163, 74, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="executarSorteioImediato()">🎲 Girar Roleta Ao Vivo (2h+)</button>
-                    <button class="btn-action" style="background-color: rgba(220, 38, 38, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="resetarElegiveisSorteio()">🔄 Resetar Ciclo</button>
-                    <button class="btn-action" style="background-color: rgba(217, 119, 6, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="limparElegiveis()">🧹 Limpar Elegíveis</button>
-                </div>
-
-                <!-- SORTEIO DE 1 TURNO -->
-                <div style="border-top: 1px dashed rgba(56, 189, 248, 0.4); padding-top: 15px; margin-top: 15px;">
-                    <h4 style="color: #38bdf8; font-size: 14px; margin-bottom: 8px;">⭐ Sorteio de Quem Fez 1 Turno (HOJE - Não Acumulativo):</h4>
-                    <div id="listaElegiveisUmTurno" style="max-height: 150px; overflow-y: auto; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 10px; font-size: 12px; color: #cbd5e1; margin-bottom: 12px;">
-                        A carregar quem fez 1 turno hoje...
-                    </div>
-                    <button class="btn-action" style="background-color: rgba(147, 51, 234, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="executarSorteioUmTurno()">🎯 Girar Roleta (Quem Fez 1 Turno Hoje)</button>
-                </div>
-
-                <div style="margin-top: 15px; border-top: 1px solid rgba(56, 189, 248, 0.2); padding-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="btn-action" style="background-color: rgba(99, 102, 241, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="enviarNotificacaoRanking()">📊 Enviar Notificação de Ranking</button>
-                    <button class="btn-action" style="background-color: rgba(220, 38, 38, 0.9); font-size: 13px; padding: 10px 18px; width: auto;" onclick="resetarRankingSemanal()">🔄 Resetar Ranking da Semana</button>
-                </div>
-
-                <div id="resultadoSorteio" style="margin-top: 15px; font-weight: bold; color: #eab308; text-shadow: 0 1px 2px rgba(0,0,0,0.8); font-size: 13px;"></div>
+            <div class="card" style="margin-bottom: 0; text-align: center; border: 1px solid rgba(168, 85, 247, 0.3);">
+                <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Em Plantão</span>
+                <h2 id="counterPlantao" style="color: #a855f7; font-size: 24px; margin-top: 4px;">0</h2>
             </div>
         </div>
 
-        <div>
-            <div class="card">
-                <h3>💬 Rádio Tático da Tropa</h3>
-                <div id="chatBox">
-                    <div class="chat-msg"><span class="autor">Sistema (Rádio):</span> Canal de rádio seguro conectado.</div>
+        <div class="card">
+            <h3>👥 Gerenciamento de Efetivo, Históricos e Promoções</h3>
+            <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Ordenação prioritária: Plantão ➔ Online ➔ Offline.</p>
+            
+            <div style="margin-bottom: 14px;">
+                <input type="text" id="inputBuscaMembro" placeholder="🔍 Pesquisar operacional por nickname..." oninput="filtrarTabelaEfetivo()" class="search-input-box" style="margin-bottom: 0;">
+            </div>
+
+            <div style="max-height: 420px; overflow-y: auto; border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; background: rgba(7, 13, 22, 0.6);">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nickname</th>
+                            <th>Cargo</th>
+                            <th>Status Operacional</th>
+                            <th>Último Plantão</th>
+                            <th>Ações de Comando</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaEfetivo">
+                        <tr><td colspan="5" style="text-align: center; color: #94a3b8;">A carregar efetivo...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ABA 2: COMANDOS E DISPAROS -->
+    <!-- ========================================== -->
+    <div id="aba-comandos" class="tab-content">
+        <div class="grid-container">
+            <div>
+                <!-- WHATSAPP -->
+                <div class="card" style="border: 2px dashed #22c55e; background: rgba(34, 197, 94, 0.05);">
+                    <h3 style="color: #22c55e; border-color: rgba(34, 197, 94, 0.3);">📱 Grupo do WhatsApp</h3>
+                    <p style="color: #e2e8f0; margin-bottom: 12px; font-size: 13px;">Insira o link oficial do grupo do WhatsApp da comunidade.</p>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <input type="text" id="inputLinkWhatsappAdmin" placeholder="https://chat.whatsapp.com/..." class="search-input-box" style="flex: 1; margin-bottom: 0;">
+                        <button class="btn-action" style="background-color: #22c55e; padding: 10px 18px;" onclick="salvarLinkWhatsappAdmin()">💾 Salvar</button>
+                    </div>
                 </div>
-                <div style="display: flex; gap: 8px;">
-                    <input type="text" id="chatInput" placeholder="Digite sua mensagem..." style="flex: 1; padding: 10px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; color: white; font-size: 13px;">
-                    <button class="btn-action btn-promover" style="margin-top: 0; width: auto; padding: 10px 15px;" onclick="enviarMensagem()">Transmitir</button>
+
+                <!-- DISPARAR ALARME -->
+                <div class="card" style="border: 2px dashed #ef4444; background: rgba(239, 68, 68, 0.05);">
+                    <h3 style="color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">🚨 Alarme Geral de Ação</h3>
+                    <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Dispare notificação push imediata para o telemóvel/PC de todos os operacionais.</p>
+                    
+                    <div style="margin-bottom: 12px;">
+                        <label style="font-size: 12px; color: #38bdf8;">Título da Ação:</label>
+                        <input type="text" id="acaoTitulo" placeholder="Ex: Ação Urgente na Favela BMRP" class="search-input-box" style="margin-top: 4px; margin-bottom: 0;">
+                    </div>
+
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-size: 12px; color: #38bdf8;">Descrição / Instruções:</label>
+                        <textarea id="acaoDescricao" rows="3" placeholder="Ex: Todos os soldados equipados no QG principal!" style="width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; margin-top: 4px; resize: none; outline: none;"></textarea>
+                    </div>
+
+                    <button class="btn-action" style="background-color: #dc2626; color: white; font-size: 14px; padding: 12px; width: 100%; font-weight: bold; border-radius: 10px;" onclick="dispararAlertaAcao()">🚨 DISPARAR ALERTA PARA A TROPA</button>
+                </div>
+            </div>
+
+            <div>
+                <!-- PAINEL EXCLUSIVO DO MESTRE -->
+                <div class="card" id="cardInjecaoMestre" style="display: none; border: 2px dashed #eab308; background: rgba(234, 179, 8, 0.05);">
+                    <h3 style="color: #eab308; border-color: rgba(234, 179, 8, 0.3);">👑 Injeção Manual de Tempo</h3>
+                    <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Injete horas de plantão para operacionais cujo tempo não salvou.</p>
+                    
+                    <div style="margin-bottom: 10px;">
+                        <label style="font-size: 12px; color: #38bdf8;">Nickname:</label>
+                        <input type="text" id="mestreTargetNickname" placeholder="Ex: Mestre" class="search-input-box" style="margin-top: 4px; margin-bottom: 0;">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                        <div>
+                            <label style="font-size: 11px; color: #38bdf8;">Horas:</label>
+                            <input type="number" id="mestreHoras" value="0" min="0" max="10" class="search-input-box" style="margin-top: 4px; margin-bottom: 0;">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; color: #38bdf8;">Minutos:</label>
+                            <input type="number" id="mestreMinutos" value="30" min="0" max="59" class="search-input-box" style="margin-top: 4px; margin-bottom: 0;">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; color: #38bdf8;">Segundos:</label>
+                            <input type="number" id="mestreSegundos" value="0" min="0" max="59" class="search-input-box" style="margin-top: 4px; margin-bottom: 0;">
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 14px;">
+                        <label style="font-size: 12px; color: #38bdf8;">Motivo:</label>
+                        <input type="text" id="mestreMotivo" value="Queda de conexão" class="search-input-box" style="margin-top: 4px; margin-bottom: 0;">
+                    </div>
+
+                    <button class="btn-action" style="background-color: #eab308; color: #000; width: 100%; padding: 11px; font-weight: bold; border-radius: 10px;" onclick="mestreAdicionarTempo()">⚡ Injetar Tempo no Histórico</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal de Histórico -->
+    <!-- ========================================== -->
+    <!-- ABA 3: SORTEIOS E ROLETA -->
+    <!-- ========================================== -->
+    <div id="aba-sorteios" class="tab-content">
+        <div class="card" style="max-width: 800px; margin: 0 auto;">
+            <h3>🎁 Central de Sorteios Diários (Mínimo de 2h de Plantão HOJE)</h3>
+            <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Apenas operacionais com 2 horas ou mais acumuladas no dia atual participam automaticamente.</p>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                <div>
+                    <label style="font-size: 12px; color: #38bdf8;">Horário Previsto:</label>
+                    <input type="time" id="sorteioHorario" value="20:00" class="search-input-box" style="margin-top: 4px; margin-bottom: 0;">
+                </div>
+                <div>
+                    <label style="font-size: 12px; color: #38bdf8;">Qtd. de Ganhadores:</label>
+                    <input type="number" id="sorteioQtd" value="1" min="1" max="10" class="search-input-box" style="margin-top: 4px; margin-bottom: 0;">
+                </div>
+            </div>
+
+            <div style="margin-bottom: 14px;">
+                <label style="font-size: 12px; color: #38bdf8;">Prêmios (separados por vírgula):</label>
+                <input type="text" id="sorteioPremios" value="R$ 100.000 no Jogo, Viatura Blindada" class="search-input-box" style="margin-top: 4px; margin-bottom: 0;">
+            </div>
+
+            <div style="margin-bottom: 14px;">
+                <h4 style="color: #38bdf8; font-size: 13px; margin-bottom: 6px;">🛡️ Operacionais Elegíveis (Com 2h+ HOJE):</h4>
+                <div id="listaElegiveisSorteio" style="max-height: 160px; overflow-y: auto; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; padding: 10px; font-size: 12px; color: #cbd5e1;">
+                    A carregar elegíveis...
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;">
+                <button class="btn-action btn-aprovar" style="padding: 10px 16px;" onclick="executarSorteioImediato()">🎲 Girar Roleta Ao Vivo (2h+)</button>
+                <button class="btn-action btn-demitir" style="padding: 10px 16px;" onclick="resetarElegiveisSorteio()">🔄 Resetar Ciclo</button>
+                <button class="btn-action btn-reset" style="padding: 10px 16px;" onclick="limparElegiveis()">🧹 Limpar Elegíveis</button>
+            </div>
+
+            <!-- SORTEIO DE 1 TURNO -->
+            <div style="border-top: 1px dashed rgba(56, 189, 248, 0.4); padding-top: 14px; margin-top: 14px;">
+                <h4 style="color: #38bdf8; font-size: 13px; margin-bottom: 6px;">⭐ Sorteio de Quem Fez 1 Turno (HOJE - Não Acumulativo):</h4>
+                <div id="listaElegiveisUmTurno" style="max-height: 140px; overflow-y: auto; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; padding: 10px; font-size: 12px; color: #cbd5e1; margin-bottom: 10px;">
+                    A carregar quem fez 1 turno hoje...
+                </div>
+                <button class="btn-action btn-perfil" style="padding: 10px 16px;" onclick="executarSorteioUmTurno()">🎯 Girar Roleta (Quem Fez 1 Turno Hoje)</button>
+            </div>
+
+            <div style="margin-top: 14px; border-top: 1px solid rgba(56, 189, 248, 0.2); padding-top: 14px; display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="btn-action btn-historico" style="padding: 10px 16px;" onclick="enviarNotificacaoRanking()">📊 Enviar Notificação de Ranking</button>
+                <button class="btn-action btn-demitir" style="padding: 10px 16px;" onclick="resetarRankingSemanal()">🔄 Resetar Ranking da Semana</button>
+            </div>
+
+            <div id="resultadoSorteio" style="margin-top: 14px; font-weight: bold; color: #eab308; font-size: 13px;"></div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ABA 4: AUDITORIA E LOGS -->
+    <!-- ========================================== -->
+    <div id="aba-auditoria" class="tab-content">
+        <div class="card" style="max-width: 900px; margin: 0 auto; border: 1px solid rgba(147, 51, 234, 0.4); background: linear-gradient(145deg, rgba(147, 51, 234, 0.05), rgba(15, 23, 42, 0.85));">
+            <h3 style="color: #a855f7; border-color: rgba(147, 51, 234, 0.3);">📋 Central de Auditoria e Logs do Comando</h3>
+            <p style="color: #e2e8f0; margin-bottom: 12px; font-size: 13px;">Registo em tempo real de todas as ações operacionais, promoções, injeções de tempo e alterações.</p>
+            
+            <input type="text" id="inputPesquisaLogs" class="search-input-box" placeholder="🔍 Pesquisar nos logs por autor, ação ou detalhes..." oninput="filtrarLogsAuditoria()">
+
+            <div class="logs-scroll-wrapper">
+                <table class="logs-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 18%;">Data/Hora</th>
+                            <th style="width: 17%;">Autor</th>
+                            <th style="width: 23%;">Ação</th>
+                            <th style="width: 42%;">Detalhes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaLogsAdmin">
+                        <tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 15px;">A carregar registos...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ABA 5: RÁDIO TÁTICO -->
+    <!-- ========================================== -->
+    <div id="aba-radio" class="tab-content">
+        <div class="card" style="max-width: 650px; margin: 0 auto;">
+            <h3>💬 Rádio Tático da Tropa (Comando)</h3>
+            <div id="chatBox">
+                <div class="chat-msg"><span class="autor">Sistema (Rádio):</span> Canal de rádio seguro conectado.</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <input type="text" id="chatInput" placeholder="Digite sua mensagem no rádio..." class="search-input-box" style="margin-bottom: 0; flex: 1;">
+                <button class="btn-action btn-promover" style="padding: 10px 16px; margin-bottom: 0;" onclick="enviarMensagem()">Transmitir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAIS GERAIS -->
     <div id="modalAdminHistorico">
         <div class="modal-content">
             <button class="close-modal" onclick="fecharHistoricoAdmin()">X</button>
@@ -530,17 +508,16 @@
         </div>
     </div>
 
-    <!-- Modal de Inspeção de Perfil pelo ADM -->
-    <div id="modalPerfilAdmin" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 10000;">
-        <div style="background: rgba(18, 31, 51, 0.98); width: 90%; max-width: 450px; border-radius: 12px; padding: 25px; border: 1px solid #38bdf8; text-align: center; color: #fff;">
+    <div id="modalPerfilAdmin" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.85); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 10000;">
+        <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 90%; max-width: 450px; border-radius: 16px; padding: 28px; border: 1px solid rgba(56, 189, 248, 0.4); text-align: center; color: #fff;">
             <button class="close-modal" onclick="document.getElementById('modalPerfilAdmin').style.display='none'">X</button>
             <h3 style="color: #38bdf8; margin-bottom: 20px;">👤 Perfil do Operacional (Comando)</h3>
             
-            <div id="avatarContainerAdmin" style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 2px solid #38bdf8; box-shadow: 0 0 15px rgba(56, 189, 248, 0.4); background: rgba(15, 23, 42, 0.8); display: flex; align-items: center; justify-content: center; font-size: 32px; color: #38bdf8; margin: 0 auto 15px auto;">
+            <div id="avatarContainerAdmin" style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 3px solid #38bdf8; box-shadow: 0 0 20px rgba(56, 189, 248, 0.5); background: rgba(15, 23, 42, 0.9); display: flex; align-items: center; justify-content: center; font-size: 32px; color: #38bdf8; margin: 0 auto 16px auto;">
                 🛡️
             </div>
 
-            <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 15px; text-align: left; font-size: 13px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="background: rgba(7, 13, 22, 0.75); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 16px; text-align: left; font-size: 13px; display: flex; flex-direction: column; gap: 8px;">
                 <p><b>Nickname:</b> <span id="perfilAdminNickname" style="color: #38bdf8;">-</span></p>
                 <p><b>Cargo Atual:</b> <span id="perfilAdminCargo">-</span></p>
                 <p><b>⏱️ Total de Horas Acumuladas:</b> <span id="perfilAdminTotalHoras" style="color: #22c55e; font-weight: bold;">-</span></p>
@@ -550,16 +527,24 @@
         </div>
     </div>
 
-    <!-- Modal Profissional -->
-    <div id="customModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(4px);">
-        <div style="background: rgba(18, 31, 51, 0.95); width: 90%; max-width: 400px; border-radius: 12px; padding: 25px; box-shadow: 0 4px 25px rgba(0,0,0,0.9); border: 1px solid #38bdf8; text-align: center;">
-            <h3 id="modalCustomTitle" style="color: #38bdf8; margin-bottom: 12px; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">Gestão Salazar</h3>
-            <p id="modalCustomMessage" style="color: #e2e8f0; font-size: 14px; margin-bottom: 20px; line-height: 1.4; text-shadow: 0 1px 2px rgba(0,0,0,0.8);"></p>
-            <div id="modalCustomButtons" style="display: flex; gap: 10px; justify-content: center;"></div>
+    <div id="customModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.85); justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(4px);">
+        <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(7, 13, 22, 0.99)); width: 90%; max-width: 420px; border-radius: 16px; padding: 28px; border: 1px solid rgba(56, 189, 248, 0.4); text-align: center;">
+            <h3 id="modalCustomTitle" style="color: #38bdf8; margin-bottom: 12px; font-size: 18px;">Gestão Salazar</h3>
+            <p id="modalCustomMessage" style="color: #e2e8f0; font-size: 14px; margin-bottom: 22px; line-height: 1.5;"></p>
+            <div id="modalCustomButtons" style="display: flex; gap: 12px; justify-content: center;"></div>
         </div>
     </div>
 
     <script>
+        // --- FUNÇÃO DE ALTERNAR ABAS (MÓDULOS) ---
+        function mudarAba(nomeAba, elementoBtn) {
+            document.querySelectorAll('.tab-content').forEach(aba => aba.classList.remove('active'));
+            document.querySelectorAll('.nav-btn-aba').forEach(btn => btn.classList.remove('active'));
+            
+            document.getElementById('aba-' + nomeAba).classList.add('active');
+            if(elementoBtn) elementoBtn.classList.add('active');
+        }
+
         const userStr = localStorage.getItem('user');
         if (!userStr) { window.location.href = 'index.html'; }
 
@@ -588,9 +573,7 @@
 
         window.addEventListener('pageshow', (event) => {
             if (event.persisted) {
-                if (!socket.connected) {
-                    socket.connect();
-                }
+                if (!socket.connected) { socket.connect(); }
             }
         });
 
@@ -608,18 +591,13 @@
             carregarElegiveisUmTurno();
         });
 
-        socket.on('atualizar_logs_admin', () => {
-            carregarLogsAdmin();
-        });
+        socket.on('atualizar_logs_admin', () => { carregarLogsAdmin(); });
 
         socket.on('atualizar_cargo_usuario', (data) => {
             if (data.nickname.toLowerCase() === user.nickname.toLowerCase()) {
                 user.cargo = data.novoCargo;
                 localStorage.setItem('user', JSON.stringify(user));
-
-                const cargosPermitidos = ['General', 'Coronel All'];
-                const temAcesso = user.role === 'admin' || cargosPermitidos.includes(user.cargo);
-
+                const temAcesso = user.role === 'admin' || cargosAdminPermitidos.includes(user.cargo);
                 if (!temAcesso) {
                     alert('O seu cargo foi alterado e já não tem permissão para aceder ao Painel ADM.');
                     window.location.replace('dashboard.html');
@@ -646,9 +624,7 @@
                 if (data.success && data.link) {
                     document.getElementById('inputLinkWhatsappAdmin').value = data.link;
                 }
-            } catch (e) {
-                console.error("Erro ao carregar link do WhatsApp:", e);
-            }
+            } catch (e) {}
         }
         carregarLinkWhatsappAdmin();
 
@@ -667,7 +643,6 @@
                     mostrarModalCustomizado('Erro', data.message || 'Erro ao salvar link.');
                 }
             } catch (e) {
-                console.error(e);
                 mostrarModalCustomizado('Erro', 'Erro de conexão ao salvar link.');
             }
         }
@@ -683,9 +658,7 @@
                     cacheGlobalLogs = [];
                     filtrarLogsAuditoria();
                 }
-            } catch (e) {
-                console.error("Erro ao carregar logs:", e);
-            }
+            } catch (e) {}
         }
 
         function filtrarLogsAuditoria() {
@@ -703,18 +676,11 @@
             if (filtrados.length > 0) {
                 filtrados.forEach(log => {
                     const tr = document.createElement('tr');
-                    
                     const dataFormatada = new Date(log.data).toLocaleString('pt-BR', {
                         timeZone: 'America/Sao_Paulo',
-                        day: '2-digit',
-                        month: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit'
+                        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'
                     });
-
                     const detalhesLimpos = (log.detalhes || '').replace(/R\$\s*undefined/gi, 'Saldo Atualizado');
-
                     tr.innerHTML = `
                         <td style="color: #94a3b8;">${dataFormatada}</td>
                         <td style="color: #38bdf8; font-weight: bold;">${log.autor}</td>
@@ -724,10 +690,9 @@
                     tbody.appendChild(tr);
                 });
             } else {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 15px;">Nenhum registo encontrado com este termo.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 15px;">Nenhum registo encontrado.</td></tr>`;
             }
         }
-
         carregarLogsAdmin();
 
         async function dispararAlertaAcao() {
@@ -748,11 +713,7 @@
                         const res = await fetch('/api/admin/disparar-acao', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                adminNickname: user.nickname,
-                                tituloAcao,
-                                descricaoAcao
-                            })
+                            body: JSON.stringify({ adminNickname: user.nickname, tituloAcao, descricaoAcao })
                         });
                         const data = await res.json();
                         if (data.success) {
@@ -763,8 +724,7 @@
                             mostrarModalCustomizado('Erro', data.message);
                         }
                     } catch (e) {
-                        console.error(e);
-                        mostrarModalCustomizado('Erro', 'Erro de conexão ao disparar ação.');
+                        mostrarModalCustomizado('Erro', 'Erro de conexão.');
                     }
                 }
             );
@@ -798,9 +758,7 @@
                     document.getElementById('counterPendentes').innerText = data.estatisticas.pendentes;
                     document.getElementById('counterPlantao').innerText = data.estatisticas.emPlantao;
                 }
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) {}
         }
         carregarEstatisticasMembros();
 
@@ -825,14 +783,7 @@
                         const res = await fetch('/api/admin/mestre/adicionar-tempo', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                adminNickname: user.nickname,
-                                targetNickname,
-                                horas,
-                                minutos,
-                                segundos,
-                                motivo
-                            })
+                            body: JSON.stringify({ adminNickname: user.nickname, targetNickname, horas, minutos, segundos, motivo })
                         });
                         const data = await res.json();
                         if (data.success) {
@@ -845,8 +796,7 @@
                             mostrarModalCustomizado('Erro', data.message);
                         }
                     } catch (e) {
-                        console.error(e);
-                        mostrarModalCustomizado('Erro', 'Erro de conexão ao injetar tempo.');
+                        mostrarModalCustomizado('Erro', 'Erro de conexão.');
                     }
                 }
             );
@@ -864,10 +814,7 @@
                 btnOk.innerText = 'OK';
                 btnOk.className = 'btn-action btn-aprovar';
                 btnOk.style.padding = '8px 25px';
-                btnOk.onclick = () => { 
-                    modal.style.display = 'none'; 
-                    if (callbackConfirmar) callbackConfirmar();
-                };
+                btnOk.onclick = () => { modal.style.display = 'none'; if (callbackConfirmar) callbackConfirmar(); };
                 btnContainer.appendChild(btnOk);
             } else if (tipo === 'confirmacao') {
                 const btnCancelar = document.createElement('button');
@@ -880,10 +827,7 @@
                 btnConfirmar.innerText = 'Confirmar';
                 btnConfirmar.className = 'btn-action btn-aprovar';
                 btnConfirmar.style.padding = '8px 20px';
-                btnConfirmar.onclick = () => {
-                    modal.style.display = 'none';
-                    if (callbackConfirmar) callbackConfirmar();
-                };
+                btnConfirmar.onclick = () => { modal.style.display = 'none'; if (callbackConfirmar) callbackConfirmar(); };
 
                 btnContainer.appendChild(btnCancelar);
                 btnContainer.appendChild(btnConfirmar);
@@ -895,14 +839,11 @@
             try {
                 const response = await fetch('/api/admin/membros');
                 const data = await response.json();
-
                 if (data.success) {
                     listaMembrosCache = data.membros;
                     renderizarTabelaEfetivo();
                 }
-            } catch (error) {
-                console.error(error);
-            }
+            } catch (error) {}
         }
 
         function renderizarTabelaEfetivo(membrosParaRenderizar = listaMembrosCache) {
@@ -912,17 +853,14 @@
             const membrosOrdenados = [...membrosParaRenderizar].sort((a, b) => {
                 const aOnline = usuariosOnlineSocket.some(u => u.nickname.toLowerCase() === a.nickname.toLowerCase());
                 const bOnline = usuariosOnlineSocket.some(u => u.nickname.toLowerCase() === b.nickname.toLowerCase());
-
                 const pesoA = a.emPlantao ? 1 : (aOnline ? 2 : 3);
                 const pesoB = b.emPlantao ? 1 : (bOnline ? 2 : 3);
-
                 return pesoA - pesoB;
             });
 
             if (membrosOrdenados.length > 0) {
                 membrosOrdenados.forEach(membro => {
                     const tr = document.createElement('tr');
-                    
                     let statusOperacionalHtml = `<span class="status-dot-offline"></span> <span style="color:#64748b;">Offline</span>`;
                     const isOnline = usuariosOnlineSocket.some(u => u.nickname.toLowerCase() === membro.nickname.toLowerCase());
 
@@ -938,13 +876,13 @@
                         <td>${statusOperacionalHtml}</td>
                         <td style="color: #38bdf8; font-size: 12px;">${membro.ultimoPlantao || 'Nenhum plantão'}</td>
                         <td>
-                            ${membro.status !== 'ativo' ? `<button class="btn-action btn-aprovar" style="width:auto;" onclick="atualizarMembro('${membro._id}', 'ativo', 'Privado')">Aprovar</button>` : ''}
-                            ${membro.emPlantao ? `<button class="btn-action btn-parar-turno" style="width:auto;" onclick="forcarFimTurno('${membro._id}', '${membro.nickname}')">⏹️ Parar Turno</button>` : ''}
-                            <button class="btn-action btn-historico" style="width:auto;" onclick="verHistoricoMembro('${membro.nickname}', '${membro._id}')">Ver Histórico</button>
-                            <button class="btn-action btn-prints" style="width:auto;" onclick="abrirModalPrintsMissoes('${membro._id}', '${membro.nickname}')">📸 Prints Missões</button>
-                            <button class="btn-action btn-perfil" style="width:auto;" onclick="abrirPerfilAdmin('${membro.nickname}')">👤 Perfil</button>
-                            <button class="btn-action btn-promover" style="width:auto;" onclick="promoverMembro('${membro._id}', '${membro.cargo}')">Promover</button>
-                            <button class="btn-action btn-demitir" style="width:auto;" onclick="demitirMembro('${membro._id}')">Demitir</button>
+                            ${membro.status !== 'ativo' ? `<button class="btn-action btn-aprovar" onclick="atualizarMembro('${membro._id}', 'ativo', 'Privado')">Aprovar</button>` : ''}
+                            ${membro.emPlantao ? `<button class="btn-action btn-parar-turno" onclick="forcarFimTurno('${membro._id}', '${membro.nickname}')">⏹️ Parar</button>` : ''}
+                            <button class="btn-action btn-historico" onclick="verHistoricoMembro('${membro.nickname}', '${membro._id}')">Histórico</button>
+                            <button class="btn-action btn-prints" onclick="abrirModalPrintsMissoes('${membro._id}', '${membro.nickname}')">📸 Prints</button>
+                            <button class="btn-action btn-perfil" onclick="abrirPerfilAdmin('${membro.nickname}')">👤 Perfil</button>
+                            <button class="btn-action btn-promover" onclick="promoverMembro('${membro._id}', '${membro.cargo}')">Promover</button>
+                            <button class="btn-action btn-demitir" onclick="demitirMembro('${membro._id}')">Demitir</button>
                         </td>
                     `;
                     tabela.appendChild(tr);
@@ -972,14 +910,11 @@
                     document.getElementById('perfilAdminTotalHoras').innerText = p.totalHoras || '00:00:00';
                     document.getElementById('perfilAdminTempoGestao').innerText = p.tempoGestao || '-';
                     document.getElementById('perfilAdminUltimoPlantao').innerText = p.ultimoPlantao || 'Nenhum plantão';
-
                     if (p.avatar) {
                         document.getElementById('avatarContainerAdmin').innerHTML = `<img src="${p.avatar}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
                     }
                 }
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) {}
         }
 
         function filtrarTabelaEfetivo() {
@@ -1005,8 +940,7 @@
                             mostrarModalCustomizado('Erro', data.message);
                         }
                     } catch (e) {
-                        console.error(e);
-                        mostrarModalCustomizado('Erro', 'Erro de conexão ao encerrar turno.');
+                        mostrarModalCustomizado('Erro', 'Erro de conexão.');
                     }
                 }
             );
@@ -1019,7 +953,7 @@
             document.getElementById('modalAdminHistorico').style.display = 'flex';
             document.getElementById('tituloModalHistorico').innerText = `📜 Histórico Operacional: ${nickname}`;
             const container = document.getElementById('conteudoAdminHistorico');
-            container.innerHTML = '<p>A carregar dados e comprovantes...</p>';
+            container.innerHTML = '<p>A carregar dados...</p>';
 
             try {
                 const res = await fetch(`/api/admin/membro/historico-completo/${id}`);
@@ -1027,23 +961,20 @@
 
                 if (data.success) {
                     container.innerHTML = `
-                        <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2); display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <p><b>Operacional:</b> ${data.nickname} | <b>Cargo:</b> ${data.cargo}</p>
-                            </div>
-                            <button class="btn-action btn-reset" style="padding: 8px 12px;" onclick="resetarTurnosMembro('${membroIdAtualModal}')">🗑️ Resetar Turnos</button>
+                        <div style="background: rgba(7, 13, 22, 0.7); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2); display: flex; justify-content: space-between; align-items: center;">
+                            <div><p><b>Operacional:</b> ${data.nickname} | <b>Cargo:</b> ${data.cargo}</p></div>
+                            <button class="btn-action btn-reset" onclick="resetarTurnosMembro('${membroIdAtualModal}')">🗑️ Resetar Turnos</button>
                         </div>
-                        <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2);">
+                        <div style="background: rgba(7, 13, 22, 0.7); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2);">
                             <h4 style="color: #38bdf8; margin-bottom: 8px;">🛡️ Turnos Cumpridos (${data.historicoTurnos.length})</h4>
                             ${data.historicoTurnos.length > 0 ? data.historicoTurnos.slice().reverse().map((t) => `
                                 <div style="background: rgba(30, 41, 59, 0.6); padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(56, 189, 248, 0.25);">
                                     <p style="margin-bottom: 5px;">• Duração: <b style="color: #38bdf8;">${t.duracao}</b> | Data: ${new Date(t.data).toLocaleString()}</p>
                                     ${t.fotoComprovante && t.fotoComprovante.startsWith('data:image') ? `
                                         <div style="text-align: center; margin-top: 8px;">
-                                            <img src="${t.fotoComprovante}" style="max-width: 100%; max-height: 220px; border-radius: 8px; border: 1px solid #38bdf8; cursor: pointer;" onclick="window.open('${t.fotoComprovante}')" title="Clique para ampliar">
-                                            <p style="font-size: 10px; color: #94a3b8; margin-top: 4px;">Print do Turno (Clique na imagem para ampliar)</p>
+                                            <img src="${t.fotoComprovante}" style="max-width: 100%; max-height: 200px; border-radius: 8px; border: 1px solid #38bdf8; cursor: pointer;" onclick="window.open('${t.fotoComprovante}')">
                                         </div>
-                                    ` : `<p style="font-size: 11px; color: #94a3b8;">Comprovante: ${t.fotoComprovante || 'Sem foto registada'}</p>`}
+                                    ` : ''}
                                 </div>
                             `).join('') : '<p style="color: #94a3b8;">Nenhum turno registado.</p>'}
                         </div>
@@ -1059,12 +990,12 @@
             if (!modal) {
                 modal = document.createElement('div');
                 modal.id = 'modalPrintsAdmin';
-                modal.style.cssText = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); justify-content:center; align-items:center; z-index:10000;";
+                modal.style.cssText = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(3,7,18,0.85); backdrop-filter:blur(8px); justify-content:center; align-items:center; z-index:10000;";
                 modal.innerHTML = `
-                    <div style="background: rgba(18, 31, 51, 0.98); width: 90%; max-width: 650px; max-height: 85vh; border-radius: 12px; padding: 25px; border: 1px solid #38bdf8; overflow-y: auto; color: #fff;">
-                        <button onclick="document.getElementById('modalPrintsAdmin').style.display='none'" style="float:right; background:#ef4444; color:white; border:none; padding:5px 10px; border-radius:6px; cursor:pointer; font-weight:bold;">X</button>
+                    <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(7, 13, 22, 0.98)); width: 90%; max-width: 650px; max-height: 85vh; border-radius: 16px; padding: 28px; border: 1px solid rgba(56, 189, 248, 0.4); overflow-y: auto; color: #fff;">
+                        <button onclick="document.getElementById('modalPrintsAdmin').style.display='none'" class="close-modal">X</button>
                         <h3 id="tituloPrintsAdmin" style="color: #38bdf8; margin-bottom: 15px;">📸 Prints de Missões</h3>
-                        <div id="conteudoPrintsAdmin" style="display: flex; flex-direction: column; gap: 15px;">A carregar comprovantes...</div>
+                        <div id="conteudoPrintsAdmin" style="display: flex; flex-direction: column; gap: 15px;">A carregar...</div>
                     </div>
                 `;
                 document.body.appendChild(modal);
@@ -1083,30 +1014,27 @@
                 if (data.success && data.historicoMissoes && data.historicoMissoes.length > 0) {
                     data.historicoMissoes.slice().reverse().forEach((item) => {
                         const div = document.createElement('div');
-                        div.style.background = 'rgba(15, 23, 42, 0.7)';
+                        div.style.background = 'rgba(7, 13, 22, 0.7)';
                         div.style.padding = '12px';
-                        div.style.borderRadius = '8px';
+                        div.style.borderRadius = '10px';
                         div.style.border = '1px solid rgba(56, 189, 248, 0.3)';
                         div.innerHTML = `
-                            <p style="font-weight: bold; color: #38bdf8; margin-bottom: 5px;">${item.motivo} <span style="font-size: 11px; color: #94a3b8; float: right;">Ciclo: ${item.ciclo} | ${new Date(item.data).toLocaleString()}</span></p>
+                            <p style="font-weight: bold; color: #38bdf8; margin-bottom: 5px;">${item.motivo} <span style="font-size: 11px; color: #94a3b8; float: right;">Ciclo: ${item.ciclo}</span></p>
                             <div style="margin-top: 8px; text-align: center;">
-                                <img src="${item.comprovante}" style="max-width: 100%; max-height: 300px; border-radius: 8px; border: 1px solid #38bdf8; cursor: pointer;" onclick="window.open('${item.comprovante}')" title="Clique para ampliar">
-                                <p style="font-size: 10px; color: #94a3b8; margin-top: 4px;">Clique na imagem para abrir em tamanho real</p>
+                                <img src="${item.comprovante}" style="max-width: 100%; max-height: 250px; border-radius: 8px; border: 1px solid #38bdf8; cursor: pointer;" onclick="window.open('${item.comprovante}')">
                             </div>
                         `;
                         container.appendChild(div);
                     });
                 } else {
-                    container.innerHTML = '<p style="color: #94a3b8; text-align: center;">Nenhum comprovante de missão registado para este membro.</p>';
+                    container.innerHTML = '<p style="color: #94a3b8; text-align: center;">Nenhum comprovante registado.</p>';
                 }
             } catch (e) {
-                document.getElementById('conteudoPrintsAdmin').innerHTML = '<p style="color: #ef4444;">Erro ao carregar os comprovantes.</p>';
+                document.getElementById('conteudoPrintsAdmin').innerHTML = '<p style="color: #ef4444;">Erro ao carregar.</p>';
             }
         }
 
-        function fecharHistoricoAdmin() {
-            document.getElementById('modalAdminHistorico').style.display = 'none';
-        }
+        function fecharHistoricoAdmin() { document.getElementById('modalAdminHistorico').style.display = 'none'; }
 
         async function carregarElegiveisSorteio() {
             try {
@@ -1114,12 +1042,10 @@
                 const data = await res.json();
                 const container = document.getElementById('listaElegiveisSorteio');
                 container.innerHTML = '';
-
                 const ignorados = JSON.parse(localStorage.getItem('elegiveisLimposManual') || '[]');
 
                 if (data.success && data.elegiveis.length > 0) {
                     const elegiveisFiltrados = data.elegiveis.filter(m => !ignorados.includes(m.nickname.toLowerCase()));
-
                     if (elegiveisFiltrados.length > 0) {
                         elegiveisFiltrados.forEach(m => {
                             const div = document.createElement('div');
@@ -1127,18 +1053,16 @@
                             div.dataset.nickname = m.nickname.toLowerCase();
                             div.style.padding = '4px 0';
                             div.style.borderBottom = '1px solid rgba(56, 189, 248, 0.1)';
-                            div.innerHTML = `• <b>${m.nickname}</b> (${m.cargo}) — <i style="color: #38bdf8;">Elegível (2h+ cumpridas HOJE)</i>`;
+                            div.innerHTML = `• <b>${m.nickname}</b> (${m.cargo}) — <i style="color: #38bdf8;">Elegível (2h+ HOJE)</i>`;
                             container.appendChild(div);
                         });
                     } else {
-                        container.innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível com 2h+ cumpridas HOJE neste ciclo.</span>`;
+                        container.innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível com 2h+ hoje.</span>`;
                     }
                 } else {
-                    container.innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível com 2h+ cumpridas HOJE neste ciclo.</span>`;
+                    container.innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível com 2h+ hoje.</span>`;
                 }
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) {}
         }
         carregarElegiveisSorteio();
 
@@ -1159,20 +1083,17 @@
                         container.appendChild(div);
                     });
                 } else {
-                    container.innerHTML = `<span style="color: #94a3b8;">Nenhum operacional registou turno hoje ainda.</span>`;
+                    container.innerHTML = `<span style="color: #94a3b8;">Nenhum turno registado hoje ainda.</span>`;
                 }
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) {}
         }
         carregarElegiveisUmTurno();
 
         async function executarSorteioUmTurno() {
             const premios = document.getElementById('sorteioPremios').value;
-
             mostrarModalCustomizado(
                 'Roleta: Quem Fez 1 Turno Hoje',
-                `Deseja sortear 1 vencedor entre os operacionais que realizaram pelo menos 1 turno <b>hoje</b> (não acumulativo)?`,
+                `Deseja sortear 1 vencedor entre os operacionais que fizeram pelo menos 1 turno hoje?`,
                 'confirmacao',
                 async () => {
                     try {
@@ -1182,26 +1103,22 @@
                             body: JSON.stringify({ premios })
                         });
                         const data = await res.json();
-
                         if (data.success) {
                             const g = data.ganhadores[0];
-                            document.getElementById('resultadoSorteio').innerHTML = `🎉 <b>Vencedor (1 Turno Hoje):</b> ${g.nickname} (${g.cargo}) levou <b>${g.premio}</b>`;
-                            
+                            document.getElementById('resultadoSorteio').innerHTML = `🎉 <b>Vencedor:</b> ${g.nickname} (${g.cargo}) levou <b>${g.premio}</b>`;
                             socket.emit('chat_mensagem', {
                                 salaId: 'sala_geral_salazar',
                                 nickname: 'ROLETA 1 TURNO',
                                 cargo: 'Comando',
-                                mensagem: `🎯 A roleta de 1 turno diário girou! ${g.nickname} (${g.cargo}) ganhou: ${g.premio}!`
+                                mensagem: `🎯 Roleta de 1 turno! ${g.nickname} ganhou: ${g.premio}!`
                             });
-
                             carregarElegiveisUmTurno();
-                            mostrarModalCustomizado('Sucesso', `Sorteio realizado! Vencedor: <b>${g.nickname}</b> (${g.premio}).`);
+                            mostrarModalCustomizado('Sucesso', `Vencedor: <b>${g.nickname}</b> (${g.premio}).`);
                         } else {
                             mostrarModalCustomizado('Aviso', data.message);
                         }
                     } catch (e) {
-                        console.error(e);
-                        mostrarModalCustomizado('Erro', 'Erro ao realizar sorteio de 1 turno.');
+                        mostrarModalCustomizado('Erro', 'Erro ao sortear.');
                     }
                 }
             );
@@ -1209,10 +1126,9 @@
 
         async function executarSorteioImediato() {
             const premios = document.getElementById('sorteioPremios').value;
-
             mostrarModalCustomizado(
                 'Girar Roleta Ao Vivo',
-                `Deseja acionar a roleta visual ao vivo para sortear 1 vencedor entre os elegíveis (2h+)? O vencedor sairá automaticamente da roleta para o próximo giro.`,
+                `Deseja girar a roleta para sortear 1 vencedor entre os elegíveis (2h+)?`,
                 'confirmacao',
                 async () => {
                     try {
@@ -1222,26 +1138,22 @@
                             body: JSON.stringify({ premios })
                         });
                         const data = await res.json();
-
                         if (data.success) {
                             const g = data.ganhadores[0];
-                            document.getElementById('resultadoSorteio').innerHTML = `🎉 <b>Último Vencedor na Roleta:</b> ${g.nickname} (${g.cargo}) levou <b>${g.premio}</b>`;
-                            
+                            document.getElementById('resultadoSorteio').innerHTML = `🎉 <b>Vencedor:</b> ${g.nickname} (${g.cargo}) levou <b>${g.premio}</b>`;
                             socket.emit('chat_mensagem', {
                                 salaId: 'sala_geral_salazar',
                                 nickname: 'ROLETA OFICIAL',
                                 cargo: 'Comando',
-                                mensagem: `🎰 A roleta girou! ${g.nickname} (${g.cargo}) ganhou: ${g.premio}!`
+                                mensagem: `🎰 Roleta oficial! ${g.nickname} ganhou: ${g.premio}!`
                             });
-
                             carregarElegiveisSorteio();
-                            mostrarModalCustomizado('Sucesso', `A roleta girou com sucesso! Vencedor: <b>${g.nickname}</b> (${g.premio}).`);
+                            mostrarModalCustomizado('Sucesso', `Vencedor: <b>${g.nickname}</b> (${g.premio}).`);
                         } else {
                             mostrarModalCustomizado('Aviso', data.message);
                         }
                     } catch (e) {
-                        console.error(e);
-                        mostrarModalCustomizado('Erro', 'Erro ao girar a roleta.');
+                        mostrarModalCustomizado('Erro', 'Erro ao girar roleta.');
                     }
                 }
             );
@@ -1250,7 +1162,7 @@
         async function resetarElegiveisSorteio() {
             mostrarModalCustomizado(
                 'Resetar Ciclo da Roleta',
-                'Tem a certeza que deseja limpar a lista de quem já ganhou neste ciclo para que todos os elegíveis com 2h+ possam participar novamente?',
+                'Deseja limpar quem já ganhou para que todos com 2h+ possam participar novamente?',
                 'confirmacao',
                 async () => {
                     try {
@@ -1260,12 +1172,9 @@
                         if (data.success) {
                             carregarElegiveisSorteio();
                             document.getElementById('resultadoSorteio').innerHTML = '';
-                            mostrarModalCustomizado('Sucesso', 'Ciclo da roleta resetado! Todos com 2h+ voltaram para a roleta.');
+                            mostrarModalCustomizado('Sucesso', 'Ciclo resetado com sucesso!');
                         }
-                    } catch (e) {
-                        console.error(e);
-                        mostrarModalCustomizado('Erro', 'Erro ao resetar ciclo.');
-                    }
+                    } catch (e) {}
                 }
             );
         }
@@ -1273,7 +1182,7 @@
         async function limparElegiveis() {
             mostrarModalCustomizado(
                 'Limpar Elegíveis',
-                'Tem a certeza que deseja limpar/zerar todos os operacionais elegíveis atuais da lista?',
+                'Deseja limpar todos os operacionais elegíveis atuais da lista?',
                 'confirmacao',
                 async () => {
                     try {
@@ -1285,18 +1194,11 @@
                             }
                         });
                         localStorage.setItem('elegiveisLimposManual', JSON.stringify(ignorados));
-
                         await fetch('/api/admin/sorteio/resetar-elegiveis', { method: 'POST' });
-
-                        const container = document.getElementById('listaElegiveisSorteio');
-                        container.innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível com 2h+ cumpridas HOJE neste ciclo.</span>`;
+                        document.getElementById('listaElegiveisSorteio').innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível.</span>`;
                         document.getElementById('resultadoSorteio').innerHTML = '';
-
-                        mostrarModalCustomizado('Sucesso', 'Lista de elegíveis limpa com sucesso!');
-                    } catch (e) {
-                        console.error(e);
-                        mostrarModalCustomizado('Erro', 'Erro ao limpar elegíveis.');
-                    }
+                        mostrarModalCustomizado('Sucesso', 'Elegíveis limpos!');
+                    } catch (e) {}
                 }
             );
         }
@@ -1304,21 +1206,18 @@
         async function enviarNotificacaoRanking() {
             mostrarModalCustomizado(
                 'Confirmação',
-                'Deseja enviar a notificação com a posição atual do ranking de horas para a caixa de entrada de todos os operacionais?',
+                'Deseja enviar a notificação com a posição atual do ranking para todos os operacionais?',
                 'confirmacao',
                 async () => {
                     try {
                         const res = await fetch('/api/admin/notificar/ranking', { method: 'POST' });
                         const data = await res.json();
                         if (data.success) {
-                            mostrarModalCustomizado('Sucesso', 'Notificações de ranking enviadas com sucesso para a tropa!');
+                            mostrarModalCustomizado('Sucesso', 'Notificações de ranking enviadas!');
                         } else {
                             mostrarModalCustomizado('Erro', data.message);
                         }
-                    } catch (e) {
-                        console.error(e);
-                        mostrarModalCustomizado('Erro', 'Erro ao enviar notificações de ranking.');
-                    }
+                    } catch (e) {}
                 }
             );
         }
@@ -1326,21 +1225,18 @@
         async function resetarRankingSemanal() {
             mostrarModalCustomizado(
                 'Confirmação de Reset de Ranking',
-                'Tem a certeza absoluta que deseja resetar o ranking de horas da tropa para iniciar a nova semana? Todos os turnos acumulados anteriores serão limpos.',
+                'Tem a certeza absoluta que deseja resetar o ranking de horas da tropa para iniciar a nova semana?',
                 'confirmacao',
                 async () => {
                     try {
                         const res = await fetch('/api/admin/ranking/resetar', { method: 'PUT' });
                         const data = await res.json();
                         if (data.success) {
-                            mostrarModalCustomizado('Sucesso', 'O ranking semanal foi resetado com sucesso e a tropa foi notificada!');
+                            mostrarModalCustomizado('Sucesso', 'Ranking semanal resetado com sucesso!');
                         } else {
                             mostrarModalCustomizado('Erro', data.message);
                         }
-                    } catch (e) {
-                        console.error(e);
-                        mostrarModalCustomizado('Erro', 'Erro de conexão ao resetar o ranking.');
-                    }
+                    } catch (e) {}
                 }
             );
         }
@@ -1365,8 +1261,7 @@
             document.getElementById('modalCustomTitle').innerText = 'Promover / Alterar Cargo';
             
             let cargosDisponiveis = ['Privado', 'Soldado', 'Sargento', 'Tenente', 'Major', 'Coronel'];
-            const nicknameAtual = (user.nickname || '').toLowerCase().trim();
-            if (nicknameAtual === 'mestre') {
+            if ((user.nickname || '').toLowerCase().trim() === 'mestre') {
                 cargosDisponiveis = ['Privado', 'Soldado', 'Sargento', 'Tenente', 'Major', 'Coronel', 'Coronel All'];
             }
 
@@ -1378,7 +1273,7 @@
 
             document.getElementById('modalCustomMessage').innerHTML = `
                 <p style="margin-bottom: 10px;">Selecione o novo cargo hierárquico:</p>
-                <select id="selectNovoCargo" style="width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 8px; color: white; font-size: 14px; text-align-last: center; outline: none;">
+                <select id="selectNovoCargo" class="search-input-box" style="text-align-last: center; margin-bottom: 0;">
                     ${optionsHtml}
                 </select>
             `;
@@ -1393,15 +1288,13 @@
             btnCancelar.onclick = () => { modal.style.display = 'none'; };
 
             const btnConfirmar = document.createElement('button');
-            btnConfirmar.innerText = 'Confirmar Alteração';
+            btnConfirmar.innerText = 'Confirmar';
             btnConfirmar.className = 'btn-action btn-aprovar';
             btnConfirmar.style.padding = '8px 20px';
             btnConfirmar.onclick = async () => {
                 const novoCargo = document.getElementById('selectNovoCargo').value;
                 if (!novoCargo) return;
-
                 modal.style.display = 'none';
-
                 try {
                     const res = await fetch(`/api/admin/membro/${id}`, {
                         method: 'PUT',
@@ -1414,14 +1307,9 @@
                         carregarElegiveisSorteio();
                         carregarElegiveisUmTurno();
                         carregarLogsAdmin();
-                        mostrarModalCustomizado('Sucesso', 'Cargo atualizado com sucesso e log registado!');
-                    } else {
-                        mostrarModalCustomizado('Erro', data.message || 'Erro ao atualizar cargo.');
+                        mostrarModalCustomizado('Sucesso', 'Cargo atualizado com sucesso!');
                     }
-                } catch (e) {
-                    console.error(e);
-                    mostrarModalCustomizado('Erro', 'Erro de conexão.');
-                }
+                } catch (e) {}
             };
 
             btnContainer.appendChild(btnCancelar);
@@ -1450,10 +1338,7 @@
             });
         }
 
-        function logout() {
-            localStorage.clear();
-            window.location.href = 'index.html';
-        }
+        function logout() { localStorage.clear(); window.location.href = 'index.html'; }
 
         carregarEfetivo();
     </script>
