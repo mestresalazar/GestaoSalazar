@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestão Salazar - Painel do Membro</title>
-    <!-- SUPORTE PWA PARA ANDROID -->
+    <!-- SUPORTE PWA PARA ANDROID E IOS -->
     <meta name="theme-color" content="#070d16">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -14,6 +14,7 @@
             box-sizing: border-box;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
             letter-spacing: -0.01em;
+            -webkit-tap-highlight-color: transparent;
         }
         body {
             background-image: linear-gradient(rgba(7, 13, 22, 0.8), rgba(7, 13, 22, 0.9)), url('/background.jpg');
@@ -32,6 +33,7 @@
             align-items: center;
             background: linear-gradient(145deg, rgba(15, 23, 42, 0.92), rgba(7, 13, 22, 0.98)) !important;
             backdrop-filter: blur(16px) !important;
+            -webkit-backdrop-filter: blur(16px) !important;
             padding: 14px 20px;
             border-radius: 16px !important;
             margin-bottom: 20px;
@@ -130,6 +132,7 @@
         .card {
             background: linear-gradient(145deg, rgba(15, 23, 42, 0.85), rgba(7, 13, 22, 0.95)) !important;
             backdrop-filter: blur(16px) !important;
+            -webkit-backdrop-filter: blur(16px) !important;
             padding: 22px;
             border-radius: 16px !important;
             box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.7) !important;
@@ -282,6 +285,7 @@
             padding: 10px;
             max-height: 260px;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
         .chat-sidebar-online h5 {
             color: #38bdf8;
@@ -328,6 +332,7 @@
             border-radius: 10px;
             padding: 14px;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             margin-bottom: 12px;
             display: flex;
             flex-direction: column;
@@ -367,6 +372,7 @@
             top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(3, 7, 18, 0.85);
             backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             justify-content: center;
             align-items: center;
             z-index: 1000;
@@ -379,6 +385,7 @@
             border-radius: 16px;
             padding: 28px;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             border: 1px solid rgba(56, 189, 248, 0.4);
         }
         .close-modal {
@@ -398,6 +405,7 @@
             inset: 0;
             background: rgba(3, 7, 18, 0.92);
             backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             z-index: 99999;
             justify-content: center;
             align-items: center;
@@ -524,7 +532,7 @@
                 <!-- CAIXA DE ENTRADA -->
                 <div class="card">
                     <h3>📥 Caixa de Entrada & Notificações</h3>
-                    <div id="caixaEntradaContainer" style="max-height: 180px; overflow-y: auto; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; padding: 12px; font-size: 13px; color: #e2e8f0;">
+                    <div id="caixaEntradaContainer" style="max-height: 180px; overflow-y: auto; -webkit-overflow-scrolling: touch; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; padding: 12px; font-size: 13px; color: #e2e8f0;">
                         A carregar notificações...
                     </div>
                 </div>
@@ -561,7 +569,7 @@
                     <button onclick="atualizarFiscalizacaoServidor()" style="background: rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; color: #38bdf8; padding: 5px 12px; border-radius: 8px; font-size: 11px; cursor: pointer; font-weight: 600;">🔄 Atualizar</button>
                 </div>
                 <input type="text" id="inputPesquisaFiscalizacao" class="search-input-box" placeholder="🔍 Pesquisar operacional em plantão..." oninput="filtrarFiscalizacaoPlantao()">
-                <div id="listaFiscalizacaoPlantao" style="max-height: 280px; overflow-y: auto; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; padding: 12px; font-size: 13px;">
+                <div id="listaFiscalizacaoPlantao" style="max-height: 280px; overflow-y: auto; -webkit-overflow-scrolling: touch; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; padding: 12px; font-size: 13px;">
                     <span style="color: #94a3b8;">A carregar efetivo em plantão...</span>
                 </div>
             </div>
@@ -595,7 +603,7 @@
         <div class="card" style="max-width: 700px; margin: 0 auto;">
             <h3>🏆 Ranking da Tropa (17h às 02h)</h3>
             <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Membros com mais horas acumuladas no horário regulamentar.</p>
-            <div style="overflow-x: auto;">
+            <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
                 <table>
                     <thead>
                         <tr>
@@ -634,7 +642,7 @@
 
     <!-- Modal de Perfil do Membro -->
     <div id="modalPerfil">
-        <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 90%; max-width: 450px; border-radius: 16px; padding: 28px; border: 1px solid rgba(56, 189, 248, 0.4); text-align: center;">
+        <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 90%; max-width: 450px; border-radius: 16px; padding: 28px; border: 1px solid rgba(56, 189, 248, 0.4); text-align: center; max-height: 85vh; overflow-y: auto; -webkit-overflow-scrolling: touch;">
             <button class="close-modal" onclick="fecharPerfilModal()">X</button>
             <h3 style="color: #38bdf8; margin-bottom: 20px;">👤 Perfil do Operacional</h3>
             
@@ -681,8 +689,8 @@
     </div>
 
     <!-- Modais Gerais -->
-    <div id="modalProva" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.85); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 10000;">
-        <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 90%; max-width: 600px; border-radius: 16px; padding: 28px; border: 1px solid rgba(56, 189, 248, 0.4); max-height: 85vh; overflow-y: auto;">
+    <div id="modalProva" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 10000;">
+        <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 90%; max-width: 600px; border-radius: 16px; padding: 28px; border: 1px solid rgba(56, 189, 248, 0.4); max-height: 85vh; overflow-y: auto; -webkit-overflow-scrolling: touch;">
             <h3 id="tituloModalProva" style="color: #38bdf8; margin-bottom: 16px;">Avaliação Oficial</h3>
             <form id="formProva" onsubmit="enviarProva(event)">
                 <div id="conteudoPerguntasProva"></div>
@@ -770,12 +778,13 @@
         }
         carregarLinkWhatsappMembro();
 
+        // --- CORREÇÃO SAFARI/IOS PARA ABERTURA DO WHATSAPP ---
         async function abrirGrupoWhatsapp() {
             try {
                 const res = await fetch(`/api/membro/perfil/${encodeURIComponent(user.nickname)}`);
                 const data = await res.json();
                 if (data.success && data.perfil) {
-                    telefoneMembroAtualCache = data.perfil.telefone || '';
+                    telefoneMembroAtualCache = dataPerfil.perfil.telefone || '';
                 }
             } catch (e) {}
 
@@ -790,7 +799,11 @@
             }
 
             if (linkGrupoWhatsappGlobal) {
-                window.open(linkGrupoWhatsappGlobal, '_blank');
+                // Execução síncrona direta para o Safari do iOS não bloquear como pop-up
+                const novaJanela = window.open(linkGrupoWhatsappGlobal, '_blank');
+                if (!novaJanela) {
+                    window.location.href = linkGrupoWhatsappGlobal;
+                }
             } else {
                 mostrarModalCustomizado('Aviso', 'O link do grupo do WhatsApp ainda não foi configurado.');
             }
@@ -1054,7 +1067,6 @@
         setInterval(sincronizarCarteiraEMissoes, 60000);
         sincronizarCarteiraEMissoes();
 
-        // Demais funções utilitárias (Push, Provas, Fiscalização, Sockets, Timer) mantidas intactas
         async function verificarEstadoPush() {
             if ('serviceWorker' in navigator && 'PushManager' in window && Notification.permission !== 'granted') {
                 document.getElementById('bannerPush').style.display = 'block';
