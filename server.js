@@ -69,11 +69,11 @@ function converterDuracaoParaSegundos(duracaoStr) {
   if (!duracaoStr) return 0;
   const partes = duracaoStr.split(':');
   if (partes.length !== 3) return 0;
-  return (parseInt(partes[0]) * 3600) + (parseInt(partes[1]) * 60) + parseInt(partes[2]);
+  return (parseInt(partes[0], 10) * 3600) + (parseInt(partes[1], 10) * 60) + parseInt(partes[2], 10);
 }
 
 function converterSegundosParaDuracao(segundosTotais) {
-  const segundosSeguros = Math.max(0, parseInt(segundosTotais) || 0);
+  const segundosSeguros = Math.max(0, parseInt(segundosTotais, 10) || 0);
   const horas = String(Math.floor(segundosSeguros / 3600)).padStart(2, '0');
   const minutos = String(Math.floor((segundosSeguros % 3600) / 60)).padStart(2, '0');
   const segundos = String(segundosSeguros % 60).padStart(2, '0');
@@ -81,10 +81,9 @@ function converterSegundosParaDuracao(segundosTotais) {
 }
 
 function obterDataCicloBrasil() {
-    const agoraBrasilStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
-    const agoraBrasil = new Date(agoraBrasilStr);
-    if (agoraBrasil.getHours() < 2) {
-        agoraBrasil.setDate(agoraBrasil.getDate() - 1);
+    const agoraBrasil = new Date(Date.now() - (3 * 3600 * 1000));
+    if (agoraBrasil.getUTCHours() < 2) {
+        agoraBrasil.setUTCDate(agoraBrasil.getUTCDate() - 1);
     }
     return agoraBrasil.toISOString().split('T')[0];
 }
@@ -112,46 +111,41 @@ function calcularSegundosValidosNoHorario(inicioTimestamp, fimTimestamp) {
     return Math.floor((fimValido - inicioValido) / 1000);
 }
 
+// Verificação ultra-rápida sem carregar imagens e sem conversão pesada de string
 function turnoEstaNoHorarioPermitido(t) {
     if (!t) return false;
-    if (t.fotoComprovante && t.fotoComprovante.includes('Injeção Manual')) return true;
-    
-    const dataTurno = t.data;
-    if (!dataTurno) return false;
-    const d = new Date(dataTurno);
-    const horaStr = d.toLocaleString("en-US", { timeZone: "America/Sao_Paulo", hour: 'numeric', hour12: false });
-    const hora = parseInt(horaStr, 10);
-    return (hora >= 17 && hora <= 23) || (hora >= 0 && hora < 2);
+    if (t.manual === true) return true;
+    if (!t.data) return false;
+
+    const d = new Date(t.data);
+    if (isNaN(d.getTime())) return false;
+
+    const horaBrasil = (d.getUTCHours() - 3 + 24) % 24;
+    return (horaBrasil >= 17 && horaBrasil <= 23) || (horaBrasil >= 0 && horaBrasil < 2);
 }
 
 function turnoPertenceAoCicloAtual(t) {
     if (!t) return false;
-    if (t.fotoComprovante && t.fotoComprovante.includes('Injeção Manual')) return true;
+    if (t.manual === true) return true;
+    if (!t.data) return false;
 
-    const dataTurno = t.data;
-    if (!dataTurno) return false;
-    const d = new Date(dataTurno);
-    const agoraStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
-    const agora = new Date(agoraStr);
-    const horaAtual = agora.getHours();
+    const d = new Date(t.data);
+    if (isNaN(d.getTime())) return false;
 
-    const dBrasilStr = d.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
-    const dBrasil = new Date(dBrasilStr);
+    const agoraBrasil = new Date(Date.now() - (3 * 3600 * 1000));
+    const dBrasil = new Date(d.getTime() - (3 * 3600 * 1000));
+    const horaAtual = agoraBrasil.getUTCHours();
+
+    const hojeStr = agoraBrasil.toISOString().split('T')[0];
+    const dStr = dBrasil.toISOString().split('T')[0];
 
     if (horaAtual >= 0 && horaAtual < 3) {
-        const ontem = new Date(agora);
-        ontem.setDate(ontem.getDate() - 1);
-        
-        const dDataOnly = dBrasil.toISOString().split('T')[0];
-        const hojeDataOnly = agora.toISOString().split('T')[0];
-        const ontemDataOnly = ontem.toISOString().split('T')[0];
-
-        return dDataOnly === hojeDataOnly || dDataOnly === ontemDataOnly;
-    } else {
-        const dStr = dBrasil.toLocaleDateString("en-US");
-        const hojeStr = agora.toLocaleDateString("en-US");
-        return dStr === hojeStr;
+        const ontemBrasil = new Date(agoraBrasil.getTime() - (24 * 3600 * 1000));
+        const ontemStr = ontemBrasil.toISOString().split('T')[0];
+        return dStr === hojeStr || dStr === ontemStr;
     }
+
+    return dStr === hojeStr;
 }
 
 // --- ROTAS DO LINK DO WHATSAPP ---
@@ -193,13 +187,12 @@ app.post('/api/admin/whatsapp-link', async (req, res) => {
 // --- VERIFICAÇÃO AUTOMÁTICA DE FECHO DE TURNO ÀS 02:05 ---
 async function verificarFechamentoAutomaticoTurnos() {
     try {
-        const agoraBrasilStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
-        const agoraBrasil = new Date(agoraBrasilStr);
-        const hora = agoraBrasil.getHours();
-        const minuto = agoraBrasil.getMinutes();
+        const agoraBrasil = new Date(Date.now() - (3 * 3600 * 1000));
+        const hora = agoraBrasil.getUTCHours();
+        const minuto = agoraBrasil.getUTCMinutes();
 
         if (hora === 2 && minuto >= 5 && minuto <= 7) {
-            const membrosEmPlantao = await User.find({ emPlantao: true }).lean();
+            const membrosEmPlantao = await User.find({ emPlantao: true }, 'nickname segundosAcumulados inicioPlantao').lean();
             
             for (const membro of membrosEmPlantao) {
                 let segundosTotais = membro.segundosAcumulados || 0;
@@ -245,7 +238,6 @@ async function verificarFechamentoAutomaticoTurnos() {
             }
             if (membrosEmPlantao.length > 0) {
                 io.emit('atualizar_status_geral_tropa');
-                console.log(`[AUTO-CLOSE] Fechados turnos automáticos de ${membrosEmPlantao.length} operacionais às 02:05.`);
             }
         }
     } catch (e) {
@@ -260,7 +252,7 @@ async function verificarInatividadeTropa() {
         const agora = new Date();
         const tresDiasAtras = new Date(agora.getTime() - (3 * 24 * 60 * 60 * 1000));
 
-        const membros = await User.find({ status: 'ativo' }).lean();
+        const membros = await User.find({ status: 'ativo' }, 'nickname historicoTurnos.data caixaEntrada').lean();
         for (const membro of membros) {
             const turnos = membro.historicoTurnos || [];
             let ultimoTurnoData = membro._id.getTimestamp();
@@ -305,7 +297,7 @@ app.post('/api/auth/login', async (req, res) => {
         const passFinal = senha || password;
         if (!nickname || !passFinal) return res.status(400).json({ success: false, message: 'Preencha os campos.' });
         
-        const user = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') }).select('-historicoTurnos.fotoComprovante').lean();
+        const user = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') }, 'nickname password cargo role status').lean();
         if (!user) return res.status(400).json({ success: false, message: 'Utilizador não encontrado.' });
         if (user.password && user.password !== passFinal) {
             return res.status(400).json({ success: false, message: 'Senha incorreta.' });
@@ -327,7 +319,7 @@ app.post('/api/auth/register', async (req, res) => {
         const passFinal = senha || password;
         if (!nickname || !passFinal) return res.status(400).json({ success: false, message: 'Preencha o nickname e a senha.' });
 
-        const userExiste = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') });
+        const userExiste = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') }, '_id').lean();
         if (userExiste) return res.status(400).json({ success: false, message: 'Este nickname já está registado.' });
 
         const novoUtilizador = new User({
@@ -347,7 +339,10 @@ app.post('/api/auth/register', async (req, res) => {
 
 app.get('/api/membro/perfil/:nickname', async (req, res) => {
     try {
-        const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }).lean();
+        const membro = await User.findOne(
+            { nickname: new RegExp('^' + req.params.nickname + '$', 'i') },
+            'nickname cargo status avatar telefone historicoTurnos.duracao historicoTurnos.data'
+        ).lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
         let totalSegundos = 0;
@@ -356,15 +351,10 @@ app.get('/api/membro/perfil/:nickname', async (req, res) => {
                 totalSegundos += converterDuracaoParaSegundos(t.duracao);
             });
         }
-        const h = Math.floor(totalSegundos / 3600);
-        const m = Math.floor((totalSegundos % 3600) / 60);
-        const s = totalSegundos % 60;
-        const totalHorasFormatado = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        const totalHorasFormatado = converterSegundosParaDuracao(totalSegundos);
 
         const dataCriacao = membro._id.getTimestamp();
-        const agora = new Date();
-        const diffTempo = Math.abs(agora - dataCriacao);
-        const diffDias = Math.floor(diffTempo / (1000 * 60 * 60 * 24));
+        const diffDias = Math.floor(Math.abs(new Date() - dataCriacao) / (1000 * 60 * 60 * 24));
         const tempoGestaoStr = diffDias === 0 ? 'Menos de 1 dia' : `${diffDias} dia(s) na organização`;
 
         const ultimoTurno = membro.historicoTurnos && membro.historicoTurnos.length > 0 
@@ -430,7 +420,10 @@ app.put('/api/membro/atualizar-perfil', async (req, res) => {
 
 app.get('/api/membro/historico/:nickname', async (req, res) => {
     try {
-        const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }, '-password -historicoTurnos.fotoComprovante').lean();
+        const membro = await User.findOne(
+            { nickname: new RegExp('^' + req.params.nickname + '$', 'i') },
+            '-password -avatar -historicoTurnos.fotoComprovante -historicoMissoes.comprovante'
+        ).lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
         const ultimoTurno = membro.historicoTurnos && membro.historicoTurnos.length > 0 
@@ -483,7 +476,7 @@ app.post('/api/admin/disparar-acao', async (req, res) => {
         const descricaoFinal = descricaoAcao || descricao || 'Convocação urgente do Comando! Apresente-se imediatamente.';
 
         if (adminNickname) {
-            const adminUser = await User.findOne({ nickname: new RegExp('^' + adminNickname + '$', 'i') }).lean();
+            const adminUser = await User.findOne({ nickname: new RegExp('^' + adminNickname + '$', 'i') }, 'role cargo').lean();
             const cargoAdmin = adminUser ? (adminUser.cargo || '') : '';
             const ehAdminValido = adminUser && (adminUser.role === 'admin' || cargoAdmin === 'General' || cargoAdmin === 'Coronel All');
             
@@ -492,7 +485,7 @@ app.post('/api/admin/disparar-acao', async (req, res) => {
             }
         }
 
-        const membrosComPush = await User.find({ pushSubscription: { $exists: true, $ne: null } }).lean();
+        const membrosComPush = await User.find({ pushSubscription: { $exists: true, $ne: null } }, 'pushSubscription').lean();
         const payload = JSON.stringify({
             title: `🚨 AÇÃO: ${tituloFinal}`,
             body: descricaoFinal,
@@ -532,11 +525,10 @@ app.put('/api/membro/status-plantao', async (req, res) => {
         if (!nickname) return res.status(400).json({ success: false, message: 'Nickname obrigatório.' });
 
         if (emPlantao) {
-            const agoraBrasilStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
-            const agoraBrasil = new Date(agoraBrasilStr);
-            const hora = agoraBrasil.getHours();
+            const agoraBrasil = new Date(Date.now() - (3 * 3600 * 1000));
+            const hora = agoraBrasil.getUTCHours();
 
-            const membroUser = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') }).lean();
+            const membroUser = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, 'cargo').lean();
             const cargo = membroUser ? (membroUser.cargo || '') : '';
             const ehMestre = nickname.toLowerCase().trim() === 'mestre' || cargo === 'General' || cargo === 'Coronel All';
 
@@ -573,10 +565,10 @@ app.post('/api/membro/turno', async (req, res) => {
         const { nickname, duracao, segundosTotais, fotoComprovante } = req.body;
         if (!nickname) return res.status(400).json({ success: false, message: 'Nickname não fornecido.' });
 
-        const membroDoc = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
+        const membroDoc = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, '_id inicioPlantao').lean();
         if (!membroDoc) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
-        let segundosFinais = parseInt(segundosTotais) || 0;
+        let segundosFinais = parseInt(segundosTotais, 10) || 0;
         if (segundosFinais <= 0 && duracao) {
             segundosFinais = converterDuracaoParaSegundos(duracao);
         }
@@ -627,7 +619,10 @@ app.post('/api/membro/turno', async (req, res) => {
 app.get('/api/membro/carteira/:nickname', async (req, res) => {
     try {
         const { nickname } = req.params;
-        const membro = await User.findOne({ nickname: new RegExp(`^${nickname}$`, 'i') });
+        const membro = await User.findOne(
+            { nickname: new RegExp(`^${nickname}$`, 'i') },
+            'carteiraSaldo ultimoCicloMissoes missoesConcluidasCiclo'
+        );
         
         if (!membro) {
             return res.json({ success: false, message: 'Membro não encontrado.' });
@@ -657,7 +652,10 @@ app.post('/api/membro/carteira/atualizar', async (req, res) => {
         const { nickname, saldoTotal, motivo, ciclo, comprovantePrint } = req.body;
         if (!nickname) return res.status(400).json({ success: false, message: 'Nickname obrigatório.' });
 
-        const membro = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') });
+        const membro = await User.findOne(
+            { nickname: new RegExp('^' + nickname.trim() + '$', 'i') },
+            'carteiraSaldo ultimoCicloMissoes missoesConcluidasCiclo historicoMissoes'
+        );
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
         const saldoFinal = saldoTotal !== undefined ? Number(saldoTotal) : (membro.carteiraSaldo || 0);
@@ -772,7 +770,10 @@ app.get(['/api/membro/em-plantao', '/api/membro/em-plantao/:nickname'], async (r
             });
         }
 
-        const membro = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') }).lean();
+        const membro = await User.findOne(
+            { nickname: new RegExp('^' + nickname + '$', 'i') },
+            'emPlantao estadoTurno inicioPlantao segundosAcumulados fotoComprovanteAtiva'
+        ).lean();
         if (!membro) {
             return res.json({ success: true, emPlantao: false, estadoTurno: 'parado', inicioPlantao: null, segundosAcumulados: 0 });
         }
@@ -807,7 +808,7 @@ app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
             query = { $or: [{ nickname: new RegExp('^' + nickname + '$', 'i') }, { _id: nickname }] };
         }
 
-        let membro = await User.findOne(query, '-password -historicoTurnos.fotoComprovante').lean();
+        let membro = await User.findOne(query, '-password -avatar -historicoTurnos.fotoComprovante -historicoMissoes.comprovante').lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
         const ultimoTurno = membro.historicoTurnos && membro.historicoTurnos.length > 0 ? membro.historicoTurnos[membro.historicoTurnos.length - 1] : null;
@@ -857,10 +858,12 @@ app.get('/api/admin/membros', async (req, res) => {
 
 app.get('/api/admin/estatisticas', async (req, res) => {
     try {
-        const totalRegistados = await User.countDocuments();
-        const ativos = await User.countDocuments({ status: 'ativo' });
-        const pendentes = await User.countDocuments({ status: 'pendente' });
-        const emPlantao = await User.countDocuments({ emPlantao: true });
+        const [totalRegistados, ativos, pendentes, emPlantao] = await Promise.all([
+            User.countDocuments(),
+            User.countDocuments({ status: 'ativo' }),
+            User.countDocuments({ status: 'pendente' }),
+            User.countDocuments({ emPlantao: true })
+        ]);
 
         res.json({
             success: true,
@@ -875,7 +878,7 @@ app.put('/api/admin/membro/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { status, cargo, autor } = req.body;
-        const membroAntigo = await User.findById(id);
+        const membroAntigo = await User.findById(id, 'nickname cargo status').lean();
         if (!membroAntigo) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
         if (cargo && (cargo === 'Coronel' || cargo === 'Coronel All')) {
@@ -889,7 +892,7 @@ app.put('/api/admin/membro/:id', async (req, res) => {
         if (status) updateData.status = status;
         if (cargo) updateData.cargo = cargo;
 
-        const membro = await User.findByIdAndUpdate(id, { $set: updateData }, { new: true });
+        const membro = await User.findByIdAndUpdate(id, { $set: updateData }, { new: true, select: 'nickname cargo status' }).lean();
         const nomeAutor = autor || 'Comando';
         
         if (cargo && cargo !== membroAntigo.cargo) {
@@ -921,7 +924,7 @@ function cargoAniPrecedencia(novo, antigo) {
 app.put('/api/admin/membro/forcar-fim-turno/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const membro = await User.findById(id);
+        const membro = await User.findById(id, 'nickname').lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
         await User.updateOne(
@@ -950,7 +953,7 @@ app.put('/api/admin/membro/forcar-fim-turno/:id', async (req, res) => {
 app.put('/api/admin/membro/resetar-turnos/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const membro = await User.findByIdAndUpdate(id, { $set: { historicoTurnos: [] } }, { new: true });
+        const membro = await User.findByIdAndUpdate(id, { $set: { historicoTurnos: [] } }, { new: true, select: 'nickname' }).lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
         io.emit('atualizar_status_geral_tropa');
         await registarLogAdmin('Comando', 'Reset de Turnos', `Histórico de turnos de ${membro.nickname} foi limpo.`);
@@ -963,11 +966,12 @@ app.put('/api/admin/membro/resetar-turnos/:id', async (req, res) => {
 app.delete('/api/admin/membro/:id/turno/:turnoId', async (req, res) => {
     try {
         const { id, turnoId } = req.params;
-        const membro = await User.findById(id);
+        const membro = await User.findByIdAndUpdate(
+            id,
+            { $pull: { historicoTurnos: { _id: turnoId } } },
+            { new: true, select: 'nickname' }
+        ).lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
-
-        membro.historicoTurnos = membro.historicoTurnos.filter(t => t._id.toString() !== turnoId);
-        await membro.save();
 
         io.emit('atualizar_status_geral_tropa');
         await registarLogAdmin('Comando', 'Exclusão de Turno Específico', `Um turno foi removido do histórico de ${membro.nickname}.`);
@@ -980,7 +984,7 @@ app.delete('/api/admin/membro/:id/turno/:turnoId', async (req, res) => {
 app.delete('/api/admin/membro/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const membro = await User.findByIdAndDelete(id);
+        const membro = await User.findByIdAndDelete(id, { select: 'nickname' }).lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
         io.emit('atualizar_status_geral_tropa');
         await registarLogAdmin('Comando', 'Demissão / Exclusão', `Membro ${membro.nickname} foi demitido/removido.`);
@@ -990,31 +994,42 @@ app.delete('/api/admin/membro/:id', async (req, res) => {
     }
 });
 
-// --- ROTA DE RANKING ULTRA-OTIMIZADA (EXPRESS) ---
+// --- RANKING INSTANTÂNEO (SEM BAIXAR IMAGENS DO BANCO) ---
 app.get('/api/admin/ranking/turnos', async (req, res) => {
     try {
         const configRanking = await ConfigSorteio.collection.findOne({ chave: 'config_ranking_semanal' });
-        const dataCorte = configRanking && configRanking.dataUltimoReset ? new Date(configRanking.dataUltimoReset) : null;
+        const dataCorte = configRanking && configRanking.dataUltimoReset ? new Date(configRanking.dataUltimoReset).getTime() : null;
 
-        // Otimização extrema: traz apenas os campos estritamente necessários e usa lean()
-        const membros = await User.find({}, 'nickname cargo historicoTurnos.duracao historicoTurnos.data historicoTurnos.fotoComprovante').lean();
-        
-        const ranking = membros.map(m => {
-            const turnosValidos = (m.historicoTurnos || []).filter(t => {
-                const dTurno = new Date(t.data);
-                if (dataCorte && dTurno <= dataCorte) return false;
-                return turnoEstaNoHorarioPermitido(t);
-            });
+        const membros = await User.find(
+            { 'historicoTurnos.0': { $exists: true } },
+            'nickname cargo historicoTurnos.duracao historicoTurnos.data historicoTurnos.manual'
+        ).lean();
 
-            const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
-            return {
-                nickname: m.nickname,
-                cargo: m.cargo || 'Privado',
-                totalSegundos: totalSegundos,
-                totalFormatado: converterSegundosParaDuracao(totalSegundos)
-            };
-        }).filter(m => m.totalSegundos > 0).sort((a, b) => b.totalSegundos - a.totalSegundos);
+        const ranking = [];
+        for (let i = 0; i < membros.length; i++) {
+            const m = membros[i];
+            let totalSegundos = 0;
+            const turnos = m.historicoTurnos || [];
 
+            for (let j = 0; j < turnos.length; j++) {
+                const t = turnos[j];
+                if (dataCorte && new Date(t.data).getTime() <= dataCorte) continue;
+                if (turnoEstaNoHorarioPermitido(t)) {
+                    totalSegundos += converterDuracaoParaSegundos(t.duracao);
+                }
+            }
+
+            if (totalSegundos > 0) {
+                ranking.push({
+                    nickname: m.nickname,
+                    cargo: m.cargo || 'Privado',
+                    totalSegundos: totalSegundos,
+                    totalFormatado: converterSegundosParaDuracao(totalSegundos)
+                });
+            }
+        }
+
+        ranking.sort((a, b) => b.totalSegundos - a.totalSegundos);
         res.json({ success: true, ranking: ranking.slice(0, 10) });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro ao carregar ranking de turnos.' });
@@ -1072,9 +1087,9 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Nickname do membro alvo é obrigatório.' });
         }
 
-        const h = parseInt(horas) || 0;
-        const m = parseInt(minutos) || 0;
-        const s = parseInt(segundos) || 0;
+        const h = parseInt(horas, 10) || 0;
+        const m = parseInt(minutos, 10) || 0;
+        const s = parseInt(segundos, 10) || 0;
         const totalSegundos = (h * 3600) + (m * 60) + s;
 
         if (totalSegundos <= 0) {
@@ -1082,11 +1097,11 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
         }
 
         const duracaoFormatada = converterSegundosParaDuracao(totalSegundos);
-        const dataInjecao = new Date();
 
         const novoTurnoManual = {
-            data: dataInjecao,
+            data: new Date(),
             duracao: duracaoFormatada,
+            manual: true,
             fotoComprovante: motivo ? `Injeção Manual por Mestre: ${motivo}` : 'Injeção Manual por Mestre'
         };
 
@@ -1113,7 +1128,10 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
 
 app.get('/api/membro/provas/status/:nickname', async (req, res) => {
     try {
-        const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }).lean();
+        const membro = await User.findOne(
+            { nickname: new RegExp('^' + req.params.nickname + '$', 'i') },
+            'cargo cooldownProvaAte historicoTurnos.duracao historicoTurnos.data historicoTurnos.manual'
+        ).lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
         if (membro.cooldownProvaAte) {
@@ -1154,7 +1172,7 @@ app.get('/api/membro/provas/status/:nickname', async (req, res) => {
 app.post('/api/membro/provas/submeter', async (req, res) => {
     try {
         const { nickname, cargoAlvo, respostas } = req.body;
-        const membro = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') });
+        const membro = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, '_id cargo').lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
         let gabarito = { q1: 'a', q2: 'b', q3: 'b' };
@@ -1224,22 +1242,27 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
   try {
     const config = await obterConfigSorteio();
     const ganhadoresCiclo = config.ganhadoresCiclo || [];
-    const dataCorte = config.dataUltimoReset ? new Date(config.dataUltimoReset) : null;
+    const dataCorte = config.dataUltimoReset ? new Date(config.dataUltimoReset).getTime() : null;
 
-    const membros = await User.find({}, 'nickname cargo historicoTurnos.duracao historicoTurnos.data historicoTurnos.fotoComprovante').lean();
+    const membros = await User.find(
+        { 'historicoTurnos.0': { $exists: true } },
+        'nickname cargo historicoTurnos.duracao historicoTurnos.data historicoTurnos.manual'
+    ).lean();
+
     const elegiveis = membros.filter(m => {
-      if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
-      
       const nicknameLower = m.nickname.toLowerCase().trim();
       if (ganhadoresCiclo.includes(nicknameLower)) return false;
 
-      const turnosValidos = m.historicoTurnos.filter(t => {
-          const dTurno = new Date(t.data);
-          if (dataCorte && dTurno <= dataCorte) return false;
-          return turnoEstaNoHorarioPermitido(t) && turnoPertenceAoCicloAtual(t);
-      });
+      let totalSegundos = 0;
+      const turnos = m.historicoTurnos || [];
+      for (let i = 0; i < turnos.length; i++) {
+          const t = turnos[i];
+          if (dataCorte && new Date(t.data).getTime() <= dataCorte) continue;
+          if (turnoEstaNoHorarioPermitido(t) && turnoPertenceAoCicloAtual(t)) {
+              totalSegundos += converterDuracaoParaSegundos(t.duracao);
+          }
+      }
 
-      const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
       return totalSegundos >= 7200;
     });
 
@@ -1272,21 +1295,28 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
     const { premios } = req.body;
     const config = await obterConfigSorteio();
     const ganhadoresCiclo = config.ganhadoresCiclo || [];
-    const dataCorte = config.dataUltimoReset ? new Date(config.dataUltimoReset) : null;
+    const dataCorte = config.dataUltimoReset ? new Date(config.dataUltimoReset).getTime() : null;
 
-    const membros = await User.find({}, 'nickname cargo historicoTurnos.duracao historicoTurnos.data historicoTurnos.fotoComprovante').lean();
+    const membros = await User.find(
+        { 'historicoTurnos.0': { $exists: true } },
+        'nickname cargo historicoTurnos.duracao historicoTurnos.data historicoTurnos.manual'
+    ).lean();
     
     const elegiveis = membros.filter(m => {
       const nicknameLower = m.nickname.toLowerCase().trim();
       if (ganhadoresCiclo.includes(nicknameLower)) return false;
 
-      const turnosValidos = (m.historicoTurnos || []).filter(t => {
-          const dTurno = new Date(t.data);
-          if (dataCorte && dTurno <= dataCorte) return false;
-          return turnoEstaNoHorarioPermitido(t) && turnoPertenceAoCicloAtual(t);
-      });
+      let totalSegundos = 0;
+      const turnos = m.historicoTurnos || [];
+      for (let i = 0; i < turnos.length; i++) {
+          const t = turnos[i];
+          if (dataCorte && new Date(t.data).getTime() <= dataCorte) continue;
+          if (turnoEstaNoHorarioPermitido(t) && turnoPertenceAoCicloAtual(t)) {
+              totalSegundos += converterDuracaoParaSegundos(t.duracao);
+          }
+      }
 
-      return turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0) >= 7200;
+      return totalSegundos >= 7200;
     });
 
     if (elegiveis.length === 0) {
@@ -1346,14 +1376,16 @@ app.get('/api/admin/sorteio/elegiveis-um-turno', async (req, res) => {
     const config = await obterConfigSorteio();
     const ganhadoresCiclo = config.ganhadoresCiclo || [];
 
-    const membros = await User.find({}, 'nickname cargo historicoTurnos.data historicoTurnos.fotoComprovante').lean();
-    const elegiveis = membros.filter(m => {
-      if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
+    const membros = await User.find(
+        { 'historicoTurnos.0': { $exists: true } },
+        'nickname cargo historicoTurnos.data historicoTurnos.manual'
+    ).lean();
 
+    const elegiveis = membros.filter(m => {
       const nicknameLower = m.nickname.toLowerCase().trim();
       if (ganhadoresCiclo.includes(nicknameLower)) return false;
 
-      return m.historicoTurnos.some(t => turnoPertenceAoCicloAtual(t));
+      return (m.historicoTurnos || []).some(t => turnoPertenceAoCicloAtual(t));
     });
 
     res.json({ success: true, elegiveis: elegiveis.map(m => ({ id: m._id, nickname: m.nickname, cargo: m.cargo || 'Privado' })) });
@@ -1368,15 +1400,16 @@ app.post('/api/admin/sorteio/realizar-um-turno', async (req, res) => {
     const config = await obterConfigSorteio();
     const ganhadoresCiclo = config.ganhadoresCiclo || [];
 
-    const membros = await User.find({}, 'nickname cargo historicoTurnos.data historicoTurnos.fotoComprovante').lean();
+    const membros = await User.find(
+        { 'historicoTurnos.0': { $exists: true } },
+        'nickname cargo historicoTurnos.data historicoTurnos.manual'
+    ).lean();
     
     const elegiveis = membros.filter(m => {
-      if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
-      
       const nicknameLower = m.nickname.toLowerCase().trim();
       if (ganhadoresCiclo.includes(nicknameLower)) return false;
 
-      return m.historicoTurnos.some(t => turnoPertenceAoCicloAtual(t));
+      return (m.historicoTurnos || []).some(t => turnoPertenceAoCicloAtual(t));
     });
 
     if (elegiveis.length === 0) {
