@@ -4,6 +4,7 @@
 
 let localStream = null;
 let peerConnections = {};
+let iceCandidateQueues = {}; // Fila temporária para candidatos ICE
 let isMuted = false;
 let socketVoz = null;
 let salaVozAtual = null;
@@ -51,13 +52,27 @@ async function entrarCanalVoz(salaId, nickname, cargo) {
 
                     await pc.setRemoteDescription(new RTCSessionDescription(signal));
                     
+                    // Processa candidatos ICE acumulados na fila para este peer
+                    if (iceCandidateQueues[from] && iceCandidateQueues[from].length > 0) {
+                        for (const candidate of iceCandidateQueues[from]) {
+                            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                        }
+                        iceCandidateQueues[from] = [];
+                    }
+
                     if (signal.type === 'offer') {
                         const answer = await pc.createAnswer();
                         await pc.setLocalDescription(answer);
                         socketVoz.emit('sinal_WebRTC', { to: from, signal: pc.localDescription });
                     }
                 } else if (signal.candidate) {
-                    await pc.addIceCandidate(new RTCIceCandidate(signal));
+                    // Se a descrição remota ainda não foi definida, guarda na fila
+                    if (!pc.remoteDescription || !pc.remoteDescription.type) {
+                        if (!iceCandidateQueues[from]) iceCandidateQueues[from] = [];
+                        iceCandidateQueues[from].push(signal);
+                    } else {
+                        await pc.addIceCandidate(new RTCIceCandidate(signal));
+                    }
                 }
             } catch (err) {
                 console.error("Erro no sinal WebRTC:", err);
@@ -134,21 +149,15 @@ function criarPeerConnection(targetId, socket) {
     };
 
     pc.ontrack = event => {
-        // Cria um elemento de áudio visível ou injeta com controls para podermos testar o play manual se necessário
         let audioElement = document.getElementById(`audio_${targetId}`);
         if (!audioElement) {
             audioElement = document.createElement('audio');
             audioElement.id = `audio_${targetId}`;
             audioElement.autoplay = true;
-            audioElement.controls = true; // Deixa visível temporariamente para testes se necessário
-            audioElement.style.display = 'block';
-            audioElement.style.margin = '5px 0';
             document.body.appendChild(audioElement);
         }
         audioElement.srcObject = event.streams[0];
-        audioElement.play().catch(err => {
-            console.log("Autoplay bloqueado, clique no play do elemento de áudio gerado:", err);
-        });
+        audioElement.play().catch(err => console.log("Aguardando interação para reproduzir áudio remoto:", err));
     };
 
     return pc;
@@ -177,6 +186,7 @@ function sairCanalVoz() {
         peerConnections[id].close();
         delete peerConnections[id];
     });
+    iceCandidateQueues = {};
     document.querySelectorAll('audio[id^="audio_"]').forEach(el => el.remove());
 
     const statusEl = document.getElementById('painel-voz-status');

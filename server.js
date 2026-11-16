@@ -518,17 +518,20 @@ app.post('/api/admin/disparar-acao', async (req, res) => {
     }
 });
 
+// --- ROTA BLINDADA DE STATUS DE PLANTÃO (PROTEGE CONTRA ZERAMENTO) ---
 app.put('/api/membro/status-plantao', async (req, res) => {
     try {
         const { nickname, emPlantao, estadoTurno, inicioPlantao, segundosAcumulados, fotoComprovanteAtiva } = req.body;
         if (!nickname) return res.status(400).json({ success: false, message: 'Nickname obrigatório.' });
 
+        const membroAtual = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, 'emPlantao inicioPlantao segundosAcumulados cargo').lean();
+        if (!membroAtual) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
         if (emPlantao) {
             const agoraBrasil = new Date(Date.now() - (3 * 3600 * 1000));
             const hora = agoraBrasil.getUTCHours();
 
-            const membroUser = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, 'cargo').lean();
-            const cargo = membroUser ? (membroUser.cargo || '') : '';
+            const cargo = membroAtual.cargo || '';
             const ehMestre = nickname.toLowerCase().trim() === 'mestre' || cargo === 'General' || cargo === 'Coronel All';
 
             if (!ehMestre && !(hora >= 17 || hora < 2)) {
@@ -544,8 +547,15 @@ app.put('/api/membro/status-plantao', async (req, res) => {
             estadoTurno: estadoTurno || 'parado'
         };
 
-        if (inicioPlantao !== undefined) updateData.inicioPlantao = inicioPlantao ? new Date(inicioPlantao) : null;
-        if (segundosAcumulados !== undefined) updateData.segundosAcumulados = segundosAcumulados;
+        // BLINDAGEM CRUCIAL: Se já estava em plantão no banco, preservamos o início e os segundos caso venham zerados acidentalmente
+        if (emPlantao && membroAtual.emPlantao) {
+            updateData.inicioPlantao = inicioPlantao ? new Date(inicioPlantao) : membroAtual.inicioPlantao;
+            updateData.segundosAcumulados = (segundosAcumulados !== undefined && segundosAcumulados > 0) ? segundosAcumulados : (membroAtual.segundosAcumulados || 0);
+        } else {
+            if (inicioPlantao !== undefined) updateData.inicioPlantao = inicioPlantao ? new Date(inicioPlantao) : null;
+            if (segundosAcumulados !== undefined) updateData.segundosAcumulados = segundosAcumulados;
+        }
+
         if (fotoComprovanteAtiva !== undefined) updateData.fotoComprovanteAtiva = fotoComprovanteAtiva;
 
         await User.updateOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, { $set: updateData });
@@ -553,7 +563,7 @@ app.put('/api/membro/status-plantao', async (req, res) => {
         io.emit('atualizar_estado_turno_usuario', { nickname: nickname.toLowerCase() });
         io.emit('atualizar_status_geral_tropa');
 
-        res.json({ success: true, message: 'Estado do turno sincronizado com sucesso!' });
+        res.json({ success: true, message: 'Estado do turno sincronizado com segurança!' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao atualizar status na conta.' });
     }
@@ -1466,7 +1476,6 @@ io.on('connection', (socket) => {
 
   socket.on('chat_mensagem', (data) => { io.to(data.salaId).emit('receber_mensagem', data); });
 
-  // --- EVENTOS DO CANAL DE VOZ ESTILO DISCORD ---
   socket.on('entrar_canal_voz', (data) => {
     let salaVozId = (data && data.salaId) ? data.salaId : 'canal_voz_geral';
     socket.join(salaVozId);
