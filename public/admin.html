@@ -954,7 +954,7 @@
             btnHistorico.className = 'btn-action btn-historico';
             btnHistorico.style.width = '100%';
             btnHistorico.style.padding = '10px';
-            btnHistorico.innerText = '📜 Ver Histórico de Turnos';
+            btnHistorico.innerText = '📜 Ver e Gerenciar Histórico de Turnos';
             btnHistorico.onclick = () => { modal.style.display = 'none'; verHistoricoMembro(nickname, id); };
             container.appendChild(btnHistorico);
 
@@ -1066,18 +1066,22 @@
                     container.innerHTML = `
                         <div style="background: rgba(7, 13, 22, 0.7); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                             <div><p><b>Operacional:</b> ${data.nickname} | <b>Cargo:</b> ${data.cargo}</p></div>
-                            <button class="btn-action btn-reset" onclick="resetarTurnosMembro('${membroIdAtualModal}')">🗑️ Resetar Turnos</button>
+                            <button class="btn-action btn-demitir" onclick="resetarTurnosMembro('${membroIdAtualModal}')">🗑️ Resetar TODOS os Turnos</button>
                         </div>
                         <div style="background: rgba(7, 13, 22, 0.7); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2);">
-                            <h4 style="color: #38bdf8; margin-bottom: 8px;">🛡️ Turnos Cumpridos (${data.historicoTurnos.length})</h4>
+                            <h4 style="color: #38bdf8; margin-bottom: 8px;">🛡️ Turnos Registados (${data.historicoTurnos.length})</h4>
                             ${data.historicoTurnos.length > 0 ? data.historicoTurnos.slice().reverse().map((t) => `
-                                <div style="background: rgba(30, 41, 59, 0.6); padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(56, 189, 248, 0.25);">
-                                    <p style="margin-bottom: 5px;">• Duração: <b style="color: #38bdf8;">${t.duracao}</b> | Data: ${new Date(t.data).toLocaleString()}</p>
-                                    ${t.fotoComprovante && t.fotoComprovante.startsWith('data:image') ? `
-                                        <div style="text-align: center; margin-top: 8px;">
-                                            <img src="${t.fotoComprovante}" style="max-width: 100%; max-height: 200px; border-radius: 8px; border: 1px solid #38bdf8; cursor: pointer;" onclick="window.open('${t.fotoComprovante}')">
-                                        </div>
-                                    ` : ''}
+                                <div style="background: rgba(30, 41, 59, 0.6); padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(56, 189, 248, 0.25); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                                    <div>
+                                        <p style="margin-bottom: 3px;">• Duração: <b style="color: #38bdf8;">${t.duracao}</b></p>
+                                        <p style="font-size: 11px; color: #94a3b8;">Data: ${new Date(t.data).toLocaleString()}</p>
+                                        ${t.fotoComprovante && t.fotoComprovante.startsWith('data:image') ? `
+                                            <div style="margin-top: 6px;">
+                                                <img src="${t.fotoComprovante}" style="max-width: 120px; max-height: 80px; border-radius: 6px; border: 1px solid #38bdf8; cursor: pointer;" onclick="window.open('${t.fotoComprovante}')">
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                    <button class="btn-action btn-demitir" style="padding: 6px 10px; font-size: 11px;" onclick="excluirTurnoEspecifico('${id}', '${t._id}', '${nickname}')">🗑️ Apagar Este Turno</button>
                                 </div>
                             `).join('') : '<p style="color: #94a3b8;">Nenhum turno registado.</p>'}
                         </div>
@@ -1086,6 +1090,31 @@
             } catch (e) {
                 container.innerHTML = '<p style="color: #ef4444;">Erro ao carregar histórico.</p>';
             }
+        }
+
+        async function excluirTurnoEspecifico(membroId, turnoId, nickname) {
+            mostrarModalCustomizado(
+                'Excluir Turno',
+                'Tem a certeza que deseja excluir permanentemente este turno selecionado?',
+                'confirmacao',
+                async () => {
+                    try {
+                        const res = await fetch(`/api/admin/membro/${membroId}/turno/${turnoId}`, { method: 'DELETE' });
+                        const data = await res.json();
+                        if (data.success) {
+                            mostrarModalCustomizado('Sucesso', 'Turno removido com sucesso!');
+                            verHistoricoMembro(nickname, membroId);
+                            carregarEfetivo();
+                            carregarElegiveisSorteio();
+                            carregarElegiveisUmTurno();
+                        } else {
+                            mostrarModalCustomizado('Erro', data.message || 'Erro ao excluir turno.');
+                        }
+                    } catch (e) {
+                        mostrarModalCustomizado('Erro', 'Erro de conexão ao excluir turno.');
+                    }
+                }
+            );
         }
 
         async function abrirModalPrintsMissoes(membroId, nickname) {
@@ -1455,7 +1484,14 @@
             mostrarModalCustomizado('Confirmação de Reset', 'Tem certeza que deseja apagar todo o histórico de turnos deste membro?', 'confirmacao', async () => {
                 const res = await fetch(`/api/admin/membro/resetar-turnos/${id}`, { method: 'PUT' });
                 const data = await res.json();
-                if (data.success) { fecharHistoricoAdmin(); carregarEfetivo(); carregarElegiveisSorteio(); carregarElegiveisUmTurno(); }
+                if (data.success) { 
+                    fecharHistoricoAdmin(); 
+                    document.getElementById('modalAcoesMembro').style.display = 'none';
+                    carregarEfetivo(); 
+                    carregarElegiveisSorteio(); 
+                    carregarElegiveisUmTurno(); 
+                    mostrarModalCustomizado('Sucesso', 'Turnos resetados com sucesso!');
+                }
             });
         }
 
