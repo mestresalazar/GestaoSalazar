@@ -1264,9 +1264,16 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
 
 app.get('/api/admin/sorteio/elegiveis-um-turno', async (req, res) => {
   try {
+    const config = await obterConfigSorteio();
+    const ganhadoresCiclo = config.ganhadoresCiclo || [];
+
     const membros = await User.find({}, 'nickname cargo historicoTurnos.data').lean();
     const elegiveis = membros.filter(m => {
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
+
+      const nicknameLower = m.nickname.toLowerCase().trim();
+      if (ganhadoresCiclo.includes(nicknameLower)) return false;
+
       return m.historicoTurnos.some(t => turnoPertenceAoCicloAtual(t.data));
     });
 
@@ -1279,15 +1286,22 @@ app.get('/api/admin/sorteio/elegiveis-um-turno', async (req, res) => {
 app.post('/api/admin/sorteio/realizar-um-turno', async (req, res) => {
   try {
     const { premios } = req.body;
+    const config = await obterConfigSorteio();
+    const ganhadoresCiclo = config.ganhadoresCiclo || [];
+
     const membros = await User.find({}, 'nickname cargo historicoTurnos.data').lean();
     
     const elegiveis = membros.filter(m => {
       if (!m.historicoTurnos || m.historicoTurnos.length === 0) return false;
+      
+      const nicknameLower = m.nickname.toLowerCase().trim();
+      if (ganhadoresCiclo.includes(nicknameLower)) return false;
+
       return m.historicoTurnos.some(t => turnoPertenceAoCicloAtual(t.data));
     });
 
     if (elegiveis.length === 0) {
-        return res.json({ success: false, message: 'Não há operacionais com turnos registados hoje.' });
+        return res.json({ success: false, message: 'Não há operacionais elegíveis (com turnos hoje e que ainda não ganharam) disponíveis no momento.' });
     }
 
     const premiosLista = premios ? premios.split(',').map(p => p.trim()).filter(Boolean) : ['Prêmio Oficial'];
@@ -1295,6 +1309,13 @@ app.post('/api/admin/sorteio/realizar-um-turno', async (req, res) => {
 
     const indiceVencedor = Math.floor(Math.random() * elegiveis.length);
     const vencedor = elegiveis[indiceVencedor];
+    const vencedorLower = vencedor.nickname.toLowerCase().trim();
+
+    await ConfigSorteio.collection.updateOne(
+        { chave: 'sorteio_ativo' },
+        { $addToSet: { ganhadoresCiclo: vencedorLower } },
+        { upsert: true }
+    );
 
     await User.updateOne(
         { _id: vencedor._id },
@@ -1317,7 +1338,7 @@ app.post('/api/admin/sorteio/realizar-um-turno', async (req, res) => {
         ganhadores: [{ nickname: vencedor.nickname, cargo: vencedor.cargo, premio: premioSorteado }] 
     });
   } catch (e) {
-    res.status(500).json({ success: false, message: 'Erro ao realizar sorteio: ' + e.message });
+        res.status(500).json({ success: false, message: 'Erro ao realizar sorteio: ' + e.message });
   }
 });
 
