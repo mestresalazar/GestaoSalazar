@@ -913,11 +913,20 @@ app.delete('/api/admin/membro/:id', async (req, res) => {
     }
 });
 
+// --- ROTA DO RANKING SEMANAL COM DATA DE CORTE (PRESERVA O HISTÓRICO DO PERFIL) ---
 app.get('/api/admin/ranking/turnos', async (req, res) => {
     try {
+        const configRanking = await ConfigSorteio.collection.findOne({ chave: 'config_ranking_semanal' });
+        const dataCorte = configRanking && configRanking.dataUltimoReset ? new Date(configRanking.dataUltimoReset) : null;
+
         const membros = await User.find({}, 'nickname cargo historicoTurnos.duracao historicoTurnos.data').lean();
         const ranking = membros.map(m => {
-            const turnosValidos = (m.historicoTurnos || []).filter(t => turnoEstaNoHorarioPermitido(t.data));
+            const turnosValidos = (m.historicoTurnos || []).filter(t => {
+                const dTurno = new Date(t.data);
+                if (dataCorte && dTurno <= dataCorte) return false;
+                return turnoEstaNoHorarioPermitido(t.data);
+            });
+
             const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
             return {
                 nickname: m.nickname,
@@ -935,16 +944,25 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
 
 app.put('/api/admin/ranking/resetar', async (req, res) => {
     try {
-        await User.updateMany({}, { $set: { historicoTurnos: [] } });
+        const dataAtualReset = new Date();
+        
+        await ConfigSorteio.collection.updateOne(
+            { chave: 'config_ranking_semanal' },
+            { $set: { chave: 'config_ranking_semanal', dataUltimoReset: dataAtualReset } },
+            { upsert: true }
+        );
+
         const notif = {
             titulo: '🔄 Ranking Semanal Resetado',
-            mensagem: 'O comando resetou o ranking de horas da tropa para iniciar a nova semana.',
-            data: new Date()
+            mensagem: 'O comando iniciou um novo ciclo semanal no ranking. O seu histórico pessoal de horas continua guardado no perfil!',
+            data: dataAtualReset
         };
+        
         await User.updateMany({}, { $push: { caixaEntrada: notif } });
         io.emit('atualizar_status_geral_tropa');
-        await registarLogAdmin('Comando', 'Reset de Ranking', 'Ranking semanal de turnos foi resetado.');
-        res.json({ success: true, message: 'Ranking semanal resetado com sucesso!' });
+        
+        await registarLogAdmin('Comando', 'Reset de Ranking', 'Novo ciclo semanal iniciado (histórico preservado com data de corte).');
+        res.json({ success: true, message: 'Ranking semanal resetado com sucesso! O histórico dos membros foi preservado.' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao resetar ranking.' });
     }
@@ -1240,7 +1258,7 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
         ganhadores: [{ nickname: vencedor.nickname, cargo: vencedor.cargo, premio: premioSorteado }] 
     });
   } catch (e) {
-    res.status(500).json({ success: false, message: 'Erro ao realizar sorteio na roleta: ' + e.message });
+        res.status(500).json({ success: false, message: 'Erro ao realizar sorteio na roleta: ' + e.message });
   }
 });
 
