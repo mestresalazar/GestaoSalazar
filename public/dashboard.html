@@ -179,9 +179,14 @@
             transition: all 0.25s ease;
             box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35);
         }
-        .btn-action:hover {
+        .btn-action:hover:not(:disabled) {
             background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
             transform: translateY(-2px);
+        }
+        .btn-action:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
         .status-badge {
             display: inline-block;
@@ -684,7 +689,7 @@
                 <div id="statusPrintMissao" style="font-size: 12px; color: #22c55e; margin-top: 6px;"></div>
             </div>
 
-            <button class="btn-action" style="background: linear-gradient(135deg, #16a34a, #15803d); margin-top: 0;" onclick="confirmarConclusaoMissaoComPrint()">Enviar Comprovante e Ganhar R$ 1.000</button>
+            <button id="btnEnviarPrintMissao" class="btn-action" style="background: linear-gradient(135deg, #16a34a, #15803d); margin-top: 0;" onclick="confirmarConclusaoMissaoComPrint()">Enviar Comprovante e Ganhar R$ 1.000</button>
         </div>
     </div>
 
@@ -784,7 +789,7 @@
                 const res = await fetch(`/api/membro/perfil/${encodeURIComponent(user.nickname)}`);
                 const data = await res.json();
                 if (data.success && data.perfil) {
-                    telefoneMembroAtualCache = dataPerfil.perfil.telefone || '';
+                    telefoneMembroAtualCache = data.perfil.telefone || '';
                 }
             } catch (e) {}
 
@@ -799,7 +804,6 @@
             }
 
             if (linkGrupoWhatsappGlobal) {
-                // Execução síncrona direta para o Safari do iOS não bloquear como pop-up
                 const novaJanela = window.open(linkGrupoWhatsappGlobal, '_blank');
                 if (!novaJanela) {
                     window.location.href = linkGrupoWhatsappGlobal;
@@ -897,7 +901,7 @@
             reader.readAsDataURL(file);
         }
 
-        let missaoSelecionadaAtual = null, fotoPrintMissaoBase64 = '', saldoCarteiraAtual = 0, missoesServidorCache = [];
+        let missaoSelecionadaAtual = null, fotoPrintMissaoBase64 = '', saldoCarteiraAtual = 0, missoesServidorCache = [], processandoMissao = false;
 
         function obterDefinicoesMissoesPorCargo() {
             const cargo = (user.cargo || 'Soldado').toLowerCase();
@@ -1032,14 +1036,23 @@
         }
 
         async function confirmarConclusaoMissaoComPrint() {
+            if (processandoMissao) return;
             if (!fotoPrintMissaoBase64) {
                 mostrarModalCustomizado('Atenção', 'Anexe o print que comprove a realização da atividade!');
                 return;
             }
+            processandoMissao = true;
+            const btnEnv = document.getElementById('btnEnviarPrintMissao');
+            if (btnEnv) { btnEnv.disabled = true; btnEnv.innerText = 'A enviar comprovante...'; }
+
             fecharModalMissao();
             const cicloAtual = obterDataCicloOperacional();
             const concluidas = JSON.parse(localStorage.getItem(`missoes_ciclo_${user.nickname}_${cicloAtual}`)) || {};
-            if (concluidas[missaoSelecionadaAtual]) return;
+            if (concluidas[missaoSelecionadaAtual]) {
+                processandoMissao = false;
+                if (btnEnv) { btnEnv.disabled = false; btnEnv.innerText = 'Enviar Comprovante e Ganhar R$ 1.000'; }
+                return;
+            }
 
             concluidas[missaoSelecionadaAtual] = true;
             localStorage.setItem(`missoes_ciclo_${user.nickname}_${cicloAtual}`, JSON.stringify(concluidas));
@@ -1060,6 +1073,8 @@
                 });
             } catch (e) {}
 
+            processandoMissao = false;
+            if (btnEnv) { btnEnv.disabled = false; btnEnv.innerText = 'Enviar Comprovante e Ganhar R$ 1.000'; }
             mostrarModalCustomizado('Sucesso', 'Comprovante verificado e registado nas logs do comando! <b>+R$ 1.000</b> adicionados à sua Carteira.');
             sincronizarCarteiraEMissoes();
         }
@@ -1246,6 +1261,7 @@
         carregarRanking();
 
         let timerInterval = null, estadoTurno = 'parado', segundosAcumuladosBase = 0, timestampInicioServer = null, fotoComprovanteBase64 = '';
+        let processandoCheckin = false, processandoCheckout = false;
         const TEMPO_MINIMO_SEGUNDOS = 30 * 60;
 
         function calcularSegundosTotais() {
@@ -1275,9 +1291,11 @@
 
             if (fotoComprovanteBase64) document.getElementById('statusAnexo').innerText = '✅ Print guardado e pronto!';
             if (estadoTurno === 'ativo') {
+                document.getElementById('btnCheckin').disabled = true;
                 document.getElementById('btnPausar').style.display = 'block';
                 iniciarLoopTimer();
             } else if (estadoTurno === 'pausado') {
+                document.getElementById('btnCheckin').disabled = true;
                 document.getElementById('btnPausar').style.display = 'block';
                 document.getElementById('btnPausar').innerText = 'Retomar Turno';
             }
@@ -1296,14 +1314,26 @@
         }
 
         async function fazerCheckin() {
-            if (estadoTurno === 'ativo') return;
+            if (estadoTurno === 'ativo' || processandoCheckin) return;
             if (!fotoComprovanteBase64) { mostrarModalCustomizado('Atenção', 'Anexe o print do turno antes de iniciar!'); return; }
-            const agora = Date.now();
-            estadoTurno = 'ativo'; timestampInicioServer = agora; segundosAcumuladosBase = 0;
-            await fetch('/api/membro/status-plantao', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: user.nickname, emPlantao: true, estadoTurno: 'ativo', inicioPlantao: agora, segundosAcumulados: 0, fotoComprovanteAtiva: fotoComprovanteBase64 }) });
-            document.getElementById('btnPausar').style.display = 'block';
-            iniciarLoopTimer();
-            mostrarModalCustomizado('Sucesso', 'Check-in iniciado!');
+            
+            processandoCheckin = true;
+            const btnCheckinEl = document.getElementById('btnCheckin');
+            if (btnCheckinEl) btnCheckinEl.disabled = true;
+
+            try {
+                const agora = Date.now();
+                estadoTurno = 'ativo'; timestampInicioServer = agora; segundosAcumuladosBase = 0;
+                await fetch('/api/membro/status-plantao', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: user.nickname, emPlantao: true, estadoTurno: 'ativo', inicioPlantao: agora, segundosAcumulados: 0, fotoComprovanteAtiva: fotoComprovanteBase64 }) });
+                document.getElementById('btnPausar').style.display = 'block';
+                iniciarLoopTimer();
+                mostrarModalCustomizado('Sucesso', 'Check-in iniciado!');
+            } catch (e) {
+                estadoTurno = 'parado';
+                if (btnCheckinEl) btnCheckinEl.disabled = false;
+            } finally {
+                processandoCheckin = false;
+            }
         }
 
         async function alternarPausa() {
@@ -1324,30 +1354,96 @@
         }
 
         async function fazerCheckout() {
+            if (processandoCheckout) return; // Bloqueia cliques múltiplos / clonagem de turnos
+
             const total = atualizarDisplayTimer();
             if (total < TEMPO_MINIMO_SEGUNDOS) {
                 mostrarModalCustomizado('⚠️ Atenção', `Plantão abaixo de 30 minutos. Deseja fechar e descartar?`, 'confirmacao', async () => {
+                    if (processandoCheckout) return;
+                    processandoCheckout = true;
                     clearInterval(timerInterval);
                     await fetch('/api/membro/status-plantao', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: user.nickname, emPlantao: false, estadoTurno: 'parado', segundosAcumulados: 0 }) });
                     window.location.reload();
                 });
                 return;
             }
-            if (!fotoComprovanteBase64) { mostrarModalCustomizado('Atenção', 'Anexe o comprovante.'); return; }
+            if (!fotoComprovanteBase64) { 
+                mostrarModalCustomizado('Atenção', 'Anexe o comprovante.'); 
+                return; 
+            }
+
+            // Ativa bloqueio imediato no botão
+            processandoCheckout = true;
+            const btnCheckoutEl = document.getElementById('btnCheckout');
+            const btnPausarEl = document.getElementById('btnPausar');
+            if (btnCheckoutEl) {
+                btnCheckoutEl.disabled = true;
+                btnCheckoutEl.innerText = 'A guardar turno...';
+            }
+            if (btnPausarEl) btnPausarEl.disabled = true;
+
             clearInterval(timerInterval);
             const duracaoTxt = document.getElementById('timerDisplay').innerText;
-            const res = await fetch('/api/membro/turno', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: user.nickname, duracao: duracaoTxt, segundosTotais: total, fotoComprovante: fotoComprovanteBase64 }) });
-            if ((await res.json()).success) { window.location.reload(); }
+
+            try {
+                const res = await fetch('/api/membro/turno', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ nickname: user.nickname, duracao: duracaoTxt, segundosTotais: total, fotoComprovante: fotoComprovanteBase64 }) 
+                });
+                const data = await res.json();
+                if (data.success) { 
+                    window.location.reload(); 
+                } else {
+                    processandoCheckout = false;
+                    if (btnCheckoutEl) {
+                        btnCheckoutEl.disabled = false;
+                        btnCheckoutEl.innerText = 'Finalizar Turno (Check-out)';
+                    }
+                    if (btnPausarEl) btnPausarEl.disabled = false;
+                    mostrarModalCustomizado('Erro', data.message || 'Erro ao finalizar turno.');
+                }
+            } catch (e) {
+                processandoCheckout = false;
+                if (btnCheckoutEl) {
+                    btnCheckoutEl.disabled = false;
+                    btnCheckoutEl.innerText = 'Finalizar Turno (Check-out)';
+                }
+                if (btnPausarEl) btnPausarEl.disabled = false;
+                mostrarModalCustomizado('Erro', 'Falha de ligação ao guardar o turno.');
+            }
         }
 
         function mostrarModalCustomizado(titulo, msg, tipo = 'alerta', cb = null) {
+            const modal = document.getElementById('customModal');
             document.getElementById('modalCustomTitle').innerText = titulo;
             document.getElementById('modalCustomMessage').innerHTML = msg;
-            const b = document.getElementById('modalCustomButtons'); b.innerHTML = '';
-            const ok = document.createElement('button'); ok.innerText = 'OK'; ok.className = 'btn-action'; ok.style.width = 'auto'; ok.style.padding = '8px 20px';
-            ok.onclick = () => { document.getElementById('customModal').style.display = 'none'; if(cb) cb(); };
+            const b = document.getElementById('modalCustomButtons'); 
+            b.innerHTML = '';
+
+            if (tipo === 'confirmacao') {
+                const cancelar = document.createElement('button');
+                cancelar.innerText = 'Cancelar';
+                cancelar.className = 'btn-action';
+                cancelar.style.width = 'auto';
+                cancelar.style.padding = '8px 20px';
+                cancelar.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                cancelar.onclick = () => { modal.style.display = 'none'; };
+                b.appendChild(cancelar);
+            }
+
+            const ok = document.createElement('button'); 
+            ok.innerText = tipo === 'confirmacao' ? 'Confirmar' : 'OK'; 
+            ok.className = 'btn-action'; 
+            ok.style.width = 'auto'; 
+            ok.style.padding = '8px 20px';
+            if (tipo === 'confirmacao') {
+                ok.style.background = 'linear-gradient(135deg, #16a34a, #15803d)';
+            }
+            ok.onclick = () => { modal.style.display = 'none'; if(cb) cb(); };
             b.appendChild(ok);
-            document.getElementById('customModal').style.display = 'flex';
+            
+            modal.style.display = 'flex';
         }
 
         async function abrirHistorico() {
