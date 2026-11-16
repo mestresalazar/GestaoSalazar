@@ -161,7 +161,7 @@
             font-weight: 700;
         }
 
-        /* TABELAS RESPONSIVAS E OTIMIZADAS PARA MOBILE */
+        /* TABELA LIMPA COM INTERAÇÃO AO CLICAR NO NOME */
         .table-responsive {
             width: 100%;
             overflow-x: auto;
@@ -172,8 +172,17 @@
             background: rgba(7, 13, 22, 0.6);
         }
         table { width: 100%; border-collapse: collapse; white-space: nowrap; }
-        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid rgba(56, 189, 248, 0.15); font-size: 13px; }
+        th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid rgba(56, 189, 248, 0.15); font-size: 13px; }
         th { background-color: rgba(15, 23, 42, 0.85); color: #38bdf8; font-weight: 700; }
+
+        .nickname-link {
+            color: #38bdf8;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: underline;
+            transition: color 0.2s;
+        }
+        .nickname-link:hover { color: #7dd3fc; }
 
         .search-input-box {
             width: 100%;
@@ -315,14 +324,14 @@
         </div>
 
         <div class="card">
-            <h3>👥 Gerenciamento de Efetivo, Históricos e Promoções</h3>
-            <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Ordenação prioritária: Plantão ➔ Online ➔ Offline.</p>
+            <h3>👥 Gerenciamento de Efetivo e Membros</h3>
+            <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Clique no <b>nickname</b> do operacional para abrir as opções de comando. (Ordenação: Plantão ➔ Online ➔ Offline)</p>
             
             <div style="margin-bottom: 14px;">
                 <input type="text" id="inputBuscaMembro" placeholder="🔍 Pesquisar operacional por nickname..." oninput="filtrarTabelaEfetivo()" class="search-input-box" style="margin-bottom: 0;">
             </div>
 
-            <!-- TABELA COM SCROLL HORIZONTAL SUAVE PARA MOBILE -->
+            <!-- TABELA LIMPA E RESPONSIVA -->
             <div class="table-responsive">
                 <table>
                     <thead>
@@ -331,11 +340,10 @@
                             <th>Cargo</th>
                             <th>Status Operacional</th>
                             <th>Último Plantão</th>
-                            <th>Ações de Comando</th>
                         </tr>
                     </thead>
                     <tbody id="tabelaEfetivo">
-                        <tr><td colspan="5" style="text-align: center; color: #94a3b8;">A carregar efetivo...</td></tr>
+                        <tr><td colspan="4" style="text-align: center; color: #94a3b8;">A carregar efetivo...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -415,26 +423,20 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- ABA 3: SORTEIOS E ROLETA -->
+    <!-- ABA 3: SORTEIOS E ROLETA (SEM HORA LÁ EM CIMA) -->
     <!-- ========================================== -->
     <div id="aba-sorteios" class="tab-content">
         <div class="card" style="max-width: 800px; margin: 0 auto;">
             <h3>🎁 Central de Sorteios Diários (Mínimo de 2h de Plantão HOJE)</h3>
             <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Apenas operacionais com 2 horas ou mais acumuladas no dia atual participam automaticamente.</p>
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
-                <div>
-                    <label style="font-size: 12px; color: #38bdf8;">Horário Previsto:</label>
-                    <input type="time" id="sorteioHorario" value="20:00" class="search-input-box" style="margin-top: 4px; margin-bottom: 0;">
-                </div>
-                <div>
-                    <label style="font-size: 12px; color: #38bdf8;">Qtd. de Ganhadores:</label>
-                    <input type="number" id="sorteioQtd" value="1" min="1" max="10" class="search-input-box" style="margin-top: 4px; margin-bottom: 0;">
-                </div>
+            <div style="margin-bottom: 14px;">
+                <label style="font-size: 12px; color: #38bdf8;">Qtd. de Ganhadores:</label>
+                <input type="number" id="sorteioQtd" value="1" min="1" max="10" class="search-input-box" style="margin-top: 4px; margin-bottom: 0;">
             </div>
 
             <div style="margin-bottom: 14px;">
-                <label style="font-size: 12px; color: #38bdf8;">Prêmios (separados por vírgula):</label>
+                <label style="font-size: 12px; color: #38bdf8;">Prêmio(s):</label>
                 <input type="text" id="sorteioPremios" value="R$ 100.000 no Jogo, Viatura Blindada" class="search-input-box" style="margin-top: 4px; margin-bottom: 0;">
             </div>
 
@@ -448,7 +450,7 @@
             <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;">
                 <button class="btn-action btn-aprovar" style="padding: 10px 16px;" onclick="executarSorteioImediato()">🎲 Girar Roleta Ao Vivo (2h+)</button>
                 <button class="btn-action btn-demitir" style="padding: 10px 16px;" onclick="resetarElegiveisSorteio()">🔄 Resetar Ciclo</button>
-                <button class="btn-action btn-reset" style="padding: 10px 16px;" onclick="limparElegiveis()">🧹 Limpar Elegíveis</button>
+                <button class="btn-action btn-reset" style="padding: 10px 16px;" onclick="limparElegiveis()">🧹 Limpar Elegíveis (2h+)</button>
             </div>
 
             <!-- SORTEIO DE 1 TURNO -->
@@ -457,7 +459,10 @@
                 <div id="listaElegiveisUmTurno" style="max-height: 140px; overflow-y: auto; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; padding: 10px; font-size: 12px; color: #cbd5e1; margin-bottom: 10px;">
                     A carregar quem fez 1 turno hoje...
                 </div>
-                <button class="btn-action btn-perfil" style="padding: 10px 16px;" onclick="executarSorteioUmTurno()">🎯 Girar Roleta (Quem Fez 1 Turno Hoje)</button>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn-action btn-perfil" style="padding: 10px 16px;" onclick="executarSorteioUmTurno()">🎯 Girar Roleta (1 Turno Hoje)</button>
+                    <button class="btn-action btn-demitir" style="padding: 10px 16px;" onclick="limparElegiveisUmTurno()">🧹 Limpar Elegíveis (1 Turno)</button>
+                </div>
             </div>
 
             <div style="margin-top: 14px; border-top: 1px solid rgba(56, 189, 248, 0.2); padding-top: 14px; display: flex; gap: 8px; flex-wrap: wrap;">
@@ -524,6 +529,7 @@
         </div>
     </div>
 
+    <!-- MODAL DE PERFIL DO OPERACIONAL (COM TELEFONE) -->
     <div id="modalPerfilAdmin" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.85); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 10000; padding: 16px;">
         <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 100%; max-width: 450px; border-radius: 16px; padding: 24px; border: 1px solid rgba(56, 189, 248, 0.4); text-align: center; color: #fff; max-height: 85vh; overflow-y: auto;">
             <button class="close-modal" onclick="document.getElementById('modalPerfilAdmin').style.display='none'">X</button>
@@ -536,9 +542,23 @@
             <div style="background: rgba(7, 13, 22, 0.75); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 16px; text-align: left; font-size: 13px; display: flex; flex-direction: column; gap: 8px;">
                 <p><b>Nickname:</b> <span id="perfilAdminNickname" style="color: #38bdf8;">-</span></p>
                 <p><b>Cargo Atual:</b> <span id="perfilAdminCargo">-</span></p>
+                <p><b>📱 Telefone:</b> <span id="perfilAdminTelefone" style="color: #22c55e; font-weight: bold;">-</span></p>
                 <p><b>⏱️ Total de Horas Acumuladas:</b> <span id="perfilAdminTotalHoras" style="color: #22c55e; font-weight: bold;">-</span></p>
                 <p><b>⏳ Tempo na Organização:</b> <span id="perfilAdminTempoGestao" style="color: #eab308; font-weight: bold;">-</span></p>
                 <p><b>📌 Último Turno Salvo:</b> <span id="perfilAdminUltimoPlantao">-</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE AÇÕES AO CLICAR NO NOME -->
+    <div id="modalAcoesMembro" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.85); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 10000; padding: 16px;">
+        <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 100%; max-width: 420px; border-radius: 16px; padding: 24px; border: 1px solid rgba(56, 189, 248, 0.4); text-align: center; color: #fff; max-height: 85vh; overflow-y: auto;">
+            <button class="close-modal" onclick="document.getElementById('modalAcoesMembro').style.display='none'">X</button>
+            <h3 id="modalAcoesTitulo" style="color: #38bdf8; margin-bottom: 6px;">Gerenciar Operacional</h3>
+            <p id="modalAcoesSub" style="font-size: 12px; color: #94a3b8; margin-bottom: 20px;"></p>
+            
+            <div id="modalAcoesBotoesContainer" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Preenchido dinamicamente via JS -->
             </div>
         </div>
     </div>
@@ -887,31 +907,94 @@
                     }
 
                     tr.innerHTML = `
-                        <td><b>${membro.nickname}</b></td>
+                        <td><span class="nickname-link" onclick="abrirMenuAcoesMembro('${membro._id}', '${membro.nickname}', '${membro.cargo || 'Privado'}', ${membro.emPlantao}, '${membro.status}')">${membro.nickname}</span></td>
                         <td>${membro.cargo || 'Privado'}</td>
                         <td>${statusOperacionalHtml}</td>
                         <td style="color: #38bdf8; font-size: 12px;">${membro.ultimoPlantao || 'Nenhum plantão'}</td>
-                        <td>
-                            ${membro.status !== 'ativo' ? `<button class="btn-action btn-aprovar" onclick="atualizarMembro('${membro._id}', 'ativo', 'Privado')">Aprovar</button>` : ''}
-                            ${membro.emPlantao ? `<button class="btn-action btn-parar-turno" onclick="forcarFimTurno('${membro._id}', '${membro.nickname}')">⏹️ Parar</button>` : ''}
-                            <button class="btn-action btn-historico" onclick="verHistoricoMembro('${membro.nickname}', '${membro._id}')">Histórico</button>
-                            <button class="btn-action btn-prints" onclick="abrirModalPrintsMissoes('${membro._id}', '${membro.nickname}')">📸 Prints</button>
-                            <button class="btn-action btn-perfil" onclick="abrirPerfilAdmin('${membro.nickname}')">👤 Perfil</button>
-                            <button class="btn-action btn-promover" onclick="promoverMembro('${membro._id}', '${membro.cargo}')">Promover</button>
-                            <button class="btn-action btn-demitir" onclick="demitirMembro('${membro._id}')">Demitir</button>
-                        </td>
                     `;
                     tabela.appendChild(tr);
                 });
             } else {
-                tabela.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #94a3b8;">Nenhum membro encontrado.</td></tr>`;
+                tabela.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #94a3b8;">Nenhum membro encontrado.</td></tr>`;
             }
+        }
+
+        // --- MENU DE AÇÕES AO CLICAR NO NOME ---
+        function abrirMenuAcoesMembro(id, nickname, cargo, emPlantao, status) {
+            const modal = document.getElementById('modalAcoesMembro');
+            document.getElementById('modalAcoesTitulo').innerText = nickname;
+            document.getElementById('modalAcoesSub').innerText = `Cargo: ${cargo}`;
+            const container = document.getElementById('modalAcoesBotoesContainer');
+            container.innerHTML = '';
+
+            if (status !== 'ativo') {
+                const btnAprovar = document.createElement('button');
+                btnAprovar.className = 'btn-action btn-aprovar';
+                btnAprovar.style.width = '100%';
+                btnAprovar.style.padding = '10px';
+                btnAprovar.innerText = '✅ Aprovar Membro';
+                btnAprovar.onclick = () => { modal.style.display = 'none'; atualizarMembro(id, 'ativo', 'Privado'); };
+                container.appendChild(btnAprovar);
+            }
+
+            if (emPlantao) {
+                const btnParar = document.createElement('button');
+                btnParar.className = 'btn-action btn-parar-turno';
+                btnParar.style.width = '100%';
+                btnParar.style.padding = '10px';
+                btnParar.innerText = '⏹️ Parar Turno Ativo';
+                btnParar.onclick = () => { modal.style.display = 'none'; forcarFimTurno(id, nickname); };
+                container.appendChild(btnParar);
+            }
+
+            const btnHistorico = document.createElement('button');
+            btnHistorico.className = 'btn-action btn-historico';
+            btnHistorico.style.width = '100%';
+            btnHistorico.style.padding = '10px';
+            btnHistorico.innerText = '📜 Ver Histórico de Turnos';
+            btnHistorico.onclick = () => { modal.style.display = 'none'; verHistoricoMembro(nickname, id); };
+            container.appendChild(btnHistorico);
+
+            const btnPrints = document.createElement('button');
+            btnPrints.className = 'btn-action btn-prints';
+            btnPrints.style.width = '100%';
+            btnPrints.style.padding = '10px';
+            btnPrints.innerText = '📸 Ver Prints de Missões';
+            btnPrints.onclick = () => { modal.style.display = 'none'; abrirModalPrintsMissoes(id, nickname); };
+            container.appendChild(btnPrints);
+
+            const btnPerfil = document.createElement('button');
+            btnPerfil.className = 'btn-action btn-perfil';
+            btnPerfil.style.width = '100%';
+            btnPerfil.style.padding = '10px';
+            btnPerfil.innerText = '👤 Ver Perfil Completo';
+            btnPerfil.onclick = () => { modal.style.display = 'none'; abrirPerfilAdmin(nickname); };
+            container.appendChild(btnPerfil);
+
+            const btnPromover = document.createElement('button');
+            btnPromover.className = 'btn-action btn-promover';
+            btnPromover.style.width = '100%';
+            btnPromover.style.padding = '10px';
+            btnPromover.innerText = '⭐ Promover / Alterar Cargo';
+            btnPromover.onclick = () => { modal.style.display = 'none'; promoverMembro(id, cargo); };
+            container.appendChild(btnPromover);
+
+            const btnDemitir = document.createElement('button');
+            btnDemitir.className = 'btn-action btn-demitir';
+            btnDemitir.style.width = '100%';
+            btnDemitir.style.padding = '10px';
+            btnDemitir.innerText = '❌ Demitir Membro';
+            btnDemitir.onclick = () => { modal.style.display = 'none'; demitirMembro(id); };
+            container.appendChild(btnDemitir);
+
+            modal.style.display = 'flex';
         }
 
         async function abrirPerfilAdmin(nickname) {
             document.getElementById('modalPerfilAdmin').style.display = 'flex';
             document.getElementById('perfilAdminNickname').innerText = nickname;
             document.getElementById('perfilAdminCargo').innerText = 'A carregar...';
+            document.getElementById('perfilAdminTelefone').innerText = 'A carregar...';
             document.getElementById('perfilAdminTotalHoras').innerText = '-';
             document.getElementById('perfilAdminTempoGestao').innerText = '-';
             document.getElementById('perfilAdminUltimoPlantao').innerText = '-';
@@ -923,6 +1006,7 @@
                 if (data.success) {
                     const p = data.perfil;
                     document.getElementById('perfilAdminCargo').innerText = p.cargo || 'Privado';
+                    document.getElementById('perfilAdminTelefone').innerText = p.telefone || 'Não registado';
                     document.getElementById('perfilAdminTotalHoras').innerText = p.totalHoras || '00:00:00';
                     document.getElementById('perfilAdminTempoGestao').innerText = p.tempoGestao || '-';
                     document.getElementById('perfilAdminUltimoPlantao').innerText = p.ultimoPlantao || 'Nenhum plantão';
@@ -1089,15 +1173,23 @@
                 const container = document.getElementById('listaElegiveisUmTurno');
                 if (!container) return;
                 container.innerHTML = '';
+                const ignoradosUmTurno = JSON.parse(localStorage.getItem('elegiveisUmTurnoLimposManual') || '[]');
 
                 if (data.success && data.elegiveis.length > 0) {
-                    data.elegiveis.forEach(m => {
-                        const div = document.createElement('div');
-                        div.style.padding = '4px 0';
-                        div.style.borderBottom = '1px solid rgba(56, 189, 248, 0.1)';
-                        div.innerHTML = `• <b>${m.nickname}</b> (${m.cargo}) — <i style="color: #a855f7;">Fez 1+ turno HOJE</i>`;
-                        container.appendChild(div);
-                    });
+                    const filtradosUmTurno = data.elegiveis.filter(m => !ignoradosUmTurno.includes(m.nickname.toLowerCase()));
+                    if (filtradosUmTurno.length > 0) {
+                        filtradosUmTurno.forEach(m => {
+                            const div = document.createElement('div');
+                            div.className = 'item-elegivel-um-turno';
+                            div.dataset.nickname = m.nickname.toLowerCase();
+                            div.style.padding = '4px 0';
+                            div.style.borderBottom = '1px solid rgba(56, 189, 248, 0.1)';
+                            div.innerHTML = `• <b>${m.nickname}</b> (${m.cargo}) — <i style="color: #a855f7;">Fez 1+ turno HOJE</i>`;
+                            container.appendChild(div);
+                        });
+                    } else {
+                        container.innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível para 1 turno hoje.</span>`;
+                    }
                 } else {
                     container.innerHTML = `<span style="color: #94a3b8;">Nenhum turno registado hoje ainda.</span>`;
                 }
@@ -1136,6 +1228,27 @@
                     } catch (e) {
                         mostrarModalCustomizado('Erro', 'Erro ao sortear.');
                     }
+                }
+            );
+        }
+
+        function limparElegiveisUmTurno() {
+            mostrarModalCustomizado(
+                'Limpar Elegíveis (1 Turno)',
+                'Deseja limpar todos os operacionais elegíveis de 1 turno atuais da lista?',
+                'confirmacao',
+                () => {
+                    const itensAtuais = document.querySelectorAll('.item-elegivel-um-turno');
+                    const ignorados = JSON.parse(localStorage.getItem('elegiveisUmTurnoLimposManual') || '[]');
+                    itensAtuais.forEach(el => {
+                        if (el.dataset.nickname && !ignorados.includes(el.dataset.nickname)) {
+                            ignorados.push(el.dataset.nickname);
+                        }
+                    });
+                    localStorage.setItem('elegiveisUmTurnoLimposManual', JSON.stringify(ignorados));
+                    document.getElementById('listaElegiveisUmTurno').innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível.</span>`;
+                    document.getElementById('resultadoSorteio').innerHTML = '';
+                    mostrarModalCustomizado('Sucesso', 'Elegíveis de 1 turno limpos!');
                 }
             );
         }
@@ -1183,10 +1296,12 @@
                 async () => {
                     try {
                         localStorage.removeItem('elegiveisLimposManual');
+                        localStorage.removeItem('elegiveisUmTurnoLimposManual');
                         const res = await fetch('/api/admin/sorteio/resetar-ciclo', { method: 'POST' });
                         const data = await res.json();
                         if (data.success) {
                             carregarElegiveisSorteio();
+                            carregarElegiveisUmTurno();
                             document.getElementById('resultadoSorteio').innerHTML = '';
                             mostrarModalCustomizado('Sucesso', 'Ciclo resetado com sucesso!');
                         }
