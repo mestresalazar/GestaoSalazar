@@ -599,6 +599,34 @@
                 </div>
             </div>
         </div>
+
+        <!-- 🎙️ BLOCO: CANAL DE VOZ & HIERARQUIA ESTILO DISCORD -->
+        <div class="card" style="margin-top: 20px; border: 2px solid #5865f2; background: linear-gradient(145deg, rgba(88, 101, 242, 0.08), rgba(15, 23, 42, 0.9));">
+            <h3 style="color: #5865f2; border-color: rgba(88, 101, 242, 0.3);">🎙️ Central de Voz & Hierarquia da Tropa (Estilo Discord)</h3>
+            
+            <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 15px;">
+                <!-- Controles de Voz -->
+                <div style="flex: 1; min-width: 260px; background: rgba(7, 13, 22, 0.8); padding: 16px; border-radius: 12px; border: 1px solid rgba(88, 101, 242, 0.3);">
+                    <h4 style="color: #949ba4; font-size: 12px; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 1px;">Canais de Voz Ativos</h4>
+                    <div style="font-weight: bold; color: #23a55a; margin-bottom: 8px; font-size: 14px;">🔊 Sala de Reunião Geral</div>
+                    <div id="painel-voz-status" style="font-size: 12px; color: #949ba4; margin-bottom: 14px;">Estado: Desconectado do Voz</div>
+                    
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button onclick="entrarCanalVoz('sala_geral_salazar', user.nickname, user.cargo)" style="background: #23a55a; color: white; border: none; padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: bold;">Entrar no Voz</button>
+                        <button id="btn-mute-audio" onclick="alternarMuteMicrofone()" style="background: #5865f2; color: white; border: none; padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: bold;">Mutar 🎙️</button>
+                        <button onclick="sairCanalVoz()" style="background: #da373c; color: white; border: none; padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: bold; width: 100%; margin-top: 4px;">Sair da Sala</button>
+                    </div>
+                </div>
+
+                <!-- Utilizadores Conectados na Sala de Voz / Hierarquia -->
+                <div style="flex: 2; min-width: 300px; background: rgba(7, 13, 22, 0.8); padding: 16px; border-radius: 12px; border: 1px solid rgba(88, 101, 242, 0.3);">
+                    <h4 style="color: #949ba4; font-size: 12px; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 1px;">Operacionais no Canal de Voz</h4>
+                    <div id="avatares-falando-grid" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                        <span style="color: #94a3b8; font-size: 13px;">Nenhum operacional conectado no voz no momento.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- ========================================== -->
@@ -724,6 +752,9 @@
             <div id="modalCustomButtons" style="display: flex; gap: 12px; justify-content: center;"></div>
         </div>
     </div>
+
+    <!-- SCRIPT DE VOZ ESTILO DISCORD -->
+    <script src="/voz.js"></script>
 
     <script>
         // --- FUNÇÃO DE ALTERNAR ABAS (MÓDULOS) ---
@@ -1354,7 +1385,7 @@
         }
 
         async function fazerCheckout() {
-            if (processandoCheckout) return; // Bloqueia cliques múltiplos / clonagem de turnos
+            if (processandoCheckout) return;
 
             const total = atualizarDisplayTimer();
             if (total < TEMPO_MINIMO_SEGUNDOS) {
@@ -1372,7 +1403,6 @@
                 return; 
             }
 
-            // Ativa bloqueio imediato no botão
             processandoCheckout = true;
             const btnCheckoutEl = document.getElementById('btnCheckout');
             const btnPausarEl = document.getElementById('btnPausar');

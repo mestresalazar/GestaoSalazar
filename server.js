@@ -111,7 +111,6 @@ function calcularSegundosValidosNoHorario(inicioTimestamp, fimTimestamp) {
     return Math.floor((fimValido - inicioValido) / 1000);
 }
 
-// Verificação ultra-rápida sem carregar imagens e sem conversão pesada de string
 function turnoEstaNoHorarioPermitido(t) {
     if (!t) return false;
     if (t.manual === true) return true;
@@ -994,7 +993,6 @@ app.delete('/api/admin/membro/:id', async (req, res) => {
     }
 });
 
-// --- RANKING INSTANTÂNEO (SEM BAIXAR IMAGENS DO BANCO) ---
 app.get('/api/admin/ranking/turnos', async (req, res) => {
     try {
         const configRanking = await ConfigSorteio.collection.findOne({ chave: 'config_ranking_semanal' });
@@ -1468,14 +1466,62 @@ io.on('connection', (socket) => {
 
   socket.on('chat_mensagem', (data) => { io.to(data.salaId).emit('receber_mensagem', data); });
 
+  // --- EVENTOS DO CANAL DE VOZ ESTILO DISCORD ---
+  socket.on('entrar_canal_voz', (data) => {
+    let salaVozId = (data && data.salaId) ? data.salaId : 'canal_voz_geral';
+    socket.join(salaVozId);
+    socket.nicknameVoz = (data && data.nickname) ? data.nickname : 'Operacional';
+    socket.cargoVoz = (data && data.cargo) ? data.cargo : 'Privado';
+    socket.salaVozId = salaVozId;
+
+    io.to(salaVozId).emit('utilizadores_no_voz', obterUtilizadoresVoz(salaVozId));
+  });
+
+  socket.on('sinal_WebRTC', (data) => {
+    if (data && data.to) {
+      socket.to(data.to).emit('sinal_WebRTC', { from: socket.id, signal: data.signal });
+    }
+  });
+
+  socket.on('admin_mutar_membro', ({ targetSocketId, mutado }) => {
+    io.to(targetSocketId).emit('forcar_mute_servidor', { mutado });
+  });
+
+  socket.on('sair_canal_voz', () => {
+    if (socket.salaVozId) {
+      socket.leave(socket.salaVozId);
+      io.to(socket.salaVozId).emit('utilizadores_no_voz', obterUtilizadoresVoz(socket.salaVozId));
+      socket.salaVozId = null;
+    }
+  });
+
   socket.on('disconnect', () => {
     const user = usuariosOnline[socket.id];
     if (user) {
       delete usuariosOnline[socket.id];
       atualizarEstadoOperacional(user.salaId);
     }
+
+    if (socket.salaVozId) {
+      socket.leave(socket.salaVozId);
+      io.to(socket.salaVozId).emit('utilizadores_no_voz', obterUtilizadoresVoz(socket.salaVozId));
+    }
   });
 });
+
+function obterUtilizadoresVoz(salaVozId) {
+  const socketsNaSala = io.sockets.adapter.rooms.get(salaVozId);
+  if (!socketsNaSala) return [];
+  
+  const lista = [];
+  for (const socketId of socketsNaSala) {
+      const s = io.sockets.sockets.get(socketId);
+      if (s && s.nicknameVoz) {
+          lista.push({ id: s.id, nickname: s.nicknameVoz, cargo: s.cargoVoz });
+      }
+  }
+  return lista;
+}
 
 function atualizarEstadoOperacional(salaId) {
   const conexõesNaSala = Object.values(usuariosOnline).filter(u => u.salaId === salaId);
