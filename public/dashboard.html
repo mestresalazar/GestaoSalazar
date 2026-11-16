@@ -679,7 +679,6 @@
                 console.error("Erro ao carregar link do WhatsApp:", e);
             }
 
-            // Carrega também o perfil para saber se o telefone está preenchido
             try {
                 const resPerfil = await fetch(`/api/membro/perfil/${encodeURIComponent(user.nickname)}`);
                 const dataPerfil = await resPerfil.json();
@@ -691,7 +690,6 @@
         carregarLinkWhatsappMembro();
 
         async function abrirGrupoWhatsapp() {
-            // Valida se o telefone está preenchido antes de abrir o link
             try {
                 const res = await fetch(`/api/membro/perfil/${encodeURIComponent(user.nickname)}`);
                 const data = await res.json();

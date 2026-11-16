@@ -601,7 +601,10 @@ app.post('/api/membro/carteira/atualizar', async (req, res) => {
         const { nickname, missoes, saldoTotal, motivo, ciclo, comprovantePrint } = req.body;
         if (!nickname) return res.status(400).json({ success: false, message: 'Nickname obrigatório.' });
 
-        const saldoFinal = saldoTotal !== undefined ? Number(saldoTotal) : 0;
+        const membro = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') });
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        const saldoFinal = saldoTotal !== undefined ? Number(saldoTotal) : (membro.carteiraSaldo || 0);
         const cicloAtualBrasil = obterDataCicloBrasil();
 
         const updateObj = {
@@ -628,10 +631,10 @@ app.post('/api/membro/carteira/atualizar', async (req, res) => {
             queryUpdate.$push = pushObj;
         }
 
-        await User.updateOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') }, queryUpdate);
+        await User.updateOne({ _id: membro._id }, queryUpdate);
 
-        await registarLogAdmin(nickname, 'Atualização de Missões', `Progresso de missões atualizado. Saldo atual: R$ ${saldoFinal}`);
-        res.json({ success: true, message: 'Missões e carteira atualizadas com sucesso!' });
+        await registarLogAdmin(nickname, 'Atualização de Carteira', `Saldo atualizado para R$ ${saldoFinal}. Motivo: ${motivo || 'Rotina'}`);
+        res.json({ success: true, message: 'Carteira atualizada com sucesso!', saldo: saldoFinal });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao atualizar carteira.' });
     }
