@@ -160,7 +160,18 @@
             padding-bottom: 10px;
             font-weight: 700;
         }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+
+        /* TABELAS RESPONSIVAS E OTIMIZADAS PARA MOBILE */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-top: 10px;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: 10px;
+            background: rgba(7, 13, 22, 0.6);
+        }
+        table { width: 100%; border-collapse: collapse; white-space: nowrap; }
         th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid rgba(56, 189, 248, 0.15); font-size: 13px; }
         th { background-color: rgba(15, 23, 42, 0.85); color: #38bdf8; font-weight: 700; }
 
@@ -179,12 +190,14 @@
 
         .logs-scroll-wrapper {
             max-height: 280px;
+            overflow-x: auto;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             background: rgba(7, 13, 22, 0.75);
             border: 1px solid rgba(147, 51, 234, 0.35);
             border-radius: 10px;
         }
-        .logs-table { width: 100%; border-collapse: collapse; }
+        .logs-table { width: 100%; border-collapse: collapse; white-space: nowrap; }
         .logs-table th { background-color: rgba(24, 20, 48, 0.95); color: #a855f7; font-size: 12px; }
         .logs-table td { padding: 8px 12px; font-size: 12px; border-bottom: 1px solid rgba(147, 51, 234, 0.15); }
 
@@ -199,6 +212,7 @@
             margin-right: 4px;
             margin-bottom: 4px;
             transition: all 0.2s ease;
+            display: inline-block;
         }
         .btn-action:hover { filter: brightness(1.1); transform: translateY(-1px); }
         .btn-aprovar { background-color: rgba(22, 163, 74, 0.9); }
@@ -244,14 +258,15 @@
             justify-content: center;
             align-items: center;
             z-index: 1000;
+            padding: 16px;
         }
         .modal-content {
             background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(7, 13, 22, 0.98));
-            width: 90%;
+            width: 100%;
             max-width: 680px;
             max-height: 85vh;
             border-radius: 16px;
-            padding: 28px;
+            padding: 24px;
             overflow-y: auto;
             border: 1px solid rgba(56, 189, 248, 0.4);
         }
@@ -280,22 +295,22 @@
     <!-- ========================================== -->
     <div id="aba-efetivo" class="tab-content active">
         <!-- CARTÕES DE CONTAGEM DE MEMBROS -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 20px;">
-            <div class="card" style="margin-bottom: 0; text-align: center; border: 1px solid rgba(56, 189, 248, 0.3);">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 20px;">
+            <div class="card" style="margin-bottom: 0; text-align: center; border: 1px solid rgba(56, 189, 248, 0.3); padding: 16px;">
                 <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Total Registados</span>
-                <h2 id="counterTotal" style="color: #38bdf8; font-size: 24px; margin-top: 4px;">0</h2>
+                <h2 id="counterTotal" style="color: #38bdf8; font-size: 22px; margin-top: 4px;">0</h2>
             </div>
-            <div class="card" style="margin-bottom: 0; text-align: center; border: 1px solid rgba(34, 197, 94, 0.3);">
+            <div class="card" style="margin-bottom: 0; text-align: center; border: 1px solid rgba(34, 197, 94, 0.3); padding: 16px;">
                 <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Ativos</span>
-                <h2 id="counterAtivos" style="color: #22c55e; font-size: 24px; margin-top: 4px;">0</h2>
+                <h2 id="counterAtivos" style="color: #22c55e; font-size: 22px; margin-top: 4px;">0</h2>
             </div>
-            <div class="card" style="margin-bottom: 0; text-align: center; border: 1px solid rgba(234, 179, 8, 0.3);">
+            <div class="card" style="margin-bottom: 0; text-align: center; border: 1px solid rgba(234, 179, 8, 0.3); padding: 16px;">
                 <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Pendentes</span>
-                <h2 id="counterPendentes" style="color: #eab308; font-size: 24px; margin-top: 4px;">0</h2>
+                <h2 id="counterPendentes" style="color: #eab308; font-size: 22px; margin-top: 4px;">0</h2>
             </div>
-            <div class="card" style="margin-bottom: 0; text-align: center; border: 1px solid rgba(168, 85, 247, 0.3);">
+            <div class="card" style="margin-bottom: 0; text-align: center; border: 1px solid rgba(168, 85, 247, 0.3); padding: 16px;">
                 <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Em Plantão</span>
-                <h2 id="counterPlantao" style="color: #a855f7; font-size: 24px; margin-top: 4px;">0</h2>
+                <h2 id="counterPlantao" style="color: #a855f7; font-size: 22px; margin-top: 4px;">0</h2>
             </div>
         </div>
 
@@ -307,7 +322,8 @@
                 <input type="text" id="inputBuscaMembro" placeholder="🔍 Pesquisar operacional por nickname..." oninput="filtrarTabelaEfetivo()" class="search-input-box" style="margin-bottom: 0;">
             </div>
 
-            <div style="max-height: 420px; overflow-y: auto; border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; background: rgba(7, 13, 22, 0.6);">
+            <!-- TABELA COM SCROLL HORIZONTAL SUAVE PARA MOBILE -->
+            <div class="table-responsive">
                 <table>
                     <thead>
                         <tr>
@@ -508,8 +524,8 @@
         </div>
     </div>
 
-    <div id="modalPerfilAdmin" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.85); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 10000;">
-        <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 90%; max-width: 450px; border-radius: 16px; padding: 28px; border: 1px solid rgba(56, 189, 248, 0.4); text-align: center; color: #fff;">
+    <div id="modalPerfilAdmin" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.85); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 10000; padding: 16px;">
+        <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 100%; max-width: 450px; border-radius: 16px; padding: 24px; border: 1px solid rgba(56, 189, 248, 0.4); text-align: center; color: #fff; max-height: 85vh; overflow-y: auto;">
             <button class="close-modal" onclick="document.getElementById('modalPerfilAdmin').style.display='none'">X</button>
             <h3 style="color: #38bdf8; margin-bottom: 20px;">👤 Perfil do Operacional (Comando)</h3>
             
@@ -527,8 +543,8 @@
         </div>
     </div>
 
-    <div id="customModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.85); justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(4px);">
-        <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(7, 13, 22, 0.99)); width: 90%; max-width: 420px; border-radius: 16px; padding: 28px; border: 1px solid rgba(56, 189, 248, 0.4); text-align: center;">
+    <div id="customModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.85); justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(4px); padding: 16px;">
+        <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(7, 13, 22, 0.99)); width: 100%; max-width: 420px; border-radius: 16px; padding: 24px; border: 1px solid rgba(56, 189, 248, 0.4); text-align: center;">
             <h3 id="modalCustomTitle" style="color: #38bdf8; margin-bottom: 12px; font-size: 18px;">Gestão Salazar</h3>
             <p id="modalCustomMessage" style="color: #e2e8f0; font-size: 14px; margin-bottom: 22px; line-height: 1.5;"></p>
             <div id="modalCustomButtons" style="display: flex; gap: 12px; justify-content: center;"></div>
@@ -961,7 +977,7 @@
 
                 if (data.success) {
                     container.innerHTML = `
-                        <div style="background: rgba(7, 13, 22, 0.7); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2); display: flex; justify-content: space-between; align-items: center;">
+                        <div style="background: rgba(7, 13, 22, 0.7); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                             <div><p><b>Operacional:</b> ${data.nickname} | <b>Cargo:</b> ${data.cargo}</p></div>
                             <button class="btn-action btn-reset" onclick="resetarTurnosMembro('${membroIdAtualModal}')">🗑️ Resetar Turnos</button>
                         </div>
@@ -990,9 +1006,9 @@
             if (!modal) {
                 modal = document.createElement('div');
                 modal.id = 'modalPrintsAdmin';
-                modal.style.cssText = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(3,7,18,0.85); backdrop-filter:blur(8px); justify-content:center; align-items:center; z-index:10000;";
+                modal.style.cssText = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(3,7,18,0.85); backdrop-filter:blur(8px); justify-content:center; align-items:center; z-index:10000; padding:16px;";
                 modal.innerHTML = `
-                    <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(7, 13, 22, 0.98)); width: 90%; max-width: 650px; max-height: 85vh; border-radius: 16px; padding: 28px; border: 1px solid rgba(56, 189, 248, 0.4); overflow-y: auto; color: #fff;">
+                    <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(7, 13, 22, 0.98)); width: 100%; max-width: 650px; max-height: 85vh; border-radius: 16px; padding: 24px; border: 1px solid rgba(56, 189, 248, 0.4); overflow-y: auto; color: #fff;">
                         <button onclick="document.getElementById('modalPrintsAdmin').style.display='none'" class="close-modal">X</button>
                         <h3 id="tituloPrintsAdmin" style="color: #38bdf8; margin-bottom: 15px;">📸 Prints de Missões</h3>
                         <div id="conteudoPrintsAdmin" style="display: flex; flex-direction: column; gap: 15px;">A carregar...</div>
