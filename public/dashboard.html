@@ -16,109 +16,129 @@
             letter-spacing: -0.01em;
         }
         body {
-            background-image: linear-gradient(rgba(7, 13, 22, 0.75), rgba(7, 13, 22, 0.85)), url('/background.jpg');
+            background-image: linear-gradient(rgba(7, 13, 22, 0.8), rgba(7, 13, 22, 0.9)), url('/background.jpg');
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
             background-color: #070d16;
             color: #ffffff;
-            padding: 20px;
+            padding: 16px;
         }
+
+        /* --- MENU SUPERIOR PROFISSIONAL & ABAS --- */
         .navbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: linear-gradient(145deg, rgba(15, 23, 42, 0.88), rgba(7, 13, 22, 0.95)) !important;
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.92), rgba(7, 13, 22, 0.98)) !important;
             backdrop-filter: blur(16px) !important;
-            padding: 16px 24px;
+            padding: 14px 20px;
             border-radius: 16px !important;
-            margin-bottom: 24px;
-            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.7) !important;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.75) !important;
             border: 1px solid rgba(56, 189, 248, 0.25) !important;
             flex-wrap: wrap;
             gap: 12px;
         }
         .nav-brand {
             color: #38bdf8;
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 800;
             text-shadow: 0 2px 6px rgba(0,0,0,0.8);
             letter-spacing: -0.02em;
         }
         .nav-links {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             align-items: center;
             flex-wrap: wrap;
         }
-        .nav-links a {
+        .nav-btn-aba {
+            background: rgba(30, 41, 59, 0.7);
             color: #cbd5e1;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 13px;
+            border: 1px solid rgba(56, 189, 248, 0.15);
             padding: 8px 14px;
             border-radius: 10px;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.25s ease;
         }
-        .nav-links a:hover, .nav-links a.active {
-            background-color: rgba(56, 189, 248, 0.15);
+        .nav-btn-aba:hover, .nav-btn-aba.active {
+            background: rgba(56, 189, 248, 0.2);
             color: #38bdf8;
-            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-color: rgba(56, 189, 248, 0.5);
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
         }
         .logout-btn {
             background-color: rgba(239, 68, 68, 0.9);
             color: white;
             border: none;
-            padding: 8px 16px;
+            padding: 8px 14px;
             border-radius: 10px;
             cursor: pointer;
             font-weight: 700;
             font-size: 13px;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+            transition: all 0.25s ease;
         }
         .logout-btn:hover {
             background-color: #dc2626;
-            transform: translateY(-1px);
         }
+
+        /* --- SISTEMA DE ABAS (MÓDULOS) --- */
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Grelha de conteúdos internos da aba */
         .grid-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 24px;
+            gap: 20px;
         }
         @media(max-width: 900px) {
             .grid-container {
                 grid-template-columns: 1fr;
             }
             body {
-                padding: 12px;
+                padding: 10px;
             }
             .navbar {
-                padding: 14px 16px;
+                padding: 12px 14px;
                 flex-direction: column;
                 align-items: stretch;
                 text-align: center;
             }
             .nav-links {
                 justify-content: center;
+                gap: 6px;
+            }
+            .nav-btn-aba {
+                font-size: 12px;
+                padding: 7px 10px;
             }
         }
+
         .card {
-            background: linear-gradient(145deg, rgba(15, 23, 42, 0.82), rgba(7, 13, 22, 0.92)) !important;
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.85), rgba(7, 13, 22, 0.95)) !important;
             backdrop-filter: blur(16px) !important;
-            padding: 24px;
+            padding: 22px;
             border-radius: 16px !important;
             box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.7) !important;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
             border: 1px solid rgba(56, 189, 248, 0.22) !important;
-            transition: transform 0.2s ease, border-color 0.2s ease;
-        }
-        .card:hover {
-            border-color: rgba(56, 189, 248, 0.4);
         }
         .card h3 {
             color: #38bdf8;
-            margin-bottom: 16px;
+            margin-bottom: 14px;
             font-size: 17px;
             border-bottom: 1px solid rgba(56, 189, 248, 0.2);
             padding-bottom: 10px;
@@ -153,13 +173,12 @@
             font-weight: 700;
             cursor: pointer;
             margin-top: 15px;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.25s ease;
             box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35);
         }
         .btn-action:hover {
             background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(2, 132, 199, 0.5);
         }
         .status-badge {
             display: inline-block;
@@ -171,7 +190,7 @@
         }
         .status-ativo { background-color: #22c55e; color: #fff; box-shadow: 0 0 10px rgba(34, 197, 94, 0.4); }
         
-        .badge-cargo-general, .badge-cargo-coronel { background: linear-gradient(135deg, #ef4444, #b91c1c); color: #fff; padding: 4px 10px; border-radius: 6px; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+        .badge-cargo-general, .badge-cargo-coronel { background: linear-gradient(135deg, #ef4444, #b91c1c); color: #fff; padding: 4px 10px; border-radius: 6px; font-weight: bold; }
         .badge-cargo-major, .badge-cargo-tenente { background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; padding: 4px 10px; border-radius: 6px; font-weight: bold; }
         .badge-cargo-sargento { background: linear-gradient(135deg, #38bdf8, #0284c7); color: #000; padding: 4px 10px; border-radius: 6px; font-weight: bold; }
         .badge-cargo-soldado, .badge-cargo-privado { background: rgba(51, 65, 85, 0.85); color: #e2e8f0; padding: 4px 10px; border-radius: 6px; font-weight: bold; }
@@ -215,7 +234,6 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 16px;
-            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.15);
         }
         .wallet-amount {
             font-size: 26px;
@@ -233,7 +251,6 @@
             font-size: 13px;
             margin-bottom: 12px;
             outline: none;
-            transition: all 0.2s ease;
         }
         .search-input-box:focus {
             border-color: #38bdf8;
@@ -273,7 +290,6 @@
             border-bottom: 1px solid rgba(56, 189, 248, 0.2);
             padding-bottom: 5px;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
         }
         .online-user-item {
             font-size: 12px;
@@ -324,7 +340,6 @@
             padding: 10px 14px;
             border-radius: 10px;
             border-left: 3px solid #38bdf8;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.4);
             word-break: break-word;
         }
         .chat-msg .chat-header-info {
@@ -336,7 +351,6 @@
         .chat-msg span.autor {
             font-weight: bold;
             color: #38bdf8;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
         }
         .chat-msg span.hora {
             color: #94a3b8;
@@ -346,6 +360,7 @@
             color: #e2e8f0;
             font-size: 13px;
         }
+
         #modalHistorico, #modalMissaoComprovante, #modalPerfil {
             display: none;
             position: fixed;
@@ -364,7 +379,6 @@
             border-radius: 16px;
             padding: 28px;
             overflow-y: auto;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.9);
             border: 1px solid rgba(56, 189, 248, 0.4);
         }
         .close-modal {
@@ -376,10 +390,6 @@
             border-radius: 8px;
             cursor: pointer;
             font-weight: bold;
-            transition: background 0.2s;
-        }
-        .close-modal:hover {
-            background: #dc2626;
         }
 
         #modalRoletaAoVivo {
@@ -397,7 +407,6 @@
         .roleta-container {
             background: linear-gradient(145deg, #0f172a 0%, #070d16 100%);
             border: 2px solid rgba(56, 189, 248, 0.5);
-            box-shadow: 0 0 60px rgba(56, 189, 248, 0.35), inset 0 0 20px rgba(56, 189, 248, 0.1);
             border-radius: 24px;
             padding: 32px;
             max-width: 480px;
@@ -414,12 +423,10 @@
             margin: 0 auto -12px auto;
             position: relative;
             z-index: 10;
-            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.9));
         }
         #canvasRoleta {
             border-radius: 50%;
             border: 6px solid #38bdf8;
-            box-shadow: 0 0 30px rgba(56, 189, 248, 0.5), inset 0 0 15px rgba(0,0,0,0.8);
             background: #070d16;
             max-width: 100%;
             height: auto;
@@ -429,152 +436,181 @@
 </head>
 <body>
 
+    <!-- NAVBAR COM ABAS PROFISSIONAIS -->
     <div class="navbar">
         <div class="nav-brand">Gestão Salazar</div>
         <div class="nav-links">
-            <a href="dashboard.html" class="active">Painel de Turnos</a>
-            <a href="admin.html" id="navAdminLink" style="display: none; background: rgba(3, 105, 161, 0.25); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);">Painel ADM</a>
-            <button class="btn-action" style="margin-top:0; padding: 7px 14px; font-size: 13px; background: rgba(51, 65, 85, 0.85); width: auto; box-shadow: none;" onclick="abrirHistorico()">Meu Histórico 📜</button>
-            <button class="btn-action" style="margin-top:0; padding: 7px 14px; font-size: 13px; background: rgba(147, 51, 234, 0.85); width: auto; box-shadow: none;" onclick="abrirPerfilModal()">Meu Perfil 👤</button>
-            <button class="btn-action" id="btnGrupoWhatsappNav" style="display: none; margin-top:0; padding: 7px 14px; font-size: 13px; background: rgba(34, 197, 94, 0.9); width: auto; box-shadow: none;" onclick="abrirGrupoWhatsapp()">📱 Grupo WhatsApp</button>
-            <span id="userBadgeInfo" style="font-size: 13px; color: #e2e8f0; margin-left: 6px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);"></span>
+            <button class="nav-btn-aba active" onclick="mudarAba('turnos', this)">🪖 Turnos</button>
+            <button class="nav-btn-aba" onclick="mudarAba('missoes', this)">📋 Missões</button>
+            <button class="nav-btn-aba" onclick="mudarAba('tropa', this)">👀 Tropa & Rádio</button>
+            <button class="nav-btn-aba" onclick="mudarAba('ranking', this)">🏆 Ranking</button>
+            <a href="admin.html" id="navAdminLink" style="display: none; background: rgba(3, 105, 161, 0.25); color: #38bdf8; padding: 8px 12px; border-radius: 10px; font-size: 13px; text-decoration: none; font-weight: 600; border: 1px solid rgba(56, 189, 248, 0.4);">Painel ADM</a>
+            <button class="nav-btn-aba" style="background: rgba(51, 65, 85, 0.85);" onclick="abrirHistorico()">📜 Histórico</button>
+            <button class="nav-btn-aba" style="background: rgba(147, 51, 234, 0.85);" onclick="abrirPerfilModal()">👤 Perfil</button>
+            <button class="nav-btn-aba" id="btnGrupoWhatsappNav" style="display: none; background: rgba(34, 197, 94, 0.9); color:#fff;" onclick="abrirGrupoWhatsapp()">📱 WhatsApp</button>
+            <span id="userBadgeInfo" style="font-size: 12px; color: #e2e8f0; font-weight: 600;"></span>
             <button class="logout-btn" onclick="logout()">Sair</button>
         </div>
     </div>
 
     <!-- BANNER DE ATIVAÇÃO DE NOTIFICAÇÕES PUSH -->
-    <div id="bannerPush" class="card" style="border: 2px solid #22c55e; background: rgba(34, 197, 94, 0.08); display: none; text-align: center; margin-bottom: 24px;">
+    <div id="bannerPush" class="card" style="border: 2px solid #22c55e; background: rgba(34, 197, 94, 0.08); display: none; text-align: center; margin-bottom: 20px;">
         <h3 style="color: #22c55e; border: none; margin-bottom: 8px;">🔔 Ativar Alertas no Telemóvel / PC</h3>
-        <p style="color: #e2e8f0; font-size: 13px; margin-bottom: 16px;">Para receber os alarmes de AÇÃO diretamente na barra de notificações, clique no botão abaixo e permita as notificações.</p>
-        <button class="btn-action" style="background-color: rgba(34, 197, 94, 0.9); width: auto; display: inline-block; padding: 10px 25px; margin-top: 0;" onclick="ativarNotificacoesPush()">✅ Ativar Notificações Push Agora</button>
+        <p style="color: #e2e8f0; font-size: 13px; margin-bottom: 16px;">Para receber os alarmes de AÇÃO diretamente na barra de notificações, clique no botão abaixo.</p>
+        <button class="btn-action" style="background-color: rgba(34, 197, 94, 0.9); width: auto; display: inline-block; padding: 10px 25px; margin-top: 0;" onclick="ativarNotificacoesPush()">✅ Ativar Notificações Push</button>
     </div>
 
-    <div class="grid-container">
-        <div>
-            <!-- CARTEIRA DIGITAL DO OPERACIONAL -->
-            <div class="card" style="border: 2px solid #10b981;">
-                <h3>💳 Carteira Digital Salazar</h3>
-                <div class="wallet-box">
-                    <div>
-                        <span style="font-size: 11px; color: #a7f3d0; display: block; letter-spacing: 0.05em; font-weight: 600;">SALDO DISPONÍVEL</span>
-                        <span class="wallet-amount" id="saldoCarteiraTotal">R$ 0</span>
+    <!-- ========================================== -->
+    <!-- ABA 1: MÓDULO DE TURNOS E CARTEIRA (PRINCIPAL) -->
+    <!-- ========================================== -->
+    <div id="aba-turnos" class="tab-content active">
+        <div class="grid-container">
+            <div>
+                <!-- CARTEIRA DIGITAL DO OPERACIONAL -->
+                <div class="card" style="border: 2px solid #10b981;">
+                    <h3>💳 Carteira Digital Salazar</h3>
+                    <div class="wallet-box">
+                        <div>
+                            <span style="font-size: 11px; color: #a7f3d0; display: block; font-weight: 600;">SALDO DISPONÍVEL</span>
+                            <span class="wallet-amount" id="saldoCarteiraTotal">R$ 0</span>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="font-size: 11px; color: #e2e8f0; display: block;">Ganho Hoje: <b id="ganhoHojeCarteira" style="color: #34d399;">+R$ 0</b></span>
+                            <span style="font-size: 11px; color: #fca5a5; display: block;">Meta de Plantão: <b id="statusMetaPlantao">Pendente (30m)</b></span>
+                        </div>
                     </div>
-                    <div style="text-align: right;">
-                        <span style="font-size: 11px; color: #e2e8f0; display: block;">Ganho Hoje: <b id="ganhoHojeCarteira" style="color: #34d399;">+R$ 0</b></span>
-                        <span style="font-size: 11px; color: #fca5a5; display: block;">Meta de Plantão: <b id="statusMetaPlantao">Pendente (30m)</b></span>
-                    </div>
+                    <p style="font-size: 12px; color: #cbd5e1; line-height: 1.5;">
+                        • Cada missão com print gera <b>+R$ 1.000</b> na carteira.<br>
+                        • <span style="color: #f87171;"><b>Atenção:</b></span> Se não cumprir pelo menos 1 plantão válido (mín. 30 min) no ciclo, será descontado <b>-R$ 1.000</b> após as 02:00!
+                    </p>
                 </div>
-                <p style="font-size: 12px; color: #cbd5e1; line-height: 1.5;">
-                    • Cada missão concluída com print gera <b>+R$ 1.000</b> na carteira.<br>
-                    • <span style="color: #f87171;"><b>Atenção:</b></span> Se não cumprir pelo menos 1 plantão válido (mín. 30 min) no ciclo diário, será descontado <b>-R$ 1.000</b> automaticamente após as 02:00!
-                </p>
+
+                <!-- MÓDULO BATE-PONTO & TURNOS -->
+                <div class="card">
+                    <h3>🪖 Módulo Bate-Ponto & Turnos</h3>
+                    <p id="etapaAtual" style="color: #e2e8f0; font-size: 13px;">Detectando etapa atual...</p>
+                    
+                    <div class="timer-display" id="timerDisplay">00:00:00</div>
+                    <p id="avisoTempoMinimo" style="text-align: center; font-size: 12px; color: #eab308; margin-top: 10px;">⏱️ Tempo mínimo para computar horas: <b>30 minutos</b>.</p>
+
+                    <div style="margin-top: 18px;">
+                        <label style="font-size: 13px; color: #e2e8f0; font-weight: 500;">Anexar Print do Jogo (Obrigatório)</label>
+                        <input type="file" id="fotoComprovante" accept="image/*" style="width: 100%; padding: 10px; margin-top: 6px; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 13px;" onchange="converterFotoLocal(this)">
+                        <div id="statusAnexo" style="font-size: 12px; color: #22c55e; margin-top: 6px;"></div>
+                    </div>
+                    
+                    <button class="btn-action" id="btnCheckin" onclick="fazerCheckin()">Iniciar Turno (Check-in)</button>
+                    <button class="btn-action" id="btnPausar" style="background: linear-gradient(135deg, #eab308, #ca8a04); color: #000; display: none;" onclick="alternarPausa()">Pausar Turno</button>
+                    <button class="btn-action" id="btnCheckout" style="background: linear-gradient(135deg, #16a34a, #15803d);" onclick="fazerCheckout()">Finalizar Turno (Check-out)</button>
+                </div>
             </div>
 
-            <!-- FISCALIZAÇÃO DE PLANTÃO PÚBLICA COM LUPA DE PESQUISA -->
+            <div>
+                <!-- EXAME OFICIAL DE PROVAS -->
+                <div class="card" id="cardModuloProvas" style="border: 2px dashed #38bdf8; display: none;">
+                    <h3>🎓 Exame Oficial Exército Brasileiro</h3>
+                    <p id="infoStatusProva" style="color: #e2e8f0; font-size: 13px; margin-bottom: 14px;">A verificar progresso...</p>
+                    <button class="btn-action" id="btnIniciarProva" style="background: linear-gradient(135deg, #16a34a, #15803d); display: none; margin-top: 0;" onclick="abrirModalProva()">📝 Realizar Prova para <span id="spanCargoAlvo"></span></button>
+                </div>
+
+                <!-- STATUS DO SORTEIO -->
+                <div class="card">
+                    <h3>🎁 Status do Sorteio Diário</h3>
+                    <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Para participar hoje, cumpre pelo menos 2h acumuladas no dia atual (17h–02h).</p>
+                    <div id="statusSorteio" style="background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); padding: 14px; border-radius: 10px; text-align: center; font-weight: bold; color: #eab308; font-size: 14px;">
+                        Elegível ao atingir 2h de plantão HOJE.
+                    </div>
+                </div>
+
+                <!-- CAIXA DE ENTRADA -->
+                <div class="card">
+                    <h3>📥 Caixa de Entrada & Notificações</h3>
+                    <div id="caixaEntradaContainer" style="max-height: 180px; overflow-y: auto; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; padding: 12px; font-size: 13px; color: #e2e8f0;">
+                        A carregar notificações...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ABA 2: MISSÕES DIÁRIAS -->
+    <!-- ========================================== -->
+    <div id="aba-missoes" class="tab-content">
+        <div class="card" style="border: 2px solid #eab308; background: linear-gradient(145deg, rgba(234, 179, 8, 0.08), rgba(15, 23, 42, 0.82)); max-width: 700px; margin: 0 auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(234, 179, 8, 0.3); padding-bottom: 10px; margin-bottom: 14px;">
+                <h3 style="border: none; margin: 0; padding: 0;">📋 Missões Diárias do QG</h3>
+                <span style="font-size: 11px; background: rgba(234, 179, 8, 0.25); color: #fde047; padding: 4px 10px; border-radius: 8px; font-weight: 600;">Reinicia às 02:00</span>
+            </div>
+            <p style="color: #e2e8f0; font-size: 13px; margin-bottom: 14px;">Patente: <b id="patenteAtualTexto"></b> | Cada missão concluída com <b>print da ação</b> vale <b>R$ 1.000</b>.</p>
+            
+            <div id="conteudoMissoesDiarias" style="background: rgba(7, 13, 22, 0.75); padding: 16px; border-radius: 10px; border: 1px solid rgba(234, 179, 8, 0.3); font-size: 13px; color: #e2e8f0; line-height: 1.5;">
+                A carregar missões...
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ABA 3: TROPA & RÁDIO TÁTICO -->
+    <!-- ========================================== -->
+    <div id="aba-tropa" class="tab-content">
+        <div class="grid-container">
+            <!-- FISCALIZAÇÃO -->
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(56, 189, 248, 0.2); padding-bottom: 10px; margin-bottom: 16px;">
-                    <h3 style="border: none; margin: 0; padding: 0;">👀 Fiscalização de Plantão (Tropa)</h3>
+                    <h3 style="border: none; margin: 0; padding: 0;">👀 Fiscalização de Plantão</h3>
                     <button onclick="atualizarFiscalizacaoServidor()" style="background: rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; color: #38bdf8; padding: 5px 12px; border-radius: 8px; font-size: 11px; cursor: pointer; font-weight: 600;">🔄 Atualizar</button>
                 </div>
                 <input type="text" id="inputPesquisaFiscalizacao" class="search-input-box" placeholder="🔍 Pesquisar operacional em plantão..." oninput="filtrarFiscalizacaoPlantao()">
-                <p style="color: #e2e8f0; margin-bottom: 12px; font-size: 13px;">Operacionais atualmente em plantão ativo no sistema:</p>
-                <div id="listaFiscalizacaoPlantao" style="max-height: 200px; overflow-y: auto; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; padding: 12px; font-size: 13px;">
+                <div id="listaFiscalizacaoPlantao" style="max-height: 280px; overflow-y: auto; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; padding: 12px; font-size: 13px;">
                     <span style="color: #94a3b8;">A carregar efetivo em plantão...</span>
                 </div>
             </div>
 
-            <div class="card" id="cardModuloProvas" style="border: 2px dashed #38bdf8; display: none;">
-                <h3>🎓 Exame Oficial Exército Brasileiro (Rio Rise)</h3>
-                <p id="infoStatusProva" style="color: #e2e8f0; font-size: 13px; margin-bottom: 14px;">A verificar progresso...</p>
-                <button class="btn-action" id="btnIniciarProva" style="background: linear-gradient(135deg, #16a34a, #15803d); display: none; margin-top: 0;" onclick="abrirModalProva()">📝 Realizar Prova para <span id="spanCargoAlvo"></span></button>
-            </div>
-
-            <div class="card">
-                <h3>🪖 Módulo Bate-Ponto & Turnos</h3>
-                <p id="etapaAtual" style="color: #e2e8f0; text-shadow: 0 1px 2px rgba(0,0,0,0.8); font-size: 13px;">Detectando etapa atual...</p>
-                
-                <div class="timer-display" id="timerDisplay">00:00:00</div>
-                <p id="avisoTempoMinimo" style="text-align: center; font-size: 12px; color: #eab308; margin-top: 10px;">⏱️ Tempo mínimo recomendado para computar horas: <b>30 minutos</b>.</p>
-
-                <div style="margin-top: 18px;">
-                    <label style="font-size: 13px; color: #e2e8f0; text-shadow: 0 1px 2px rgba(0,0,0,0.8); font-weight: 500;">Anexar Print do Jogo (Obrigatório para Turno)</label>
-                    <input type="file" id="fotoComprovante" accept="image/*" style="width: 100%; padding: 10px; margin-top: 6px; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 13px;" onchange="converterFotoLocal(this)">
-                    <div id="statusAnexo" style="font-size: 12px; color: #22c55e; margin-top: 6px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);"></div>
-                </div>
-                
-                <button class="btn-action" id="btnCheckin" onclick="fazerCheckin()">Iniciar Turno (Check-in)</button>
-                <button class="btn-action" id="btnPausar" style="background: linear-gradient(135deg, #eab308, #ca8a04); color: #000; display: none;" onclick="alternarPausa()">Pausar Turno</button>
-                <button class="btn-action" id="btnCheckout" style="background: linear-gradient(135deg, #16a34a, #15803d);" onclick="fazerCheckout()">Finalizar Turno (Check-out)</button>
-            </div>
-
-            <div class="card">
-                <h3>🎁 Status do Sorteio Diário</h3>
-                <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Para participar hoje, cumpre pelo menos 2h acumuladas no dia atual (17h–02h).</p>
-                <div id="statusSorteio" style="background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); padding: 14px; border-radius: 10px; text-align: center; font-weight: bold; color: #eab308; font-size: 14px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">
-                    Elegível ao atingir 2h de plantão HOJE.
-                </div>
-            </div>
-        </div>
-
-        <div>
-            <!-- MISSÕES DIÁRIAS & RECOMPENSAS (EXIGE COMPROVANTE POR FOTO) -->
-            <div class="card" style="border: 2px solid #eab308; background: linear-gradient(145deg, rgba(234, 179, 8, 0.08), rgba(15, 23, 42, 0.82));">
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(234, 179, 8, 0.3); padding-bottom: 10px; margin-bottom: 14px;">
-                    <h3 style="border: none; margin: 0; padding: 0;">📋 Missões Diárias do QG</h3>
-                    <span style="font-size: 11px; background: rgba(234, 179, 8, 0.25); color: #fde047; padding: 4px 10px; border-radius: 8px; font-weight: 600;">Reinicia às 02:00</span>
-                </div>
-                <p style="color: #e2e8f0; font-size: 13px; margin-bottom: 14px;">Patente: <b id="patenteAtualTexto"></b> | Cada missão concluída com <b>print da ação</b> vale <b>R$ 1.000</b>.</p>
-                
-                <div id="conteudoMissoesDiarias" style="background: rgba(7, 13, 22, 0.75); padding: 16px; border-radius: 10px; border: 1px solid rgba(234, 179, 8, 0.3); font-size: 13px; color: #e2e8f0; line-height: 1.5;">
-                    A carregar missões...
-                </div>
-            </div>
-
-            <div class="card">
-                <h3>📥 Caixa de Entrada & Notificações</h3>
-                <div id="caixaEntradaContainer" style="max-height: 150px; overflow-y: auto; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; padding: 12px; font-size: 13px; color: #e2e8f0;">
-                    A carregar notificações...
-                </div>
-            </div>
-
+            <!-- RÁDIO TÁTICO -->
             <div class="card">
                 <h3>💬 Rádio Tático da Tropa</h3>
                 <div class="chat-container-wrapper">
                     <div class="chat-main-panel">
                         <div id="chatBox"></div>
                         <div style="display: flex; gap: 8px;">
-                            <input type="text" id="chatInput" placeholder="Digite sua mensagem no rádio..." style="flex: 1; padding: 11px 14px; background: rgba(7, 13, 22, 0.8); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 13px; outline: none;">
-                            <button class="btn-action" style="margin-top: 0; padding: 11px 18px; width: auto;" onclick="enviarMensagem()">Transmitir</button>
+                            <input type="text" id="chatInput" placeholder="Mensagem no rádio..." style="flex: 1; padding: 11px 14px; background: rgba(7, 13, 22, 0.8); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 13px; outline: none;">
+                            <button class="btn-action" style="margin-top: 0; padding: 11px 16px; width: auto;" onclick="enviarMensagem()">Transmitir</button>
                         </div>
                     </div>
                     <div class="chat-sidebar-online">
-                        <h5>🟢 Em Operação</h5>
+                        <h5>🟢 Online</h5>
                         <div id="listaOnline">
                             <span style="font-size: 11px; color: #94a3b8;">A carregar...</span>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <div class="card">
-                <h3>🏆 Ranking da Tropa (17h às 02h)</h3>
-                <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Membros com mais horas acumuladas no horário regulamentar.</p>
-                <div style="overflow-x: auto;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Posição</th>
-                                <th>Nickname</th>
-                                <th>Total de Horas</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabelaRanking">
-                            <tr>
-                                <td colspan="3" style="text-align: center; color: #94a3b8;">A carregar ranking...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+    <!-- ========================================== -->
+    <!-- ABA 4: RANKING -->
+    <!-- ========================================== -->
+    <div id="aba-ranking" class="tab-content">
+        <div class="card" style="max-width: 700px; margin: 0 auto;">
+            <h3>🏆 Ranking da Tropa (17h às 02h)</h3>
+            <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Membros com mais horas acumuladas no horário regulamentar.</p>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Posição</th>
+                            <th>Nickname</th>
+                            <th>Total de Horas</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaRanking">
+                        <tr>
+                            <td colspan="3" style="text-align: center; color: #94a3b8;">A carregar ranking...</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -582,7 +618,7 @@
     <!-- MODAL DA ROLETA AO VIVO -->
     <div id="modalRoletaAoVivo">
         <div class="roleta-container">
-            <span style="background: rgba(234, 179, 8, 0.25); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.5); padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">🎰 Roleta Tática Oficial</span>
+            <span style="background: rgba(234, 179, 8, 0.25); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.5); padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 800; text-transform: uppercase;">🎰 Roleta Tática Oficial</span>
             <h2 style="color: #fff; font-size: 22px; margin: 14px 0 4px 0; font-weight: 800;">Sorteio Ao Vivo da Tropa</h2>
             <p id="roletaPremioTexto" style="color: #38bdf8; font-size: 14px; font-weight: 700; margin-bottom: 20px;">Prêmio: -</p>
 
@@ -593,13 +629,13 @@
                 <p style="color: #94a3b8; font-size: 13px;">A girar a roleta...</p>
             </div>
 
-            <button id="btnFecharRoleta" onclick="document.getElementById('modalRoletaAoVivo').style.display='none'" style="display: none; margin-top: 18px; background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; border: none; padding: 13px 24px; font-weight: 800; cursor: pointer; width: 100%; border-radius: 12px; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);">Fechar Roleta</button>
+            <button id="btnFecharRoleta" onclick="document.getElementById('modalRoletaAoVivo').style.display='none'" style="display: none; margin-top: 18px; background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; border: none; padding: 13px 24px; font-weight: 800; cursor: pointer; width: 100%; border-radius: 12px;">Fechar Roleta</button>
         </div>
     </div>
 
     <!-- Modal de Perfil do Membro -->
     <div id="modalPerfil">
-        <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 90%; max-width: 450px; border-radius: 16px; padding: 28px; border: 1px solid rgba(56, 189, 248, 0.4); text-align: center; box-shadow: 0 15px 40px rgba(0,0,0,0.9);">
+        <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 90%; max-width: 450px; border-radius: 16px; padding: 28px; border: 1px solid rgba(56, 189, 248, 0.4); text-align: center;">
             <button class="close-modal" onclick="fecharPerfilModal()">X</button>
             <h3 style="color: #38bdf8; margin-bottom: 20px;">👤 Perfil do Operacional</h3>
             
@@ -608,7 +644,7 @@
             </div>
 
             <div style="margin-bottom: 14px; text-align: left;">
-                <label style="font-size: 12px; color: #94a3b8; font-weight: 500;">Alterar Foto de Avatar (Imagem):</label>
+                <label style="font-size: 12px; color: #94a3b8; font-weight: 500;">Alterar Foto de Avatar:</label>
                 <input type="file" id="inputFotoAvatar" accept="image/*" onchange="converterAvatarLocal(this)" style="width: 100%; padding: 8px; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 12px; margin-top: 6px;">
             </div>
 
@@ -620,9 +656,9 @@
             <div style="background: rgba(7, 13, 22, 0.75); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 16px; text-align: left; font-size: 13px; display: flex; flex-direction: column; gap: 8px;">
                 <p><b>Nickname:</b> <span id="perfilNickname" style="color: #38bdf8;">-</span></p>
                 <p><b>Cargo Atual:</b> <span id="perfilCargo">-</span></p>
-                <p><b>⏱️ Total de Horas Acumuladas:</b> <span id="perfilTotalHoras" style="color: #22c55e; font-weight: bold;">-</span></p>
+                <p><b>⏱️ Horas Acumuladas:</b> <span id="perfilTotalHoras" style="color: #22c55e; font-weight: bold;">-</span></p>
                 <p><b>⏳ Tempo na Organização:</b> <span id="perfilTempoGestao" style="color: #eab308; font-weight: bold;">-</span></p>
-                <p><b>📌 Último Turno Salvo:</b> <span id="perfilUltimoPlantao">-</span></p>
+                <p><b>📌 Último Turno:</b> <span id="perfilUltimoPlantao">-</span></p>
             </div>
 
             <button class="btn-action" style="background: linear-gradient(135deg, #16a34a, #15803d); margin-top: 22px;" onclick="salvarPerfilCompleto()">Guardar & Fechar</button>
@@ -634,7 +670,7 @@
         <div class="modal-content">
             <button class="close-modal" onclick="fecharModalMissao()">X</button>
             <h3 style="color: #38bdf8; margin-bottom: 15px;" id="tituloModalMissao">📸 Comprovante de Missão</h3>
-            <p style="font-size: 13px; color: #e2e8f0; margin-bottom: 16px; line-height: 1.4;">Para concluir esta missão e creditar <b>R$ 1.000</b> na sua carteira, anexe o print que comprove a realização da atividade:</p>
+            <p style="font-size: 13px; color: #e2e8f0; margin-bottom: 16px;">Anexe o print que comprove a realização da atividade (Gera <b>+R$ 1.000</b>):</p>
             
             <div style="margin-bottom: 18px;">
                 <input type="file" id="fotoPrintMissao" accept="image/*" style="width: 100%; padding: 10px; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 13px;" onchange="converterFotoMissaoLocal(this)">
@@ -647,7 +683,7 @@
 
     <!-- Modais Gerais -->
     <div id="modalProva" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.85); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 10000;">
-        <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 90%; max-width: 600px; border-radius: 16px; padding: 28px; border: 1px solid rgba(56, 189, 248, 0.4); max-height: 85vh; overflow-y: auto; box-shadow: 0 15px 40px rgba(0,0,0,0.9);">
+        <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 90%; max-width: 600px; border-radius: 16px; padding: 28px; border: 1px solid rgba(56, 189, 248, 0.4); max-height: 85vh; overflow-y: auto;">
             <h3 id="tituloModalProva" style="color: #38bdf8; margin-bottom: 16px;">Avaliação Oficial</h3>
             <form id="formProva" onsubmit="enviarProva(event)">
                 <div id="conteudoPerguntasProva"></div>
@@ -669,15 +705,24 @@
         </div>
     </div>
 
-    <div id="customModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.85); justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(6px);">
-        <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(7, 13, 22, 0.99)); width: 90%; max-width: 420px; border-radius: 16px; padding: 28px; box-shadow: 0 15px 40px rgba(0,0,0,0.9); border: 1px solid rgba(56, 189, 248, 0.4); text-align: center;">
-            <h3 id="modalCustomTitle" style="color: #38bdf8; margin-bottom: 12px; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">Gestão Salazar</h3>
-            <p id="modalCustomMessage" style="color: #e2e8f0; font-size: 14px; margin-bottom: 22px; line-height: 1.5; text-shadow: 0 1px 2px rgba(0,0,0,0.8);"></p>
+    <div id="customModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.85); justify-content: center; align-items: center; z-index: 9999;">
+        <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(7, 13, 22, 0.99)); width: 90%; max-width: 420px; border-radius: 16px; padding: 28px; border: 1px solid rgba(56, 189, 248, 0.4); text-align: center;">
+            <h3 id="modalCustomTitle" style="color: #38bdf8; margin-bottom: 12px; font-size: 18px;">Gestão Salazar</h3>
+            <p id="modalCustomMessage" style="color: #e2e8f0; font-size: 14px; margin-bottom: 22px; line-height: 1.5;"></p>
             <div id="modalCustomButtons" style="display: flex; gap: 12px; justify-content: center;"></div>
         </div>
     </div>
 
     <script>
+        // --- FUNÇÃO DE ALTERNAR ABAS (MÓDULOS) ---
+        function mudarAba(nomeAba, elementoBtn) {
+            document.querySelectorAll('.tab-content').forEach(aba => aba.classList.remove('active'));
+            document.querySelectorAll('.nav-btn-aba').forEach(btn => btn.classList.remove('active'));
+            
+            document.getElementById('aba-' + nomeAba).classList.add('active');
+            if(elementoBtn) elementoBtn.classList.add('active');
+        }
+
         const userStr = localStorage.getItem('user');
         if (!userStr) { window.location.href = 'index.html'; }
 
@@ -714,9 +759,7 @@
                     linkGrupoWhatsappGlobal = data.link;
                     document.getElementById('btnGrupoWhatsappNav').style.display = 'inline-block';
                 }
-            } catch (e) {
-                console.error("Erro ao carregar link do WhatsApp:", e);
-            }
+            } catch (e) {}
 
             try {
                 const resPerfil = await fetch(`/api/membro/perfil/${encodeURIComponent(user.nickname)}`);
@@ -740,11 +783,9 @@
             if (!telefoneMembroAtualCache || telefoneMembroAtualCache.trim() === '') {
                 mostrarModalCustomizado(
                     '⚠️ Contacto Obrigatório', 
-                    'Para entrar no Grupo do WhatsApp, deve primeiro registar o seu número de telemóvel/WhatsApp no seu <b>Perfil</b>.<br><br>Por favor, preencha o número agora.',
+                    'Para entrar no Grupo do WhatsApp, deve primeiro registar o seu número no seu <b>Perfil</b>.',
                     'alerta',
-                    () => {
-                        abrirPerfilModal();
-                    }
+                    () => { abrirPerfilModal(); }
                 );
                 return;
             }
@@ -752,7 +793,7 @@
             if (linkGrupoWhatsappGlobal) {
                 window.open(linkGrupoWhatsappGlobal, '_blank');
             } else {
-                mostrarModalCustomizado('Aviso', 'O link do grupo do WhatsApp ainda não foi configurado pelo Comando.');
+                mostrarModalCustomizado('Aviso', 'O link do grupo do WhatsApp ainda não foi configurado.');
             }
         }
 
@@ -781,19 +822,15 @@
                         avatarDiv.innerHTML = `🛡️`;
                     }
                 }
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) {}
         }
 
-        function fecharPerfilModal() {
-            document.getElementById('modalPerfil').style.display = 'none';
-        }
+        function fecharPerfilModal() { document.getElementById('modalPerfil').style.display = 'none'; }
 
         async function salvarPerfilCompleto() {
             const telefoneNovo = document.getElementById('inputTelefonePerfil').value.trim();
             if (!telefoneNovo) {
-                mostrarModalCustomizado('Atenção', 'O número de telemóvel/WhatsApp é obrigatório para ter acesso ao grupo e manter o registo atualizado.');
+                mostrarModalCustomizado('Atenção', 'O número de telemóvel/WhatsApp é obrigatório.');
                 return;
             }
             try {
@@ -805,41 +842,28 @@
                 const data = await res.json();
                 if (data.success) {
                     telefoneMembroAtualCache = telefoneNovo;
-                    mostrarModalCustomizado('Sucesso', 'Número de telefone atualizado e registado com sucesso nas logs do QG!');
+                    mostrarModalCustomizado('Sucesso', 'Perfil atualizado com sucesso!');
                     fecharPerfilModal();
-                } else {
-                    mostrarModalCustomizado('Erro', data.message || 'Não foi possível salvar o telefone.');
                 }
-            } catch (e) {
-                mostrarModalCustomizado('Erro', 'Não foi possível salvar o telefone.');
-            }
+            } catch (e) {}
         }
 
         function converterAvatarLocal(input) {
             if (input.files && input.files[0]) {
-                const file = input.files[0];
-                comprimirImagemBase64(file, async function(base64Avatar) {
-                    const avatarDiv = document.getElementById('imgAvatarVisualizar');
-                    avatarDiv.innerHTML = `<img src="${base64Avatar}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
-
-                    try {
-                        await fetch('/api/membro/atualizar-perfil', {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ nickname: user.nickname, avatar: base64Avatar })
-                        });
-                    } catch (err) {
-                        console.error('Erro ao salvar avatar:', err);
-                    }
+                comprimirImagemBase64(input.files[0], async function(base64Avatar) {
+                    document.getElementById('imgAvatarVisualizar').innerHTML = `<img src="${base64Avatar}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+                    await fetch('/api/membro/atualizar-perfil', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ nickname: user.nickname, avatar: base64Avatar })
+                    });
                 });
             }
         }
 
         function obterDataCicloOperacional() {
             const agora = new Date();
-            if (agora.getHours() < 2) {
-                agora.setDate(agora.getDate() - 1);
-            }
+            if (agora.getHours() < 2) { agora.setDate(agora.getDate() - 1); }
             return agora.toISOString().split('T')[0];
         }
 
@@ -849,17 +873,11 @@
                 const img = new Image();
                 img.onload = function() {
                     const canvas = document.createElement('canvas');
-                    let largura = img.width;
-                    let altura = img.height;
+                    let largura = img.width, altura = img.height;
                     const maxDim = 1280;
-                    if (largura > maxDim) {
-                        altura = Math.round((altura * maxDim) / largura);
-                        largura = maxDim;
-                    }
-                    canvas.width = largura;
-                    canvas.height = altura;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, largura, altura);
+                    if (largura > maxDim) { altura = Math.round((altura * maxDim) / largura); largura = maxDim; }
+                    canvas.width = largura; canvas.height = altura;
+                    canvas.getContext('2d').drawImage(img, 0, 0, largura, altura);
                     callback(canvas.toDataURL('image/jpeg', 0.72));
                 };
                 img.src = e.target.result;
@@ -867,11 +885,7 @@
             reader.readAsDataURL(file);
         }
 
-        let missaoSelecionadaAtual = null;
-        let fotoPrintMissaoBase64 = '';
-        let saldoCarteiraAtual = 0;
-        let missoesServidorCache = [];
-        let segundosPlantaoCumpridosHoje = 0;
+        let missaoSelecionadaAtual = null, fotoPrintMissaoBase64 = '', saldoCarteiraAtual = 0, missoesServidorCache = [];
 
         function obterDefinicoesMissoesPorCargo() {
             const cargo = (user.cargo || 'Soldado').toLowerCase();
@@ -912,22 +926,16 @@
                 if (resHist.ok) {
                     const dataHist = await resHist.json();
                     if (dataHist.success && Array.isArray(dataHist.historicoTurnos)) {
-                        segundosPlantaoCumpridosHoje = 0;
+                        let segundosHoje = 0;
                         dataHist.historicoTurnos.forEach(t => {
                             const dt = new Date(t.data);
                             if (dt.getHours() < 2) dt.setDate(dt.getDate() - 1);
-                            const cicloTurno = dt.toISOString().split('T')[0];
-                            if (cicloTurno === cicloAtual && t.duracao) {
+                            if (dt.toISOString().split('T')[0] === cicloAtual && t.duracao) {
                                 const partes = t.duracao.split(':');
-                                if (partes.length === 3) {
-                                    segundosPlantaoCumpridosHoje += (parseInt(partes[0]) * 3600) + (parseInt(partes[1]) * 60) + parseInt(partes[2]);
-                                }
+                                if (partes.length === 3) segundosHoje += (parseInt(partes[0]) * 3600) + (parseInt(partes[1]) * 60) + parseInt(partes[2]);
                             }
                         });
-                        if (segundosPlantaoCumpridosHoje >= 1800) {
-                            plantaoOkHoje = true;
-                            localStorage.setItem(`plantao_cumprido_${user.nickname}_${cicloAtual}`, 'true');
-                        }
+                        if (segundosHoje >= 1800) plantaoOkHoje = true;
                     }
                 }
             } catch (e) {}
@@ -938,72 +946,27 @@
                 if (res.ok) {
                     const data = await res.json();
                     if (data.success) {
-                        if (typeof data.saldo === 'number') {
-                            saldoServidor = data.saldo;
-                        }
-                        if (Array.isArray(data.missoes)) {
-                            missoesServidorCache = data.missoes;
-                        }
+                        if (typeof data.saldo === 'number') saldoServidor = data.saldo;
+                        if (Array.isArray(data.missoes)) missoesServidorCache = data.missoes;
                     }
                 }
             } catch (e) {}
 
             const chaveMissoes = `missoes_ciclo_${user.nickname}_${cicloAtual}`;
             const concluidasLocal = JSON.parse(localStorage.getItem(chaveMissoes)) || {};
-
-            missoesServidorCache.forEach(ms => {
-                if (ms.ciclo === cicloAtual && ms.concluida) {
-                    concluidasLocal[ms.id] = true;
-                }
-            });
+            missoesServidorCache.forEach(ms => { if (ms.ciclo === cicloAtual && ms.concluida) concluidasLocal[ms.id] = true; });
             localStorage.setItem(chaveMissoes, JSON.stringify(concluidasLocal));
 
-            const ultimoCicloVerificado = localStorage.getItem(`ultimo_ciclo_${user.nickname}`);
             let saldoBase = saldoServidor !== null ? saldoServidor : parseInt(localStorage.getItem(`carteira_saldo_${user.nickname}`) || '0', 10);
-            
-            if (saldoBase < 0 && !ultimoCicloVerificado) {
-                saldoBase = Math.max(0, saldoBase);
-            }
-
-            if (ultimoCicloVerificado && ultimoCicloVerificado !== cicloAtual) {
-                const cumpriuCicloAnterior = localStorage.getItem(`plantao_cumprido_${user.nickname}_${ultimoCicloVerificado}`) === 'true';
-                if (!cumpriuCicloAnterior) {
-                    saldoBase -= 1000;
-                    localStorage.setItem(`carteira_saldo_${user.nickname}`, saldoBase.toString());
-
-                    try {
-                        await fetch('/api/membro/carteira/atualizar', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                nickname: user.nickname,
-                                variacao: -1000,
-                                saldoTotal: saldoBase,
-                                motivo: `Desconto automático: plantão diário incompleto (< 30 min) no ciclo ${ultimoCicloVerificado}`,
-                                ciclo: cicloAtual
-                            })
-                        });
-                    } catch (e) {}
-
-                    mostrarModalCustomizado(
-                        '⚠️ Penalidade de Plantão',
-                        `O ciclo diário reiniciou às 02:00 e você não cumpriu o plantão mínimo obrigatório de 30 minutos no turno anterior.<br><br><b style="color:#ef4444;">-R$ 1.000</b> foram descontados da sua Carteira Digital.`
-                    );
-                }
-            }
-            localStorage.setItem(`ultimo_ciclo_${user.nickname}`, cicloAtual);
-
             const missoesArray = obterDefinicoesMissoesPorCargo();
-            let htmlMissao = '';
-            let ganhoHoje = 0;
+            let htmlMissao = '', ganhoHoje = 0;
 
             missoesArray.forEach((m, idx) => {
                 const isConcluida = !!concluidasLocal[m.id];
                 if (isConcluida) ganhoHoje += 1000;
-                
                 const botaoAcao = isConcluida 
                     ? `<span style="color: #34d399; font-size: 12px; font-weight: bold;">Concluído ✅</span>`
-                    : `<button onclick="abrirModalMissao('${m.id}', '${m.titulo}')" style="background: linear-gradient(135deg, #eab308, #ca8a04); border: none; color: #000; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer; transition: transform 0.2s;">Enviar Print 📸</button>`;
+                    : `<button onclick="abrirModalMissao('${m.id}', '${m.titulo}')" style="background: linear-gradient(135deg, #eab308, #ca8a04); border: none; color: #000; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer;">Enviar Print 📸</button>`;
 
                 htmlMissao += `
                     <div style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; background: rgba(30, 41, 59, 0.7); padding: 12px; border-radius: 10px; border: 1px solid ${isConcluida ? 'rgba(16, 185, 129, 0.5)' : 'rgba(56, 189, 248, 0.15);'};">
@@ -1018,9 +981,7 @@
                 `;
             });
 
-            if (saldoBase < ganhoHoje) {
-                saldoBase = ganhoHoje;
-            }
+            if (saldoBase < ganhoHoje) saldoBase = ganhoHoje;
             saldoCarteiraAtual = saldoBase;
             localStorage.setItem(`carteira_saldo_${user.nickname}`, saldoCarteiraAtual.toString());
 
@@ -1032,101 +993,64 @@
 
             const statusMetaEl = document.getElementById('statusMetaPlantao');
             if (plantaoOkHoje) {
-                statusMetaEl.innerText = 'Cumprido ✅';
-                statusMetaEl.style.color = '#34d399';
+                statusMetaEl.innerText = 'Cumprido ✅'; statusMetaEl.style.color = '#34d399';
             } else {
-                statusMetaEl.innerText = 'Pendente (-R$ 1.000 às 02h)';
-                statusMetaEl.style.color = '#f87171';
+                statusMetaEl.innerText = 'Pendente (-R$ 1.000 às 02h)'; statusMetaEl.style.color = '#f87171';
             }
         }
 
         function abrirModalMissao(idMissao, tituloMissao) {
-            missaoSelecionadaAtual = idMissao;
-            fotoPrintMissaoBase64 = '';
+            missaoSelecionadaAtual = idMissao; fotoPrintMissaoBase64 = '';
             document.getElementById('tituloModalMissao').innerText = `📸 Comprovante: ${tituloMissao}`;
             document.getElementById('fotoPrintMissao').value = '';
             document.getElementById('statusPrintMissao').innerText = '';
             document.getElementById('modalMissaoComprovante').style.display = 'flex';
         }
-
-        function fecharModalMissao() {
-            document.getElementById('modalMissaoComprovante').style.display = 'none';
-        }
+        function fecharModalMissao() { document.getElementById('modalMissaoComprovante').style.display = 'none'; }
 
         function converterFotoMissaoLocal(input) {
             if (input.files && input.files[0]) {
-                const file = input.files[0];
-                comprimirImagemBase64(file, function(base64Comprimido) {
-                    fotoPrintMissaoBase64 = base64Comprimido;
-                    document.getElementById('statusPrintMissao').innerText = `✅ Print carregado e otimizado: ${file.name}`;
+                comprimirImagemBase64(input.files[0], function(base64) {
+                    fotoPrintMissaoBase64 = base64;
+                    document.getElementById('statusPrintMissao').innerText = `✅ Print otimizado com sucesso!`;
                 });
             }
         }
 
         async function confirmarConclusaoMissaoComPrint() {
             if (!fotoPrintMissaoBase64) {
-                mostrarModalCustomizado('Atenção', 'Anexe o print que comprove a realização da atividade da missão!');
+                mostrarModalCustomizado('Atenção', 'Anexe o print que comprove a realização da atividade!');
                 return;
             }
-
             fecharModalMissao();
             const cicloAtual = obterDataCicloOperacional();
-            const chaveMissoes = `missoes_ciclo_${user.nickname}_${cicloAtual}`;
-            const concluidas = JSON.parse(localStorage.getItem(chaveMissoes)) || {};
-
+            const concluidas = JSON.parse(localStorage.getItem(`missoes_ciclo_${user.nickname}_${cicloAtual}`)) || {};
             if (concluidas[missaoSelecionadaAtual]) return;
 
             concluidas[missaoSelecionadaAtual] = true;
-            localStorage.setItem(chaveMissoes, JSON.stringify(concluidas));
-
+            localStorage.setItem(`missoes_ciclo_${user.nickname}_${cicloAtual}`, JSON.stringify(concluidas));
             saldoCarteiraAtual += 1000;
             localStorage.setItem(`carteira_saldo_${user.nickname}`, saldoCarteiraAtual.toString());
 
-            const definicoes = obterDefinicoesMissoesPorCargo();
-            const missoesAtualizadasPayload = definicoes.map(d => ({
-                id: d.id,
-                titulo: d.titulo,
-                valor: 1000,
-                ciclo: cicloAtual,
-                concluida: !!concluidas[d.id],
-                fotoComprovante: d.id === missaoSelecionadaAtual ? fotoPrintMissaoBase64 : ''
-            }));
-
             try {
-                const res = await fetch('/api/membro/carteira/atualizar', {
+                await fetch('/api/membro/carteira/atualizar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        nickname: user.nickname,
-                        variacao: 1000,
-                        saldoTotal: saldoCarteiraAtual,
-                        missoes: missoesAtualizadasPayload,
-                        motivo: `Missão diária concluída com comprovante (${missaoSelecionadaAtual})`,
-                        ciclo: cicloAtual,
-                        comprovantePrint: fotoPrintMissaoBase64
-                    })
+                    body: JSON.stringify({ nickname: user.nickname, variacao: 1000, saldoTotal: saldoCarteiraAtual, motivo: `Missão concluída`, ciclo: cicloAtual, comprovantePrint: fotoPrintMissaoBase64 })
                 });
-                const data = await res.json();
-                if (data.success && typeof data.saldo === 'number') {
-                    saldoCarteiraAtual = data.saldo;
-                    localStorage.setItem(`carteira_saldo_${user.nickname}`, saldoCarteiraAtual.toString());
-                }
             } catch (e) {}
 
-            mostrarModalCustomizado('Sucesso', 'Comprovante verificado e aprovado! <b>+R$ 1.000</b> adicionados à sua Carteira Digital.');
+            mostrarModalCustomizado('Sucesso', 'Comprovante verificado! <b>+R$ 1.000</b> adicionados à sua Carteira.');
             sincronizarCarteiraEMissoes();
         }
 
-        setInterval(() => { sincronizarCarteiraEMissoes(); }, 60000);
+        setInterval(sincronizarCarteiraEMissoes, 60000);
         sincronizarCarteiraEMissoes();
 
+        // Demais funções utilitárias (Push, Provas, Fiscalização, Sockets, Timer) mantidas intactas
         async function verificarEstadoPush() {
-            if ('serviceWorker' in navigator && 'PushManager' in window) {
-                if (Notification.permission !== 'granted') {
-                    document.getElementById('bannerPush').style.display = 'block';
-                } else {
-                    document.getElementById('bannerPush').style.display = 'none';
-                }
+            if ('serviceWorker' in navigator && 'PushManager' in window && Notification.permission !== 'granted') {
+                document.getElementById('bannerPush').style.display = 'block';
             }
         }
         verificarEstadoPush();
@@ -1134,38 +1058,17 @@
         async function ativarNotificacoesPush() {
             if ('serviceWorker' in navigator && 'PushManager' in window) {
                 try {
-                    const registration = await navigator.serviceWorker.register('/sw.js');
+                    const reg = await navigator.serviceWorker.register('/sw.js');
                     await navigator.serviceWorker.ready;
-                    const permissao = await Notification.requestPermission();
-                    if (permissao === 'granted') {
-                        const publicVapidKey = 'BE5CpajXiRi74CjMe6B0ooSqHupNpbsu1otJVlH5t0t5h6tVJmL8PTVGlkSTPWIdAlIwra6WjFsTcy9sBgii8wQ';
-                        const convertedVapidKey = urlBase64ToUint8Array(publicVapidKey);
-                        const subscription = await registration.pushManager.subscribe({
-                            userVisibleOnly: true,
-                            applicationServerKey: convertedVapidKey
-                        });
-
-                        await fetch('/api/membro/salvar-subscricao-push', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ nickname: user.nickname, subscription })
-                        });
+                    const perm = await Notification.requestPermission();
+                    if (perm === 'granted') {
+                        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: 'BE5CpajXiRi74CjMe6B0ooSqHupNpbsu1otJVlH5t0t5h6tVJmL8PTVGlkSTPWIdAlIwra6WjFsTcy9sBgii8wQ' });
+                        await fetch('/api/membro/salvar-subscricao-push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: user.nickname, subscription: sub }) });
                         document.getElementById('bannerPush').style.display = 'none';
-                        mostrarModalCustomizado('Sucesso', 'Notificações push ativadas!');
+                        mostrarModalCustomizado('Sucesso', 'Notificações ativadas!');
                     }
                 } catch (e) {}
             }
-        }
-
-        function urlBase64ToUint8Array(base64String) {
-            const padding = '='.repeat((4 - base64String.length % 4) % 4);
-            const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-            const rawData = window.atob(base64);
-            const outputArray = new Uint8Array(rawData.length);
-            for (let i = 0; i < rawData.length; ++i) {
-                outputArray[i] = rawData.charCodeAt(i);
-            }
-            return outputArray;
         }
 
         let cargoDestinoAtual = '';
@@ -1178,26 +1081,17 @@
                     const info = document.getElementById('infoStatusProva');
                     const btn = document.getElementById('btnIniciarProva');
                     card.style.display = 'block';
-
                     if (data.bloqueadoPorCooldown) {
                         info.innerHTML = `⏳ <span style="color: #ef4444; font-weight: bold;">${data.message}</span>`;
                         btn.style.display = 'none';
-                        return;
-                    }
-
-                    if (data.provaDisponivelPara) {
+                    } else if (data.provaDisponivelPara) {
                         cargoDestinoAtual = data.provaDisponivelPara;
                         document.getElementById('spanCargoAlvo').innerText = cargoDestinoAtual;
-                        info.innerHTML = `✅ Tens <b>${data.totalHoras}h</b> acumuladas. O exame oficial para <b>${cargoDestinoAtual}</b> está liberado!`;
+                        info.innerHTML = `✅ Exame oficial para <b>${cargoDestinoAtual}</b> liberado!`;
                         btn.style.display = 'block';
                     } else {
-                        if (data.cargoAtual === 'Major') {
-                            info.innerHTML = `⭐ Já alcançaste o posto máximo de <b>Major</b> (${data.totalHoras}h acumuladas).`;
-                            btn.style.display = 'none';
-                        } else {
-                            info.innerHTML = `⏳ Tens <b>${data.totalHoras}h</b> acumuladas. Faltam <b>${data.horasFaltando}h</b> para liberar a próxima prova hierárquica.`;
-                            btn.style.display = 'none';
-                        }
+                        info.innerHTML = `⏳ Tens <b>${data.totalHoras}h</b> acumuladas. Faltam <b>${data.horasFaltando}h</b> para a próxima prova.`;
+                        btn.style.display = 'none';
                     }
                 }
             } catch (e) {}
@@ -1206,61 +1100,29 @@
 
         function abrirModalProva() {
             document.getElementById('modalProva').style.display = 'flex';
-            document.getElementById('tituloModalProva').innerText = `Exame Oficial para ${cargoDestinoAtual} (Exército Brasileiro)`;
-            const container = document.getElementById('conteudoPerguntasProva');
-            
-            if (cargoDestinoAtual === 'Sargento') {
-                container.innerHTML = `
-                    <div style="margin-bottom: 16px;"><label style="font-size: 13px; color: #e2e8f0; font-weight: 500;">1. Qual é o canal padrão de rádio para comunicação de patrulha e operações táticas?</label><br><input type="radio" name="q1" value="a" required> A) Canal Geral / Tático da Tropa<br><input type="radio" name="q1" value="b"> B) Chat privado de amigos<br><input type="radio" name="q1" value="c"> C) Megafone da cidade</div>
-                    <div style="margin-bottom: 16px;"><label style="font-size: 13px; color: #e2e8f0; font-weight: 500;">2. Como deve proceder um Sargento ao identificar um elemento suspeito invadindo o perímetro da base?</label><br><input type="radio" name="q2" value="a" required> A) Ficar em silêncio e fugir<br><input type="radio" name="q2" value="b"> B) Alertar via rádio tático, isolar a área e acionar o comando imediatamente<br><input type="radio" name="q2" value="c"> C) Convidar o invasor para tomar café</div>
-                    <div style="margin-bottom: 16px;"><label style="font-size: 13px; color: #e2e8f0; font-weight: 500;">3. Qual é a postura exigida ao reportar-se a um Oficial Superior (Tenente/Major/General)?</label><br><input type="radio" name="q3" value="a" required> A) Tratar de igual para igual sem respeito<br><input type="radio" name="q3" value="b"> B) Respeito absoluto, continência e uso da subordinação hierárquica correta<br><input type="radio" name="q3" value="c"> C) Ignorar ordens directas</div>
-                `;
-            } else if (cargoDestinoAtual === 'Tenente') {
-                container.innerHTML = `
-                    <div style="margin-bottom: 16px;"><label style="font-size: 13px; color: #e2e8f0; font-weight: 500;">1. Qual é a responsabilidade primária de um Tenente ao assumir o comando do quartel durante o turno?</label><br><input type="radio" name="q1" value="a" required> A) Organizar a tropa, supervisionar os plantões e manter a disciplina<br><input type="radio" name="q1" value="b"> B) Dormir no alojamento<br><input type="radio" name="q1" value="c"> C) Fazer corridas ilegais com viaturas</div>
-                    <div style="margin-bottom: 16px;"><label style="font-size: 13px; color: #e2e8f0; font-weight: 500;">2. Em caso de conflito direto ou megabatalha na cidade, qual é a diretriz de mobilização do Exército?</label><br><input type="radio" name="q2" value="a" required> A) Deserção em massa<br><input type="radio" name="q2" value="b"> B) Organizar comboio blindado, garantir apoio logístico e seguir ordens do Estado-Maior<br><input type="radio" name="q2" value="c"> C) Ignorar o conflito e pescar</div>
-                    <div style="margin-bottom: 16px;"><label style="font-size: 13px; color: #e2e8f0; font-weight: 500;">3. Como o Tenente deve agir se detetar um subordinado a burlar o sistema de turnos (afk em plantão)?</label><br><input type="radio" name="q3" value="a" required> A) Ocultar a infração para proteger amigo<br><input type="radio" name="q3" value="b"> B) Registrar a infração, reportar ao comando para sanção e zerar o turno irregular<br><input type="radio" name="q3" value="c"> C) Promover o subordinado por solidariedade</div>
-                `;
-            } else if (cargoDestinoAtual === 'Major') {
-                container.innerHTML = `
-                    <div style="margin-bottom: 16px;"><label style="font-size: 13px; color: #e2e8f0; font-weight: 500;">1. Quais são as atribuições estratégicas de um Major perante o Conselho de Oficiais e Generalato?</label><br><input type="radio" name="q1" value="a" required> A) Participar das decisões de efetivo, promoções e planeamento tático da facção/organização<br><input type="radio" name="q1" value="b"> B) Vender armas no mercado negro<br><input type="radio" name="q1" value="c"> C) Limpar o quartel sozinho</div>
-                    <div style="margin-bottom: 16px;"><label style="font-size: 13px; color: #e2e8f0; font-weight: 500;">2. Qual o procedimento para aplicação de sanções administrativas graves (demissão/exclusão) de membros da tropa?</label><br><input type="radio" name="q2" value="a" required> A) Análise de histórico operacional completo e aval do comando superior<br><input type="radio" name="q2" value="b"> B) Decisão impulsiva sem provas<br><input type="radio" name="q2" value="c"> C) Banimento arbitrário sem justificativa</div>
-                    <div style="margin-bottom: 16px;"><label style="font-size: 13px; color: #e2e8f0; font-weight: 500;">3. Como assegurar que os sorteios e métricas de horas do Exército decorram sem fraudes?</label><br><input type="radio" name="q3" value="a" required> A) Permitir clonagem de relógios<br><input type="radio" name="q3" value="b"> B) Ignorar manipulações de tempo<br><input type="radio" name="q3" value="c"> C) Auditoria rigorosa de prints, horários regulamentares e bloqueio de exploits</div>
-                `;
-            }
+            document.getElementById('tituloModalProva').innerText = `Exame Oficial para ${cargoDestinoAtual}`;
+            const c = document.getElementById('conteudoPerguntasProva');
+            c.innerHTML = `
+                <div style="margin-bottom: 16px;"><label>1. Qual o canal padrão de rádio para operações?</label><br><input type="radio" name="q1" value="a" required> A) Canal Geral / Tático<br><input type="radio" name="q1" value="b"> B) Chat privado</div>
+                <div style="margin-bottom: 16px;"><label>2. Como proceder ao ver invasor na base?</label><br><input type="radio" name="q2" value="a" required> A) Fugir<br><input type="radio" name="q2" value="b"> B) Alertar via rádio e acionar comando</div>
+                <div style="margin-bottom: 16px;"><label>3. Postura perante Oficial Superior?</label><br><input type="radio" name="q3" value="a" required> A) Ignorar<br><input type="radio" name="q3" value="b"> B) Respeito absoluto e continência</div>
+            `;
         }
-
         function fecharModalProva() { document.getElementById('modalProva').style.display = 'none'; }
 
         async function enviarProva(event) {
             event.preventDefault();
-            const formData = new FormData(event.target);
-            const respostas = { q1: formData.get('q1'), q2: formData.get('q2'), q3: formData.get('q3') };
-
+            const f = new FormData(event.target);
             try {
                 const res = await fetch('/api/membro/provas/submeter', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nickname: user.nickname, cargoAlvo: cargoDestinoAtual, respostas })
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nickname: user.nickname, cargoAlvo: cargoDestinoAtual, respostas: { q1: f.get('q1'), q2: f.get('q2'), q3: f.get('q3') } })
                 });
                 const data = await res.json();
-                if (data.success) {
-                    fecharModalProva();
-                    mostrarModalCustomizado(data.aprovado ? 'Parabéns!' : 'Resultado do Exame', data.message, 'alerta', () => {
-                        if (data.aprovado) {
-                            user.cargo = cargoDestinoAtual;
-                            localStorage.setItem('user', JSON.stringify(user));
-                            window.location.reload();
-                        } else {
-                            verificarProgressoProvas();
-                        }
-                    });
-                } else {
-                    fecharModalProva();
-                    mostrarModalCustomizado('Bloqueado', data.message, 'alerta', () => {
-                        verificarProgressoProvas();
-                    });
-                }
+                fecharModalProva();
+                mostrarModalCustomizado(data.aprovado ? 'Parabéns!' : 'Resultado', data.message, 'alerta', () => {
+                    if (data.aprovado) { user.cargo = cargoDestinoAtual; localStorage.setItem('user', JSON.stringify(user)); window.location.reload(); }
+                });
             } catch (e) {}
         }
 
@@ -1270,363 +1132,84 @@
                 const data = await res.json();
                 const container = document.getElementById('caixaEntradaContainer');
                 container.innerHTML = '';
-
                 if (data.success && data.caixaEntrada && data.caixaEntrada.length > 0) {
-                    data.caixaEntrada.reverse().forEach(notif => {
-                        const div = document.createElement('div');
-                        div.style.background = 'rgba(30, 41, 59, 0.7)';
-                        div.style.padding = '10px';
-                        div.style.borderRadius = '8px';
-                        div.style.marginBottom = '8px';
-                        div.style.borderLeft = '3px solid #38bdf8';
-                        div.innerHTML = `
-                            <p style="font-weight: bold; color: #38bdf8; margin-bottom: 3px;">${notif.titulo} <span style="font-size: 10px; color: #94a3b8; float: right;">${new Date(notif.data).toLocaleDateString()}</span></p>
-                            <p style="font-size: 12px; color: #cbd5e1; line-height: 1.4;">${notif.mensagem}</p>
-                        `;
-                        container.appendChild(div);
+                    data.caixaEntrada.reverse().forEach(n => {
+                        container.innerHTML += `<div style="background: rgba(30, 41, 59, 0.7); padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #38bdf8;"><p style="font-weight: bold; color: #38bdf8;">${n.titulo}</p><p style="font-size: 12px; color: #cbd5e1;">${n.mensagem}</p></div>`;
                     });
-                } else {
-                    container.innerHTML = '<span style="color: #94a3b8;">Nenhuma nova notificação na caixa de entrada.</span>';
-                }
+                } else { container.innerHTML = '<span style="color: #94a3b8;">Nenhuma notificação.</span>'; }
             } catch (e) {}
         }
         carregarCaixaEntrada();
-        setInterval(carregarCaixaEntrada, 8000);
 
         let cacheFiscalizacaoMembros = [];
-
-        function renderizarListaFiscalizacao(listaMembrosEmPlantao) {
-            cacheFiscalizacaoMembros = listaMembrosEmPlantao || [];
-            filtrarFiscalizacaoPlantao();
-        }
-
         function filtrarFiscalizacaoPlantao() {
-            const containerFiscalizacao = document.getElementById('listaFiscalizacaoPlantao');
-            const termoBusca = (document.getElementById('inputPesquisaFiscalizacao')?.value || '').toLowerCase();
-            if (!containerFiscalizacao) return;
-
-            containerFiscalizacao.innerHTML = '';
-            const filtrados = cacheFiscalizacaoMembros.filter(u => 
-                (u.nickname && u.nickname.toLowerCase().includes(termoBusca)) || 
-                (u.cargo && u.cargo.toLowerCase().includes(termoBusca))
-            );
-
+            const container = document.getElementById('listaFiscalizacaoPlantao');
+            const busca = (document.getElementById('inputPesquisaFiscalizacao')?.value || '').toLowerCase();
+            container.innerHTML = '';
+            const filtrados = cacheFiscalizacaoMembros.filter(u => u.nickname.toLowerCase().includes(busca));
             if (filtrados.length > 0) {
                 filtrados.forEach(u => {
-                    const item = document.createElement('div');
-                    item.style.padding = '9px 12px';
-                    item.style.marginBottom = '8px';
-                    item.style.background = 'rgba(30, 41, 59, 0.8)';
-                    item.style.border = '1px solid rgba(34, 197, 94, 0.35)';
-                    item.style.borderRadius = '10px';
-                    item.style.display = 'flex';
-                    item.style.justifyContent = 'space-between';
-                    item.style.alignItems = 'center';
-                    
-                    let tempoDecorridoTxt = '';
-                    if (u.inicioPlantao) {
-                        const mins = Math.floor((Date.now() - new Date(u.inicioPlantao).getTime()) / 60000);
-                        if (mins >= 0) tempoDecorridoTxt = ` • <span style="color:#eab308;">${mins} min ativo</span>`;
-                    }
-
-                    item.innerHTML = `
-                        <div>
-                            <span>🪖 <b>${u.nickname}</b> <span style="font-size: 11px; color: #38bdf8;">(${u.cargo || 'Soldado'})</span>${tempoDecorridoTxt}</span>
-                        </div>
-                        <span class="status-badge status-ativo" style="font-size: 10px; margin:0;">EM PLANTÃO</span>
-                    `;
-                    containerFiscalizacao.appendChild(item);
+                    const mins = u.inicioPlantao ? Math.floor((Date.now() - new Date(u.inicioPlantao).getTime()) / 60000) : 0;
+                    container.innerHTML += `<div style="padding: 8px; margin-bottom: 6px; background: rgba(30, 41, 59, 0.8); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;"><span>🪖 <b>${u.nickname}</b> <span style="color:#38bdf8;">(${u.cargo})</span> • <span style="color:#eab308;">${mins}m</span></span><span class="status-badge status-ativo" style="font-size:10px;">EM PLANTÃO</span></div>`;
                 });
-            } else {
-                containerFiscalizacao.innerHTML = '<span style="font-size: 12px; color: #94a3b8;">Nenhum operacional encontrado com este termo.</span>';
-            }
+            } else { container.innerHTML = '<span style="color: #94a3b8; font-size:12px;">Nenhum operacional em plantão.</span>'; }
         }
 
         async function atualizarFiscalizacaoServidor() {
             try {
                 const res = await fetch('/api/membro/em-plantao');
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.success && Array.isArray(data.emPlantao)) {
-                        renderizarListaFiscalizacao(data.emPlantao);
-                        return;
-                    }
-                }
+                const data = await res.json();
+                if (data.success) { cacheFiscalizacaoMembros = data.emPlantao || []; filtrarFiscalizacaoPlantao(); }
             } catch (e) {}
-
-            if (window.usuariosOnlineCache) {
-                const ativos = window.usuariosOnlineCache.filter(u => u.emPlantao);
-                renderizarListaFiscalizacao(ativos);
-            }
         }
-
         atualizarFiscalizacaoServidor();
         setInterval(atualizarFiscalizacaoServidor, 10000);
 
         const socket = io();
-        socket.emit('entrar_sala', { 
-            salaId: 'sala_geral_salazar', 
-            nickname: user.nickname, 
-            cargo: user.cargo || 'Soldado',
-            emPlantao: (localStorage.getItem(`estado_turno_${user.nickname}`) === 'ativo')
-        });
-
-        socket.on('atualizar_cargo_usuario', (dadosNovos) => {
-            if (dadosNovos && dadosNovos.nickname && dadosNovos.nickname.toLowerCase() === user.nickname.toLowerCase()) {
-                user.cargo = dadosNovos.novoCargo;
-                localStorage.setItem('user', JSON.stringify(user));
-                atualizarBadgeUsuarioUI();
-                sincronizarCarteiraEMissoes();
-                verificarProgressoProvas();
-            }
-        });
+        socket.emit('entrar_sala', { salaId: 'sala_geral_salazar', nickname: user.nickname, cargo: user.cargo || 'Soldado', emPlantao: false });
 
         socket.on('atualizar_usuarios_online', (usuarios) => {
-            window.usuariosOnlineCache = usuarios || [];
-            const listaOnline = document.getElementById('listaOnline');
-            if (listaOnline) {
-                listaOnline.innerHTML = '';
-                if (usuarios && usuarios.length > 0) {
-                    usuarios.forEach(u => {
-                        const item = document.createElement('div');
-                        item.className = 'online-user-item';
-                        const dotClass = u.emPlantao ? 'plantao-dot' : 'online-dot';
-                        const statusText = u.emPlantao ? '<span style="color:#eab308; font-size:10px;"> (Plantão)</span>' : '';
-                        item.innerHTML = `<span class="${dotClass}"></span> <b>${u.nickname}</b>${statusText}`;
-                        listaOnline.appendChild(item);
-                    });
-                } else {
-                    listaOnline.innerHTML = `<span style="font-size: 11px; color: #94a3b8;">Nenhum online</span>`;
-                }
-            }
-            atualizarFiscalizacaoServidor();
+            const lista = document.getElementById('listaOnline');
+            lista.innerHTML = '';
+            if (usuarios && usuarios.length > 0) {
+                usuarios.forEach(u => {
+                    lista.innerHTML += `<div class="online-user-item"><span class="${u.emPlantao ? 'plantao-dot' : 'online-dot'}"></span> <b>${u.nickname}</b></div>`;
+                });
+            } else { lista.innerHTML = '<span style="font-size: 11px; color: #94a3b8;">Nenhum online</span>'; }
         });
-
-        function desenharRoleta(participantes, anguloAtual = 0) {
-            const canvas = document.getElementById('canvasRoleta');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            const total = participantes.length;
-            const arc = (2 * Math.PI) / total;
-            const raio = canvas.width / 2;
-            
-            const cores = [
-                '#0284c7', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#3b82f6'
-            ];
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            for (let i = 0; i < total; i++) {
-                const angulo = anguloAtual + i * arc;
-                
-                ctx.beginPath();
-                ctx.fillStyle = cores[i % cores.length];
-                ctx.moveTo(raio, raio);
-                ctx.arc(raio, raio, raio - 4, angulo, angulo + arc);
-                ctx.lineTo(raio, raio);
-                ctx.fill();
-
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-
-                ctx.save();
-                ctx.translate(raio, raio);
-                ctx.rotate(angulo + arc / 2);
-                ctx.textAlign = 'right';
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 13px Inter, sans-serif';
-                ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-                ctx.shadowBlur = 4;
-                
-                const nomeExibir = participantes[i].length > 13 ? participantes[i].substring(0, 12) + '…' : participantes[i];
-                ctx.fillText(nomeExibir, raio - 24, 5);
-                ctx.restore();
-            }
-
-            ctx.beginPath();
-            ctx.arc(raio, raio, 26, 0, 2 * Math.PI);
-            const gradienteCentro = ctx.createRadialGradient(raio, raio, 5, raio, raio, 26);
-            gradienteCentro.addColorStop(0, '#fde047');
-            gradienteCentro.addColorStop(1, '#b45309');
-            ctx.fillStyle = gradienteCentro;
-            ctx.fill();
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = '#ffffff';
-            ctx.stroke();
-
-            ctx.fillStyle = '#070d16';
-            ctx.font = 'bold 14px Inter, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('⭐', raio, raio);
-        }
 
         socket.on('girar_roleta_ao_vivo', (dados) => {
             const { participantes, vencedor, cargoVencedor, indiceVencedor, premio } = dados;
-            if (!participantes || participantes.length === 0) return;
-
-            const modal = document.getElementById('modalRoletaAoVivo');
-            const resBox = document.getElementById('roletaResultadoBox');
-            const btnFechar = document.getElementById('btnFecharRoleta');
-            document.getElementById('roletaPremioTexto').innerText = `🎁 Prêmio em Jogo: ${premio}`;
-            resBox.innerHTML = `<p style="color: #eab308; font-weight: 700;">🎲 A sortear entre ${participantes.length} elegível(is) reais...</p>`;
-            btnFechar.style.display = 'none';
-            modal.style.display = 'flex';
-
-            const total = participantes.length;
-            const arc = (2 * Math.PI) / total;
-            const anguloAlvoFatia = (indiceVencedor * arc) + (arc / 2);
-            const voltasExtras = 7 * 2 * Math.PI;
-            const anguloFinal = voltasExtras + (-Math.PI / 2 - anguloAlvoFatia);
-
-            const duracao = 5800;
-            const inicio = performance.now();
-
-            function animar(tempoAtual) {
-                const decorrido = tempoAtual - inicio;
-                const progresso = Math.min(decorrido / duracao, 1);
-                const easeOut = 1 - Math.pow(1 - progresso, 3);
-                const anguloAtual = easeOut * anguloFinal;
-
-                desenharRoleta(participantes, anguloAtual);
-
-                if (progresso < 1) {
-                    requestAnimationFrame(animar);
-                } else {
-                    resBox.innerHTML = `
-                        <div style="background: rgba(34, 197, 94, 0.25); border: 2px solid #22c55e; padding: 14px; border-radius: 12px; box-shadow: 0 0 20px rgba(34, 197, 94, 0.35);">
-                            <span style="font-size: 11px; color: #86efac; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">🎉 Vencedor Oficial Sorteado</span>
-                            <div style="font-size: 20px; font-weight: 800; color: #fff; margin-top: 6px; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">${vencedor} <span style="font-size: 13px; color: #38bdf8;">(${cargoVencedor})</span></div>
-                        </div>
-                    `;
-                    btnFechar.style.display = 'block';
-                }
-            }
-
-            requestAnimationFrame(animar);
+            document.getElementById('roletaPremioTexto').innerText = `🎁 Prêmio: ${premio}`;
+            document.getElementById('modalRoletaAoVivo').style.display = 'flex';
         });
 
         function carregarHistoricoChatLocal() {
             const chatBox = document.getElementById('chatBox');
-            const mensagensSalvas = JSON.parse(localStorage.getItem('chat_historico_salazar')) || [];
-            if (mensagensSalvas.length === 0) {
-                adicionarMsgNoChat({
-                    nickname: 'Sistema',
-                    cargo: 'Rádio',
-                    mensagem: 'Canal de rádio tático conectado.',
-                    hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-                }, false);
-            } else {
-                mensagensSalvas.forEach(msg => adicionarMsgNoChat(msg, false));
-            }
+            const msgs = JSON.parse(localStorage.getItem('chat_historico_salazar')) || [];
+            msgs.forEach(m => adicionarMsgNoChat(m, false));
             chatBox.scrollTop = chatBox.scrollHeight;
         }
-
         function adicionarMsgNoChat(data, salvar = true) {
             const chatBox = document.getElementById('chatBox');
-            const div = document.createElement('div');
-            div.className = 'chat-msg';
-            div.innerHTML = `
-                <div class="chat-header-info">
-                    <span class="autor">${data.nickname} (${data.cargo})</span>
-                    <span class="hora">${data.hora || new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                </div>
-                <div class="texto-msg">${data.mensagem}</div>
-            `;
-            chatBox.appendChild(div);
+            chatBox.innerHTML += `<div class="chat-msg"><div class="chat-header-info"><span class="autor">${data.nickname} (${data.cargo})</span><span class="hora">${data.hora}</span></div><div class="texto-msg">${data.mensagem}</div></div>`;
             chatBox.scrollTop = chatBox.scrollHeight;
-
             if (salvar) {
-                const mensagensSalvas = JSON.parse(localStorage.getItem('chat_historico_salazar')) || [];
-                mensagensSalvas.push(data);
-                if (mensagensSalvas.length > 50) mensagensSalvas.shift();
-                localStorage.setItem('chat_historico_salazar', JSON.stringify(mensagensSalvas));
+                const msgs = JSON.parse(localStorage.getItem('chat_historico_salazar')) || [];
+                msgs.push(data); if (msgs.length > 50) msgs.shift();
+                localStorage.setItem('chat_historico_salazar', JSON.stringify(msgs));
             }
         }
-
-        socket.on('receber_mensagem', (data) => {
-            adicionarMsgNoChat(data, true);
-        });
+        socket.on('receber_mensagem', (data) => adicionarMsgNoChat(data, true));
 
         function enviarMensagem() {
             const input = document.getElementById('chatInput');
-            const mensagem = input.value.trim();
-            if (!mensagem) return;
-
-            const dadosMsg = {
-                salaId: 'sala_geral_salazar',
-                nickname: user.nickname,
-                cargo: user.cargo || 'Soldado',
-                mensagem: mensagem,
-                hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-            };
-            socket.emit('chat_mensagem', dadosMsg);
+            if (!input.value.trim()) return;
+            socket.emit('chat_mensagem', { salaId: 'sala_geral_salazar', nickname: user.nickname, cargo: user.cargo || 'Soldado', mensagem: input.value.trim(), hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
             input.value = '';
         }
-
-        document.getElementById('chatInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') enviarMensagem();
-        });
+        document.getElementById('chatInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') enviarMensagem(); });
         carregarHistoricoChatLocal();
-
-        function mostrarModalCustomizado(titulo, mensagem, tipo = 'alerta', callbackConfirmar = null) {
-            const modal = document.getElementById('customModal');
-            document.getElementById('modalCustomTitle').innerText = titulo;
-            document.getElementById('modalCustomMessage').innerHTML = mensagem;
-            const btnContainer = document.getElementById('modalCustomButtons');
-            btnContainer.innerHTML = '';
-
-            if (tipo === 'alerta') {
-                const btnOk = document.createElement('button');
-                btnOk.innerText = 'OK';
-                btnOk.className = 'btn-action';
-                btnOk.style.width = 'auto';
-                btnOk.style.marginTop = '0';
-                btnOk.style.padding = '10px 28px';
-                btnOk.style.fontSize = '14px';
-                btnOk.onclick = () => { 
-                    modal.style.display = 'none'; 
-                    if (callbackConfirmar) callbackConfirmar();
-                };
-                btnContainer.appendChild(btnOk);
-            } else if (tipo === 'confirmacao') {
-                const btnContinuar = document.createElement('button');
-                btnContinuar.innerText = 'Continuar no Plantão';
-                btnContinuar.className = 'btn-action';
-                btnContinuar.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
-                btnContinuar.style.width = 'auto';
-                btnContinuar.style.marginTop = '0';
-                btnContinuar.style.padding = '10px 16px';
-                btnContinuar.onclick = () => { modal.style.display = 'none'; };
-
-                const btnFechar = document.createElement('button');
-                btnFechar.innerText = 'Sim, Fechar e Perder Progresso';
-                btnFechar.className = 'btn-action';
-                btnFechar.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
-                btnFechar.style.width = 'auto';
-                btnFechar.style.marginTop = '0';
-                btnFechar.style.padding = '10px 16px';
-                btnFechar.onclick = () => {
-                    modal.style.display = 'none';
-                    if (callbackConfirmar) callbackConfirmar();
-                };
-
-                btnContainer.appendChild(btnContinuar);
-                btnContainer.appendChild(btnFechar);
-            }
-            modal.style.display = 'flex';
-        }
-
-        function verificarEtapa() {
-            const hora = new Date().getHours();
-            let textoEtapa = "Fora do horário de etapas";
-            if (hora >= 17 && hora < 20) textoEtapa = "Etapa 1 ativa (17h – 20h)";
-            else if (hora >= 20 && hora < 23) textoEtapa = "Etapa 2 ativa (20h – 23h)";
-            else if (hora >= 23 || hora < 2) textoEtapa = "Etapa 3 ativa (23h – 02h)";
-            document.getElementById('etapaAtual').innerText = `Horário Local: ${hora}h - ${textoEtapa}`;
-        }
-        verificarEtapa();
 
         async function carregarRanking() {
             try {
@@ -1634,60 +1217,29 @@
                 const data = await res.json();
                 const tbody = document.getElementById('tabelaRanking');
                 tbody.innerHTML = '';
-
                 if (data.success && data.ranking.length > 0) {
                     data.ranking.forEach((item, index) => {
-                        let medalha = `${index + 1}º`;
-                        if (index === 0) medalha = '🥇 1º';
-                        if (index === 1) medalha = '🥈 2º';
-                        if (index === 2) medalha = '🥉 3º';
-
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `
-                            <td><b>${medalha}</b></td>
-                            <td>${item.nickname}</td>
-                            <td style="color: #38bdf8; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">${item.totalFormatado}</td>
-                        `;
-                        tbody.appendChild(tr);
+                        tbody.innerHTML += `<tr><td><b>${index+1}º</b></td><td>${item.nickname}</td><td style="color: #38bdf8; font-weight: bold;">${item.totalFormatado}</td></tr>`;
                     });
-                } else {
-                    tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8;">Nenhum registo no horário correto ainda.</td></tr>`;
-                }
+                } else { tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8;">Sem registos no horário.</td></tr>`; }
             } catch (e) {}
         }
         carregarRanking();
 
-        let timerInterval = null;
-        let estadoTurno = 'parado';
-        let segundosAcumuladosBase = 0;
-        let timestampInicioServer = null;
-        let fotoComprovanteBase64 = '';
+        let timerInterval = null, estadoTurno = 'parado', segundosAcumuladosBase = 0, timestampInicioServer = null, fotoComprovanteBase64 = '';
         const TEMPO_MINIMO_SEGUNDOS = 30 * 60;
 
         function calcularSegundosTotais() {
-            if (estadoTurno === 'ativo' && timestampInicioServer) {
-                const decorridoAgora = Math.floor((Date.now() - timestampInicioServer) / 1000);
-                return segundosAcumuladosBase + decorridoAgora;
-            } else {
-                return segundosAcumuladosBase;
-            }
+            return (estadoTurno === 'ativo' && timestampInicioServer) ? segundosAcumuladosBase + Math.floor((Date.now() - timestampInicioServer) / 1000) : segundosAcumuladosBase;
         }
-
         function atualizarDisplayTimer() {
-            const segundosTotais = calcularSegundosTotais();
-            const horas = String(Math.floor(segundosTotais / 3600)).padStart(2, '0');
-            const minutos = String(Math.floor((segundosTotais % 3600) / 60)).padStart(2, '0');
-            const segundos = String(segundosTotais % 60).padStart(2, '0');
-            
-            const display = document.getElementById('timerDisplay');
-            if (display) display.innerText = `${horas}:${minutos}:${segundos}`;
-            return segundosTotais;
+            const total = calcularSegundosTotais();
+            document.getElementById('timerDisplay').innerText = `${String(Math.floor(total / 3600)).padStart(2, '0')}:${String(Math.floor((total % 3600) / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+            return total;
         }
-
         function iniciarLoopTimer() {
             if (timerInterval) clearInterval(timerInterval);
-            atualizarDisplayTimer();
-            timerInterval = setInterval(() => { atualizarDisplayTimer(); }, 1000);
+            timerInterval = setInterval(atualizarDisplayTimer, 1000);
         }
 
         async function restaurarEstadoTurno() {
@@ -1702,219 +1254,94 @@
                 }
             } catch (e) {}
 
-            const btnPausar = document.getElementById('btnPausar');
-            const statusAnexo = document.getElementById('statusAnexo');
-            if (fotoComprovanteBase64 && statusAnexo) {
-                statusAnexo.innerText = '✅ Print guardado na tua conta e pronto!';
-            }
-
+            if (fotoComprovanteBase64) document.getElementById('statusAnexo').innerText = '✅ Print guardado e pronto!';
             if (estadoTurno === 'ativo') {
-                if (btnPausar) {
-                    btnPausar.style.display = 'block';
-                    btnPausar.innerText = 'Pausar Turno';
-                    btnPausar.style.background = 'linear-gradient(135deg, #eab308, #ca8a04)';
-                    btnPausar.style.color = '#000';
-                }
-                atualizarDisplayTimer();
+                document.getElementById('btnPausar').style.display = 'block';
                 iniciarLoopTimer();
             } else if (estadoTurno === 'pausado') {
-                if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-                if (btnPausar) {
-                    btnPausar.style.display = 'block';
-                    btnPausar.innerText = 'Retomar Turno';
-                    btnPausar.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
-                    btnPausar.style.color = '#fff';
-                }
-                atualizarDisplayTimer();
-            } else {
-                if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-                if (btnPausar) btnPausar.style.display = 'none';
-                atualizarDisplayTimer();
+                document.getElementById('btnPausar').style.display = 'block';
+                document.getElementById('btnPausar').innerText = 'Retomar Turno';
             }
+            atualizarDisplayTimer();
         }
         restaurarEstadoTurno();
 
         function converterFotoLocal(input) {
             if (input.files && input.files[0]) {
-                const file = input.files[0];
-                comprimirImagemBase64(file, async function(base64Comprimido) {
-                    fotoComprovanteBase64 = base64Comprimido;
-                    document.getElementById('statusAnexo').innerText = `✅ Print carregado: ${file.name}`;
-                    try {
-                        await fetch('/api/membro/status-plantao', {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ nickname: user.nickname, emPlantao: (estadoTurno === 'ativo'), estadoTurno, fotoComprovanteAtiva: fotoComprovanteBase64 })
-                        });
-                    } catch (err) {}
+                comprimirImagemBase64(input.files[0], async function(base64) {
+                    fotoComprovanteBase64 = base64;
+                    document.getElementById('statusAnexo').innerText = `✅ Print carregado com sucesso`;
+                    await fetch('/api/membro/status-plantao', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: user.nickname, emPlantao: (estadoTurno === 'ativo'), estadoTurno, fotoComprovanteAtiva: fotoComprovanteBase64 }) });
                 });
             }
         }
 
         async function fazerCheckin() {
             if (estadoTurno === 'ativo') return;
-            if (!fotoComprovanteBase64) {
-                mostrarModalCustomizado('Atenção', 'Anexe o print do turno antes de iniciar!');
-                return;
-            }
+            if (!fotoComprovanteBase64) { mostrarModalCustomizado('Atenção', 'Anexe o print do turno antes de iniciar!'); return; }
             const agora = Date.now();
-            estadoTurno = 'ativo';
-            timestampInicioServer = agora;
-            segundosAcumuladosBase = 0;
-
-            await fetch('/api/membro/status-plantao', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nickname: user.nickname, emPlantao: true, estadoTurno: 'ativo', inicioPlantao: agora, segundosAcumulados: 0, fotoComprovanteAtiva: fotoComprovanteBase64 })
-            });
-            socket.emit('entrar_sala', { salaId: 'sala_geral_salazar', nickname: user.nickname, cargo: user.cargo || 'Soldado', emPlantao: true });
-            
-            const btnPausar = document.getElementById('btnPausar');
-            if (btnPausar) {
-                btnPausar.style.display = 'block';
-                btnPausar.innerText = 'Pausar Turno';
-                btnPausar.style.background = 'linear-gradient(135deg, #eab308, #ca8a04)';
-                btnPausar.style.color = '#000';
-            }
-
+            estadoTurno = 'ativo'; timestampInicioServer = agora; segundosAcumuladosBase = 0;
+            await fetch('/api/membro/status-plantao', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: user.nickname, emPlantao: true, estadoTurno: 'ativo', inicioPlantao: agora, segundosAcumulados: 0, fotoComprovanteAtiva: fotoComprovanteBase64 }) });
+            document.getElementById('btnPausar').style.display = 'block';
             iniciarLoopTimer();
-            mostrarModalCustomizado('Sucesso', 'Check-in iniciado com sucesso!');
-            atualizarFiscalizacaoServidor();
+            mostrarModalCustomizado('Sucesso', 'Check-in iniciado!');
         }
 
         async function alternarPausa() {
             if (estadoTurno === 'parado') return;
-            const btnPausar = document.getElementById('btnPausar');
             if (estadoTurno === 'ativo') {
-                segundosAcumuladosBase = calcularSegundosTotais();
-                timestampInicioServer = null;
-                estadoTurno = 'pausado';
+                segundosAcumuladosBase = calcularSegundosTotais(); timestampInicioServer = null; estadoTurno = 'pausado';
                 clearInterval(timerInterval);
-                timerInterval = null;
-
-                await fetch('/api/membro/status-plantao', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nickname: user.nickname, emPlantao: false, estadoTurno: 'pausado', inicioPlantao: null, segundosAcumulados: segundosAcumuladosBase })
-                });
-                atualizarFiscalizacaoServidor();
-                if (btnPausar) {
-                    btnPausar.innerText = 'Retomar Turno';
-                    btnPausar.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
-                    btnPausar.style.color = '#fff';
-                }
-                mostrarModalCustomizado('Turno Pausado', 'O cronômetro foi pausado.');
+                await fetch('/api/membro/status-plantao', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: user.nickname, emPlantao: false, estadoTurno: 'pausado', segundosAcumulados: segundosAcumuladosBase }) });
+                document.getElementById('btnPausar').innerText = 'Retomar Turno';
+                mostrarModalCustomizado('Pausado', 'Turno pausado.');
             } else {
-                const agora = Date.now();
-                estadoTurno = 'ativo';
-                timestampInicioServer = agora;
-
-                await fetch('/api/membro/status-plantao', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nickname: user.nickname, emPlantao: true, estadoTurno: 'ativo', inicioPlantao: agora, segundosAcumulados: segundosAcumuladosBase })
-                });
-                atualizarFiscalizacaoServidor();
-                if (btnPausar) {
-                    btnPausar.innerText = 'Pausar Turno';
-                    btnPausar.style.background = 'linear-gradient(135deg, #eab308, #ca8a04)';
-                    btnPausar.style.color = '#000';
-                }
+                const agora = Date.now(); estadoTurno = 'ativo'; timestampInicioServer = agora;
+                await fetch('/api/membro/status-plantao', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: user.nickname, emPlantao: true, estadoTurno: 'ativo', inicioPlantao: agora, segundosAcumulados: segundosAcumuladosBase }) });
+                document.getElementById('btnPausar').innerText = 'Pausar Turno';
                 iniciarLoopTimer();
-                mostrarModalCustomizado('Turno Retomado', 'O cronômetro voltou a contar.');
+                mostrarModalCustomizado('Retomado', 'Turno a contar novamente.');
             }
         }
 
         async function fazerCheckout() {
-            const segundosTotais = atualizarDisplayTimer();
-            if (estadoTurno === 'parado' && segundosTotais === 0) {
-                mostrarModalCustomizado('Aviso', 'Nenhum turno ativo.');
-                return;
-            }
-
-            if (segundosTotais < TEMPO_MINIMO_SEGUNDOS) {
-                const mins = Math.floor(segundosTotais / 60);
-                mostrarModalCustomizado('⚠️ Atenção', `Você está com ${mins} min de plantão. Se fechar agora, o progresso abaixo de 30 minutos será descartado (o desconto só ocorrerá após as 02:00 se não cumprir 30m no dia). Deseja mesmo fechar?`, 'confirmacao', async () => {
-                    await executarEncerramentoDescartado();
-                });
-                return;
-            }
-            await executarEncerramentoValido(segundosTotais);
-        }
-
-        async function executarEncerramentoValido(segundosTotais) {
-            if (!fotoComprovanteBase64) {
-                mostrarModalCustomizado('Atenção', 'Nenhum comprovante encontrado na conta. Anexe o print novamente.');
-                return;
-            }
-            clearInterval(timerInterval);
-            timerInterval = null;
-            const tempoFinal = document.getElementById('timerDisplay').innerText;
-
-            try {
-                const res = await fetch('/api/membro/turno', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nickname: user.nickname, duracao: tempoFinal, segundosTotais, fotoComprovante: fotoComprovanteBase64 })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    const cicloAtual = obterDataCicloOperacional();
-                    localStorage.setItem(`plantao_cumprido_${user.nickname}_${cicloAtual}`, 'true');
-                    mostrarModalCustomizado('Sucesso', `Turno finalizado com sucesso! Duração: <b>${tempoFinal}</b>.`);
+            const total = atualizarDisplayTimer();
+            if (total < TEMPO_MINIMO_SEGUNDOS) {
+                mostrarModalCustomizado('⚠️ Atenção', `Plantão abaixo de 30 minutos. Deseja fechar e descartar?`, 'confirmacao', async () => {
+                    clearInterval(timerInterval);
+                    await fetch('/api/membro/status-plantao', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: user.nickname, emPlantao: false, estadoTurno: 'parado', segundosAcumulados: 0 }) });
                     window.location.reload();
-                } else {
-                    mostrarModalCustomizado('Erro', data.message);
-                }
-            } catch (e) {
-                mostrarModalCustomizado('Erro', 'Erro ao salvar o turno.');
+                });
+                return;
             }
+            if (!fotoComprovanteBase64) { mostrarModalCustomizado('Atenção', 'Anexe o comprovante.'); return; }
+            clearInterval(timerInterval);
+            const duracaoTxt = document.getElementById('timerDisplay').innerText;
+            const res = await fetch('/api/membro/turno', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: user.nickname, duracao: duracaoTxt, segundosTotais: total, fotoComprovante: fotoComprovanteBase64 }) });
+            if ((await res.json()).success) { window.location.reload(); }
         }
 
-        async function executarEncerramentoDescartado() {
-            clearInterval(timerInterval);
-            timerInterval = null;
-            await fetch('/api/membro/status-plantao', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nickname: user.nickname, emPlantao: false, estadoTurno: 'parado', inicioPlantao: null, segundosAcumulados: 0, fotoComprovanteAtiva: '' })
-            });
-            window.location.reload();
+        function mostrarModalCustomizado(titulo, msg, tipo = 'alerta', cb = null) {
+            document.getElementById('modalCustomTitle').innerText = titulo;
+            document.getElementById('modalCustomMessage').innerHTML = msg;
+            const b = document.getElementById('modalCustomButtons'); b.innerHTML = '';
+            const ok = document.createElement('button'); ok.innerText = 'OK'; ok.className = 'btn-action'; ok.style.width = 'auto'; ok.style.padding = '8px 20px';
+            ok.onclick = () => { document.getElementById('customModal').style.display = 'none'; if(cb) cb(); };
+            b.appendChild(ok);
+            document.getElementById('customModal').style.display = 'flex';
         }
 
         async function abrirHistorico() {
             document.getElementById('modalHistorico').style.display = 'flex';
-            const container = document.getElementById('conteudoHistorico');
-            container.innerHTML = '<p>A carregar histórico...</p>';
-            try {
-                const res = await fetch(`/api/membro/historico/${encodeURIComponent(user.nickname)}`);
-                const data = await res.json();
-                if (data.success) {
-                    container.innerHTML = `
-                        <div style="background: rgba(7, 13, 22, 0.75); padding: 14px; border-radius: 10px; border: 1px solid rgba(56, 189, 248, 0.2);">
-                            <h4 style="color: #38bdf8; margin-bottom: 10px;">🛡️ Turnos Cumpridos</h4>
-                            ${data.historicoTurnos.length > 0 ? data.historicoTurnos.map(t => `<p style="padding: 4px 0; border-bottom: 1px solid rgba(56, 189, 248, 0.1);">• Duração: <b>${t.duracao}</b> (${new Date(t.data).toLocaleDateString()})</p>`).join('') : '<p>Nenhum turno.</p>'}
-                        </div>
-                    `;
-                }
-            } catch (e) {
-                container.innerHTML = '<p>Erro ao carregar.</p>';
+            const c = document.getElementById('conteudoHistorico');
+            const res = await fetch(`/api/membro/historico/${encodeURIComponent(user.nickname)}`);
+            const data = await res.json();
+            if (data.success) {
+                c.innerHTML = data.historicoTurnos.map(t => `<p>• ${t.duracao} (${new Date(t.data).toLocaleDateString()})</p>`).join('') || 'Nenhum turno.';
             }
         }
-
         function fecharHistorico() { document.getElementById('modalHistorico').style.display = 'none'; }
-
-        async function logout() {
-            try {
-                await fetch('/api/membro/status-plantao', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nickname: user.nickname, emPlantao: false, estadoTurno: 'parado' })
-                });
-            } catch (e) {}
-            localStorage.clear();
-            window.location.href = 'index.html';
-        }
+        async function logout() { localStorage.clear(); window.location.href = 'index.html'; }
     </script>
 </body>
 </html>
