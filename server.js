@@ -581,24 +581,39 @@ app.post('/api/membro/turno', async (req, res) => {
     }
 });
 
+// 1. Rota para consultar o saldo da carteira e o estado das missões do membro (com reset automático às 02:00)
 app.get('/api/membro/carteira/:nickname', async (req, res) => {
     try {
-        const membro = await User.findOne({ nickname: new RegExp('^' + req.params.nickname + '$', 'i') }).lean();
-        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+        const { nickname } = req.params;
+        const membro = await User.findOne({ nickname: new RegExp(`^${nickname}$`, 'i') });
+        
+        if (!membro) {
+            return res.json({ success: false, message: 'Membro não encontrado.' });
+        }
+
+        const cicloAtual = obterDataCicloBrasil();
+
+        if (membro.ultimoCicloMissoes !== cicloAtual) {
+            membro.missoesConcluidasCiclo = [];
+            membro.ultimoCicloMissoes = cicloAtual;
+            await membro.save();
+        }
 
         res.json({
             success: true,
             saldo: membro.carteiraSaldo !== undefined ? membro.carteiraSaldo : 0,
-            missoes: membro.missoesDiarias || []
+            missoes: membro.missoesConcluidasCiclo || []
         });
     } catch (error) {
+        console.error("Erro ao carregar carteira:", error);
         res.status(500).json({ success: false, message: 'Erro ao carregar carteira.' });
     }
 });
 
+// 2. Rota para atualizar a carteira e registar a missão com print nas logs de comando
 app.post('/api/membro/carteira/atualizar', async (req, res) => {
     try {
-        const { nickname, missoes, saldoTotal, motivo, ciclo, comprovantePrint } = req.body;
+        const { nickname, saldoTotal, motivo, ciclo, comprovantePrint } = req.body;
         if (!nickname) return res.status(400).json({ success: false, message: 'Nickname obrigatório.' });
 
         const membro = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') });
@@ -607,35 +622,40 @@ app.post('/api/membro/carteira/atualizar', async (req, res) => {
         const saldoFinal = saldoTotal !== undefined ? Number(saldoTotal) : (membro.carteiraSaldo || 0);
         const cicloAtualBrasil = obterDataCicloBrasil();
 
-        const updateObj = {
-            carteiraSaldo: saldoFinal
-        };
+        membro.carteiraSaldo = saldoFinal;
+        membro.ultimoCicloMissoes = cicloAtualBrasil;
 
-        if (missoes) {
-            updateObj.missoesDiarias = missoes;
+        if (!membro.missoesConcluidasCiclo) {
+            membro.missoesConcluidasCiclo = [];
         }
 
-        let pushObj = {};
+        membro.missoesConcluidasCiclo.push({
+            ciclo: ciclo || cicloAtualBrasil,
+            concluida: true
+        });
+
         if (comprovantePrint) {
-            const novaMissaoHistorico = {
+            membro.historicoMissoes = membro.historicoMissoes || [];
+            membro.historicoMissoes.push({
                 data: new Date(),
                 ciclo: ciclo || cicloAtualBrasil,
                 motivo: motivo || 'Missão Diária',
                 comprovante: comprovantePrint
-            };
-            pushObj.historicoMissoes = novaMissaoHistorico;
+            });
         }
 
-        const queryUpdate = { $set: updateObj };
-        if (Object.keys(pushObj).length > 0) {
-            queryUpdate.$push = pushObj;
-        }
+        await membro.save();
 
-        await User.updateOne({ _id: membro._id }, queryUpdate);
+        // 3. REGISTA AUTOMATICAMENTE NA CENTRAL DE AUDITORIA DO COMANDO COM O SALDO
+        await registarLogAdmin(
+            nickname, 
+            'Missão Diária Concluída', 
+            `Completou missão no ciclo ${ciclo || cicloAtualBrasil}. Novo Saldo na Carteira: R$ ${saldoFinal.toLocaleString('pt-BR')}`
+        );
 
-        await registarLogAdmin(nickname, 'Atualização de Carteira', `Saldo atualizado para R$ ${saldoFinal}. Motivo: ${motivo || 'Rotina'}`);
         res.json({ success: true, message: 'Carteira atualizada com sucesso!', saldo: saldoFinal });
     } catch (e) {
+        console.error("Erro ao atualizar carteira/missão:", e);
         res.status(500).json({ success: false, message: 'Erro ao atualizar carteira.' });
     }
 });

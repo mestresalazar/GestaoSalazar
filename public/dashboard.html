@@ -476,12 +476,11 @@
                         </div>
                         <div style="text-align: right;">
                             <span style="font-size: 11px; color: #e2e8f0; display: block;">Ganho Hoje: <b id="ganhoHojeCarteira" style="color: #34d399;">+R$ 0</b></span>
-                            <span style="font-size: 11px; color: #fca5a5; display: block;">Meta de Plantão: <b id="statusMetaPlantao">Pendente (30m)</b></span>
+                            <span style="font-size: 11px; color: #34d399; display: block;">Estado: <b id="statusMetaPlantao" style="color: #38bdf8;">Ativo</b></span>
                         </div>
                     </div>
                     <p style="font-size: 12px; color: #cbd5e1; line-height: 1.5;">
-                        • Cada missão com print gera <b>+R$ 1.000</b> na carteira.<br>
-                        • <span style="color: #f87171;"><b>Atenção:</b></span> Se não cumprir pelo menos 1 plantão válido (mín. 30 min) no ciclo, será descontado <b>-R$ 1.000</b> após as 02:00!
+                        • Cada missão diária concluída com comprovante (print) gera <b>+R$ 1.000</b> na tua carteira digital.
                     </p>
                 </div>
 
@@ -993,9 +992,11 @@
 
             const statusMetaEl = document.getElementById('statusMetaPlantao');
             if (plantaoOkHoje) {
-                statusMetaEl.innerText = 'Cumprido ✅'; statusMetaEl.style.color = '#34d399';
+                statusMetaEl.innerText = 'Cumprido ✅'; 
+                statusMetaEl.style.color = '#34d399';
             } else {
-                statusMetaEl.innerText = 'Pendente (-R$ 1.000 às 02h)'; statusMetaEl.style.color = '#f87171';
+                statusMetaEl.innerText = 'Ativo'; 
+                statusMetaEl.style.color = '#38bdf8';
             }
         }
 
@@ -1036,11 +1037,17 @@
                 await fetch('/api/membro/carteira/atualizar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nickname: user.nickname, variacao: 1000, saldoTotal: saldoCarteiraAtual, motivo: `Missão concluída`, ciclo: cicloAtual, comprovantePrint: fotoPrintMissaoBase64 })
+                    body: JSON.stringify({ 
+                        nickname: user.nickname, 
+                        saldoTotal: saldoCarteiraAtual, 
+                        motivo: `Missão Diária Concluída`, 
+                        ciclo: cicloAtual, 
+                        comprovantePrint: fotoPrintMissaoBase64 
+                    })
                 });
             } catch (e) {}
 
-            mostrarModalCustomizado('Sucesso', 'Comprovante verificado! <b>+R$ 1.000</b> adicionados à sua Carteira.');
+            mostrarModalCustomizado('Sucesso', 'Comprovante verificado e registado nas logs do comando! <b>+R$ 1.000</b> adicionados à sua Carteira.');
             sincronizarCarteiraEMissoes();
         }
 
