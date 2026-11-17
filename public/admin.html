@@ -291,6 +291,7 @@
         <div class="nav-brand">Gestão Salazar - Comando</div>
         <div class="nav-links">
             <button class="nav-btn-aba active" onclick="mudarAba('efetivo', this)">👥 Efetivo & Membros</button>
+            <button class="nav-btn-aba" onclick="mudarAba('inativos', this)">⚠️ Inativos (+3 dias)</button>
             <button class="nav-btn-aba" onclick="mudarAba('comandos', this)">⚡ Comandos & Ações</button>
             <button class="nav-btn-aba" onclick="mudarAba('sorteios', this)">🎁 Sorteios & Roleta</button>
             <button class="nav-btn-aba" onclick="mudarAba('auditoria', this)">📋 Auditoria & Logs</button>
@@ -346,6 +347,33 @@
                     </thead>
                     <tbody id="tabelaEfetivo">
                         <tr><td colspan="4" style="text-align: center; color: #94a3b8;">A carregar efetivo...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ABA NOVA: MEMBROS INATIVOS (+3 DIAS) -->
+    <!-- ========================================== -->
+    <div id="aba-inativos" class="tab-content">
+        <div class="card" style="border: 1px solid rgba(234, 179, 8, 0.4); background: linear-gradient(145deg, rgba(234, 179, 8, 0.05), rgba(15, 23, 42, 0.85));">
+            <h3 style="color: #eab308; border-color: rgba(234, 179, 8, 0.3);">⚠️ Operacionais Inativos (Há mais de 3 dias sem turnos)</h3>
+            <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Lista isolada de membros que não registam plantões há mais de 3 dias. Ideal para controle e limpeza de efetivo.</p>
+            
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nickname</th>
+                            <th>Cargo</th>
+                            <th>Último Turno</th>
+                            <th>Dias Ausente</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaInativos">
+                        <tr><td colspan="5" style="text-align: center; color: #94a3b8; padding: 15px;">A carregar inativos...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -607,6 +635,10 @@
             
             document.getElementById('aba-' + nomeAba).classList.add('active');
             if(elementoBtn) elementoBtn.classList.add('active');
+
+            if (nomeAba === 'inativos') {
+                carregarMembrosInativos();
+            }
         }
 
         const userStr = localStorage.getItem('user');
@@ -654,6 +686,7 @@
             carregarEstatisticasMembros();
             carregarElegiveisSorteio();
             carregarElegiveisUmTurno();
+            carregarMembrosInativos();
         });
 
         socket.on('atualizar_logs_admin', () => { carregarLogsAdmin(); });
@@ -791,6 +824,37 @@
             }
         }
         carregarLogsAdmin();
+
+        async function carregarMembrosInativos() {
+            try {
+                const res = await fetch('/api/admin/membros-inativos');
+                const data = await res.json();
+                const tbody = document.getElementById('tabelaInativos');
+                if (!tbody) return;
+                tbody.innerHTML = '';
+
+                if (data.success && data.inativos && data.inativos.length > 0) {
+                    data.inativos.forEach(m => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><span class="nickname-link" onclick="abrirMenuAcoesMembro('${m._id}', '${m.nickname}', '${m.cargo}', false, 'ativo')">${m.nickname}</span></td>
+                            <td>${m.cargo}</td>
+                            <td style="color: #38bdf8;">${m.ultimoTurno}</td>
+                            <td><b style="color: #eab308;">${m.diasAusente} dia(s)</b></td>
+                            <td>
+                                <button class="btn-action btn-demitir" style="padding: 5px 10px; font-size: 11px;" onclick="demitirMembro('${m._id}')">Demitir</button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #94a3b8; padding: 15px;">Nenhum operacional inativo há mais de 3 dias.</td></tr>`;
+                }
+            } catch (e) {
+                const tbody = document.getElementById('tabelaInativos');
+                if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ef4444; padding: 15px;">Erro ao carregar inativos.</td></tr>`;
+            }
+        }
 
         async function dispararAlertaAcao() {
             const tituloAcao = document.getElementById('acaoTitulo').value.trim();
@@ -1153,7 +1217,11 @@
                 'confirmacao',
                 async () => {
                     try {
-                        const res = await fetch(`/api/admin/membro/forcar-fim-turno/${id}`, { method: 'PUT' });
+                        const res = await fetch(`/api/admin/membro/forcar-fim-turno/${id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ autor: user.nickname })
+                        });
                         const data = await res.json();
                         if (data.success) {
                             mostrarModalCustomizado('Sucesso', data.message);
@@ -1219,7 +1287,7 @@
                 'confirmacao',
                 async () => {
                     try {
-                        const res = await fetch(`/api/admin/membro/${membroId}/turno/${turnoId}`, { method: 'DELETE' });
+                        const res = await fetch(`/api/admin/membro/${membroId}/turno/${turnoId}?autor=${encodeURIComponent(user.nickname)}`, { method: 'DELETE' });
                         const data = await res.json();
                         if (data.success) {
                             mostrarModalCustomizado('Sucesso', 'Turno removido com sucesso!');
@@ -1360,7 +1428,7 @@
                         const res = await fetch('/api/admin/sorteio/realizar-um-turno', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ premios })
+                            body: JSON.stringify({ premios, adminNickname: user.nickname })
                         });
                         const data = await res.json();
                         if (data.success) {
@@ -1416,7 +1484,7 @@
                         const res = await fetch('/api/admin/sorteio/realizar', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ premios })
+                            body: JSON.stringify({ premios, adminNickname: user.nickname })
                         });
                         const data = await res.json();
                         if (data.success) {
@@ -1449,7 +1517,11 @@
                     try {
                         localStorage.removeItem('elegiveisLimposManual');
                         localStorage.removeItem('elegiveisUmTurnoLimposManual');
-                        const res = await fetch('/api/admin/sorteio/resetar-ciclo', { method: 'POST' });
+                        const res = await fetch('/api/admin/sorteio/resetar-ciclo', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ adminNickname: user.nickname })
+                        });
                         const data = await res.json();
                         if (data.success) {
                             carregarElegiveisSorteio();
@@ -1477,7 +1549,11 @@
                             }
                         });
                         localStorage.setItem('elegiveisLimposManual', JSON.stringify(ignorados));
-                        await fetch('/api/admin/sorteio/resetar-elegiveis', { method: 'POST' });
+                        await fetch('/api/admin/sorteio/resetar-elegiveis', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ adminNickname: user.nickname })
+                        });
                         document.getElementById('listaElegiveisSorteio').innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível.</span>`;
                         document.getElementById('resultadoSorteio').innerHTML = '';
                         mostrarModalCustomizado('Sucesso', 'Elegíveis limpos!');
@@ -1512,7 +1588,11 @@
                 'confirmacao',
                 async () => {
                     try {
-                        const res = await fetch('/api/admin/ranking/resetar', { method: 'PUT' });
+                        const res = await fetch('/api/admin/ranking/resetar', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ adminNickname: user.nickname })
+                        });
                         const data = await res.json();
                         if (data.success) {
                             mostrarModalCustomizado('Sucesso', 'Ranking semanal resetado com sucesso!');
@@ -1536,6 +1616,7 @@
                 carregarEstatisticasMembros();
                 carregarElegiveisSorteio(); 
                 carregarElegiveisUmTurno();
+                carregarMembrosInativos();
             }
         }
 
@@ -1590,6 +1671,7 @@
                         carregarElegiveisSorteio();
                         carregarElegiveisUmTurno();
                         carregarLogsAdmin();
+                        carregarMembrosInativos();
                         mostrarModalCustomizado('Sucesso', 'Cargo atualizado com sucesso!');
                     }
                 } catch (e) {}
@@ -1602,7 +1684,11 @@
 
         function resetarTurnosMembro(id) {
             mostrarModalCustomizado('Confirmação de Reset', 'Tem certeza que deseja apagar todo o histórico de turnos deste membro?', 'confirmacao', async () => {
-                const res = await fetch(`/api/admin/membro/resetar-turnos/${id}`, { method: 'PUT' });
+                const res = await fetch(`/api/admin/membro/resetar-turnos/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ autor: user.nickname })
+                });
                 const data = await res.json();
                 if (data.success) { 
                     fecharHistoricoAdmin(); 
@@ -1610,6 +1696,7 @@
                     carregarEfetivo(); 
                     carregarElegiveisSorteio(); 
                     carregarElegiveisUmTurno(); 
+                    carregarMembrosInativos();
                     mostrarModalCustomizado('Sucesso', 'Turnos resetados com sucesso!');
                 }
             });
@@ -1617,13 +1704,18 @@
 
         function demitirMembro(id) {
             mostrarModalCustomizado('Confirmação de Demissão', 'Tem certeza que deseja demitir/excluir este membro?', 'confirmacao', async () => {
-                const res = await fetch(`/api/admin/membro/${id}`, { method: 'DELETE' });
+                const res = await fetch(`/api/admin/membro/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ autor: user.nickname })
+                });
                 const data = await res.json();
                 if (data.success) { 
                     carregarEfetivo(); 
                     carregarEstatisticasMembros();
                     carregarElegiveisSorteio(); 
                     carregarElegiveisUmTurno();
+                    carregarMembrosInativos();
                 }
             });
         }
@@ -1631,6 +1723,7 @@
         function logout() { localStorage.clear(); window.location.href = 'index.html'; }
 
         carregarEfetivo();
+        carregarMembrosInativos();
     </script>
 </body>
 </html>

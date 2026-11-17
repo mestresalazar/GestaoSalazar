@@ -924,6 +924,7 @@
             return agora.toISOString().split('T')[0];
         }
 
+        // --- COMPRESSÃO OTIMIZADA PARA EVITAR ERRO 16MB DO MONGODB ---
         function comprimirImagemBase64(file, callback) {
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -931,11 +932,11 @@
                 img.onload = function() {
                     const canvas = document.createElement('canvas');
                     let largura = img.width, altura = img.height;
-                    const maxDim = 1280;
+                    const maxDim = 600; // Reduzido de 1280 para 600px para garantir imagens extremamente leves
                     if (largura > maxDim) { altura = Math.round((altura * maxDim) / largura); largura = maxDim; }
                     canvas.width = largura; canvas.height = altura;
                     canvas.getContext('2d').drawImage(img, 0, 0, largura, altura);
-                    callback(canvas.toDataURL('image/jpeg', 0.72));
+                    callback(canvas.toDataURL('image/jpeg', 0.45)); // Qualidade otimizada para 45% (poucos KBs)
                 };
                 img.src = e.target.result;
             };
@@ -972,7 +973,6 @@
             ];
         }
 
-        // --- CORREÇÃO PRINCIPAL: SINCRONIZAÇÃO REAL DA CARTEIRA E RESET ---
         async function sincronizarCarteiraEMissoes() {
             await carregarValorMissaoDinamico();
             const cicloAtual = obterDataCicloOperacional();
@@ -1021,8 +1021,6 @@
             const chaveMissoes = `missoes_ciclo_${user.nickname}_${cicloAtual}`;
             let concluidasLocal = JSON.parse(localStorage.getItem(chaveMissoes)) || {};
 
-            // Se o servidor respondeu e o saldo foi zerado pelo ADM (saldoServidor === 0),
-            // limpamos o cache local de ganhos/missões pagas para não ressuscitar o valor antigo!
             if (servidorRespondeu && saldoServidor === 0) {
                 localStorage.setItem(`carteira_saldo_${user.nickname}`, '0');
                 if (missoesServidorCache.length === 0) {
@@ -1063,7 +1061,6 @@
                 `;
             });
 
-            // O saldo do servidor tem prioridade absoluta sobre o localStorage
             if (servidorRespondeu && saldoServidor !== null) {
                 saldoCarteiraAtual = saldoServidor;
             } else {
@@ -1280,7 +1277,6 @@
         const socket = io();
         socket.emit('entrar_sala', { salaId: 'sala_geral_salazar', nickname: user.nickname, cargo: user.cargo || 'Soldado', emPlantao: false });
 
-        // Escuta atualizações em tempo real caso o ADM resete a carteira ou altere o status geral
         socket.on('atualizar_status_geral_tropa', () => {
             sincronizarCarteiraEMissoes();
             carregarCaixaEntrada();

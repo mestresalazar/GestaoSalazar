@@ -289,6 +289,42 @@ async function verificarInatividadeTropa() {
 }
 setInterval(verificarInatividadeTropa, 4 * 60 * 60 * 1000);
 
+// --- ROTA DEDICADA PARA MEMBROS INATIVOS (+3 DIAS) ---
+app.get('/api/admin/membros-inativos', async (req, res) => {
+    try {
+        const agora = new Date();
+        const tresDiasAtras = new Date(agora.getTime() - (3 * 24 * 60 * 60 * 1000));
+
+        const membros = await User.find({ status: 'ativo' }, 'nickname cargo historicoTurnos.data').lean();
+        const inativos = [];
+
+        for (const m of membros) {
+            const turnos = m.historicoTurnos || [];
+            let ultimoTurnoData = m._id.getTimestamp();
+
+            if (turnos.length > 0) {
+                const ultimo = turnos[turnos.length - 1];
+                if (ultimo.data) ultimoTurnoData = new Date(ultimo.data);
+            }
+
+            if (ultimoTurnoData < tresDiasAtras) {
+                const diasAusente = Math.floor(Math.abs(agora - ultimoTurnoData) / (1000 * 60 * 60 * 24));
+                inativos.push({
+                    _id: m._id,
+                    nickname: m.nickname,
+                    cargo: m.cargo || 'Privado',
+                    diasAusente: diasAusente,
+                    ultimoTurno: new Date(ultimoTurnoData).toLocaleDateString()
+                });
+            }
+        }
+
+        res.json({ success: true, inativos });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao carregar membros inativos.' });
+    }
+});
+
 // --- ROTAS DE AUTENTICAÇÃO ---
 app.post('/api/auth/login', async (req, res) => {
     try {
@@ -421,7 +457,7 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
     try {
         const membro = await User.findOne(
             { nickname: new RegExp('^' + req.params.nickname + '$', 'i') },
-            '-password -avatar -historicoTurnos.fotoComprovante -historicoMissoes.comprovante'
+            'nickname cargo status emPlantao estadoTurno inicioPlantao segundosAcumulados fotoComprovanteAtiva historicoTurnos historicoPromocoes historicoSorteios caixaEntrada'
         ).lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
@@ -518,7 +554,7 @@ app.post('/api/admin/disparar-acao', async (req, res) => {
     }
 });
 
-// --- ROTA BLINDADA DE STATUS DE PLANTÃO (PROTEGE CONTRA ZERAMENTO) ---
+// --- ROTA BLINDADA DE STATUS DE PLANTÃO (IMPEDE DUPLICIDADE/TURNO DUPLO) ---
 app.put('/api/membro/status-plantao', async (req, res) => {
     try {
         const { nickname, emPlantao, estadoTurno, inicioPlantao, segundosAcumulados, fotoComprovanteAtiva } = req.body;
@@ -528,6 +564,11 @@ app.put('/api/membro/status-plantao', async (req, res) => {
         if (!membroAtual) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
         if (emPlantao) {
+            // VERIFICAÇÃO DE TURNO DUPLO: se já estiver em plantão e tentar iniciar outro
+            if (membroAtual.emPlantao && estadoTurno === 'ativo') {
+                return res.status(400).json({ success: false, message: 'Já possui um turno ativo no momento! Termine o turno atual antes de iniciar outro.' });
+            }
+
             const agoraBrasil = new Date(Date.now() - (3 * 3600 * 1000));
             const hora = agoraBrasil.getUTCHours();
 
@@ -626,7 +667,7 @@ app.post('/api/membro/turno', async (req, res) => {
     }
 });
 
-// --- NOVAS ROTAS DE GESTÃO DE CARTEIRA E MISSÕES PELO ADMIN ---
+// --- ROTAS DE GESTÃO DE CARTEIRA E MISSÕES PELO ADMIN ---
 app.get('/api/admin/membro/carteira/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -720,7 +761,6 @@ app.post('/api/admin/config/missao-valor', async (req, res) => {
         res.status(500).json({ success: false, message: 'Erro ao salvar configuração.' });
     }
 });
-// -------------------------------------------------------------
 
 app.get('/api/membro/carteira/:nickname', async (req, res) => {
     try {
@@ -914,7 +954,7 @@ app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
             query = { $or: [{ nickname: new RegExp('^' + nickname + '$', 'i') }, { _id: nickname }] };
         }
 
-        let membro = await User.findOne(query, '-password -avatar -historicoTurnos.fotoComprovante -historicoMissoes.comprovante').lean();
+        let membro = await User.findOne(query, 'nickname cargo status historicoTurnos historicoPromocoes historicoSorteios caixaEntrada').lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
         const ultimoTurno = membro.historicoTurnos && membro.historicoTurnos.length > 0 ? membro.historicoTurnos[membro.historicoTurnos.length - 1] : null;
@@ -1004,11 +1044,11 @@ app.put('/api/admin/membro/:id', async (req, res) => {
         if (cargo && cargo !== membroAntigo.cargo) {
             const acaoStr = cargoAniPrecedencia(cargo, membroAntigo.cargo) ? 'Promoção de Cargo' : 'Alteração / Rebaixamento de Cargo';
             await User.updateOne({ _id: id }, { $push: { historicoPromocoes: { novoCargo: cargo, cargoAnterior: membroAntigo.cargo, data: new Date() } } });
-            await registarLogAdmin(nomeAutor, acaoStr, `Membro ${membro.nickname} alterado de ${membroAntigo.cargo} para ${cargo}`);
+            await registarLogAdmin(nomeAutor, acaoStr, `Membro ${membro.nickname} alterado de ${membroAntigo.cargo} para ${cargo} por ${nomeAutor}`);
         }
 
         if (status && status !== membroAntigo.status) {
-            await registarLogAdmin(nomeAutor, 'Alteração de Status', `Membro ${membro.nickname} alterou status para ${status}`);
+            await registarLogAdmin(nomeAutor, 'Alteração de Status', `Membro ${membro.nickname} alterou status para ${status} por ${nomeAutor}`);
         }
 
         if (cargo) {
@@ -1030,6 +1070,7 @@ function cargoAniPrecedencia(novo, antigo) {
 app.put('/api/admin/membro/forcar-fim-turno/:id', async (req, res) => {
     try {
         const { id } = req.params;
+        const { autor } = req.body;
         const membro = await User.findById(id, 'nickname').lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
@@ -1048,7 +1089,7 @@ app.put('/api/admin/membro/forcar-fim-turno/:id', async (req, res) => {
 
         io.emit('atualizar_estado_turno_usuario', { nickname: membro.nickname.toLowerCase() });
         io.emit('atualizar_status_geral_tropa');
-        await registarLogAdmin('Comando', 'Fim de Turno Forçado', `Turno de ${membro.nickname} encerrado à força pelo Comando.`);
+        await registarLogAdmin(autor || 'Comando', 'Fim de Turno Forçado', `Turno de ${membro.nickname} encerrado à força por ${autor || 'Comando'}.`);
 
         res.json({ success: true, message: `Turno de ${membro.nickname} encerrado à força com sucesso!` });
     } catch (error) {
@@ -1059,10 +1100,11 @@ app.put('/api/admin/membro/forcar-fim-turno/:id', async (req, res) => {
 app.put('/api/admin/membro/resetar-turnos/:id', async (req, res) => {
     try {
         const { id } = req.params;
+        const { autor } = req.body;
         const membro = await User.findByIdAndUpdate(id, { $set: { historicoTurnos: [] } }, { new: true, select: 'nickname' }).lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
         io.emit('atualizar_status_geral_tropa');
-        await registarLogAdmin('Comando', 'Reset de Turnos', `Histórico de turnos de ${membro.nickname} foi limpo.`);
+        await registarLogAdmin(autor || 'Comando', 'Reset de Turnos', `Histórico de turnos de ${membro.nickname} foi limpo por ${autor || 'Comando'}.`);
         res.json({ success: true, message: 'Turnos resetados com sucesso!' });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro ao resetar turnos.' });
@@ -1072,6 +1114,7 @@ app.put('/api/admin/membro/resetar-turnos/:id', async (req, res) => {
 app.delete('/api/admin/membro/:id/turno/:turnoId', async (req, res) => {
     try {
         const { id, turnoId } = req.params;
+        const { autor } = req.query; // ou req.body se for POST/DELETE com body
         const membro = await User.findByIdAndUpdate(
             id,
             { $pull: { historicoTurnos: { _id: turnoId } } },
@@ -1080,7 +1123,7 @@ app.delete('/api/admin/membro/:id/turno/:turnoId', async (req, res) => {
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
         io.emit('atualizar_status_geral_tropa');
-        await registarLogAdmin('Comando', 'Exclusão de Turno Específico', `Um turno foi removido do histórico de ${membro.nickname}.`);
+        await registarLogAdmin(autor || 'Comando', 'Exclusão de Turno Específico', `Um turno foi removido do histórico de ${membro.nickname} por ${autor || 'Comando'}.`);
         res.json({ success: true, message: 'Turno removido com sucesso!' });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro ao remover turno.' });
@@ -1090,10 +1133,11 @@ app.delete('/api/admin/membro/:id/turno/:turnoId', async (req, res) => {
 app.delete('/api/admin/membro/:id', async (req, res) => {
     try {
         const { id } = req.params;
+        const { autor } = req.body;
         const membro = await User.findByIdAndDelete(id, { select: 'nickname' }).lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
         io.emit('atualizar_status_geral_tropa');
-        await registarLogAdmin('Comando', 'Demissão / Exclusão', `Membro ${membro.nickname} foi demitido/removido.`);
+        await registarLogAdmin(autor || 'Comando', 'Demissão / Exclusão', `Membro ${membro.nickname} foi demitido/removido por ${autor || 'Comando'}.`);
         res.json({ success: true, message: 'Membro demitido/removido com sucesso!' });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro ao remover membro.' });
@@ -1143,6 +1187,7 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
 
 app.put('/api/admin/ranking/resetar', async (req, res) => {
     try {
+        const { adminNickname } = req.body;
         const dataAtualReset = new Date();
         
         await ConfigSorteio.collection.updateOne(
@@ -1160,7 +1205,7 @@ app.put('/api/admin/ranking/resetar', async (req, res) => {
         await User.updateMany({}, { $push: { caixaEntrada: notif } });
         io.emit('atualizar_status_geral_tropa');
         
-        await registarLogAdmin('Comando', 'Reset de Ranking', 'Novo ciclo semanal iniciado (histórico preservado com data de corte).');
+        await registarLogAdmin(adminNickname || 'Comando', 'Reset de Ranking', `Novo ciclo semanal iniciado por ${adminNickname || 'Comando'}.`);
         res.json({ success: true, message: 'Ranking semanal resetado com sucesso! O histórico dos membros foi preservado.' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao resetar ranking.' });
@@ -1224,7 +1269,7 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
         if (resultado.matchedCount === 0) return res.status(404).json({ success: false, message: 'Membro alvo não encontrado.' });
 
         io.emit('atualizar_status_geral_tropa');
-        await registarLogAdmin(adminNickname, 'Injeção Manual de Tempo', `Adicionado ${duracaoFormatada} para ${targetNickname}. Motivo: ${motivo}`);
+        await registarLogAdmin(adminNickname, 'Injeção Manual de Tempo', `Adicionado ${duracaoFormatada} para ${targetNickname} por Mestre. Motivo: ${motivo}`);
         res.json({ success: true, message: `Adicionado com sucesso ${duracaoFormatada} para ${targetNickname}!` });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro interno ao adicionar tempo: ' + error.message });
@@ -1379,13 +1424,14 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
 
 async function executarResetCiclo(req, res) {
     try {
+        const { adminNickname } = req.body || {};
         await ConfigSorteio.collection.updateOne(
             { chave: 'sorteio_ativo' },
             { $set: { chave: 'sorteio_ativo', ganhadoresCiclo: [], dataUltimoReset: new Date() } },
             { upsert: true }
         );
         io.emit('atualizar_status_geral_tropa');
-        await registarLogAdmin('Comando', 'Reset de Elegíveis', 'Lista de elegíveis zerada.');
+        await registarLogAdmin(adminNickname || 'Comando', 'Reset de Elegíveis', `Lista de elegíveis zerada por ${adminNickname || 'Comando'}.`);
         res.json({ success: true, message: 'Elegíveis resetados com sucesso! A lista foi limpa.' });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao resetar elegíveis.' });
@@ -1397,7 +1443,7 @@ app.post('/api/admin/sorteio/resetar-elegiveis', executarResetCiclo);
 
 app.post('/api/admin/sorteio/realizar', async (req, res) => {
   try {
-    const { premios } = req.body;
+    const { premios, adminNickname } = req.body;
     const config = await obterConfigSorteio();
     const ganhadoresCiclo = config.ganhadoresCiclo || [];
     const dataCorte = config.dataUltimoReset ? new Date(config.dataUltimoReset).getTime() : null;
@@ -1465,7 +1511,7 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
         premio: premioSorteado
     });
 
-    await registarLogAdmin('Comando', 'Giro da Roleta Oficial', `Vencedor: ${vencedor.nickname} | Prêmio: ${premioSorteado}`);
+    await registarLogAdmin(adminNickname || 'Comando', 'Giro da Roleta Oficial', `Vencedor: ${vencedor.nickname} | Prêmio: ${premioSorteado} (Realizado por ${adminNickname || 'Comando'})`);
     
     res.json({ 
         success: true, 
@@ -1501,7 +1547,7 @@ app.get('/api/admin/sorteio/elegiveis-um-turno', async (req, res) => {
 
 app.post('/api/admin/sorteio/realizar-um-turno', async (req, res) => {
   try {
-    const { premios } = req.body;
+    const { premios, adminNickname } = req.body;
     const config = await obterConfigSorteio();
     const ganhadoresCiclo = config.ganhadoresCiclo || [];
 
@@ -1548,7 +1594,7 @@ app.post('/api/admin/sorteio/realizar-um-turno', async (req, res) => {
         }
     );
 
-    await registarLogAdmin('Comando', 'Giro Roleta 1 Turno Hoje', `Vencedor: ${vencedor.nickname} | Prêmio: ${premioSorteado}`);
+    await registarLogAdmin(adminNickname || 'Comando', 'Giro Roleta 1 Turno Hoje', `Vencedor: ${vencedor.nickname} | Prêmio: ${premioSorteado} (Realizado por ${adminNickname || 'Comando'})`);
     
     res.json({ 
         success: true, 
