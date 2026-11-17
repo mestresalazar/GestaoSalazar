@@ -492,8 +492,8 @@
                             <span style="font-size: 11px; color: #34d399; display: block;">Estado: <b id="statusMetaPlantao" style="color: #38bdf8;">Ativo</b></span>
                         </div>
                     </div>
-                    <p style="font-size: 12px; color: #cbd5e1; line-height: 1.5;">
-                        • Cada missão diária concluída com comprovante (print) gera <b>+R$ 1.000</b> na tua carteira digital.
+                    <p style="font-size: 12px; color: #cbd5e1; line-height: 1.5;" id="textoDescricaoCarteira">
+                        • Cada missão diária concluída com comprovante (print) gera o valor configurado na tua carteira digital.
                     </p>
                 </div>
 
@@ -554,7 +554,7 @@
                 <h3 style="border: none; margin: 0; padding: 0;">📋 Missões Diárias do QG</h3>
                 <span style="font-size: 11px; background: rgba(234, 179, 8, 0.25); color: #fde047; padding: 4px 10px; border-radius: 8px; font-weight: 600;">Reinicia às 02:00</span>
             </div>
-            <p style="color: #e2e8f0; font-size: 13px; margin-bottom: 14px;">Patente: <b id="patenteAtualTexto"></b> | Cada missão concluída com <b>print da ação</b> vale <b>R$ 1.000</b>.</p>
+            <p style="color: #e2e8f0; font-size: 13px; margin-bottom: 14px;">Patente: <b id="patenteAtualTexto"></b> | Cada missão concluída com <b>print da ação</b> vale <b id="textoValorMissaoDestaque">R$ 500</b>.</p>
             
             <div id="conteudoMissoesDiarias" style="background: rgba(7, 13, 22, 0.75); padding: 16px; border-radius: 10px; border: 1px solid rgba(234, 179, 8, 0.3); font-size: 13px; color: #e2e8f0; line-height: 1.5;">
                 A carregar missões...
@@ -622,7 +622,7 @@
                 <div style="flex: 2; min-width: 300px; background: rgba(7, 13, 22, 0.8); padding: 16px; border-radius: 12px; border: 1px solid rgba(88, 101, 242, 0.3);">
                     <h4 style="color: #949ba4; font-size: 12px; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 1px;">Operacionais no Canal de Voz</h4>
                     <div id="avatares-falando-grid" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                        <span style="color: #94a3b8; font-size: 13px;">Nenhum operacional conectado no voz no momento.</span>
+                        <span style="color: #949ba4; font-size: 13px;">Nenhum operacional conectado no voz no momento.</span>
                     </div>
                 </div>
             </div>
@@ -710,14 +710,14 @@
         <div class="modal-content">
             <button class="close-modal" onclick="fecharModalMissao()">X</button>
             <h3 style="color: #38bdf8; margin-bottom: 15px;" id="tituloModalMissao">📸 Comprovante de Missão</h3>
-            <p style="font-size: 13px; color: #e2e8f0; margin-bottom: 16px;">Anexe o print que comprove a realização da atividade (Gera <b>+R$ 1.000</b>):</p>
+            <p style="font-size: 13px; color: #e2e8f0; margin-bottom: 16px;" id="textoInstrucaoPrintModal">Anexe o print que comprove a realização da atividade:</p>
             
             <div style="margin-bottom: 18px;">
                 <input type="file" id="fotoPrintMissao" accept="image/*" style="width: 100%; padding: 10px; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 13px;" onchange="converterFotoMissaoLocal(this)">
                 <div id="statusPrintMissao" style="font-size: 12px; color: #22c55e; margin-top: 6px;"></div>
             </div>
 
-            <button id="btnEnviarPrintMissao" class="btn-action" style="background: linear-gradient(135deg, #16a34a, #15803d); margin-top: 0;" onclick="confirmarConclusaoMissaoComPrint()">Enviar Comprovante e Ganhar R$ 1.000</button>
+            <button id="btnEnviarPrintMissao" class="btn-action" style="background: linear-gradient(135deg, #16a34a, #15803d); margin-top: 0;" onclick="confirmarConclusaoMissaoComPrint()">Enviar Comprovante</button>
         </div>
     </div>
 
@@ -793,6 +793,7 @@
 
         let linkGrupoWhatsappGlobal = '';
         let telefoneMembroAtualCache = '';
+        let valorMissaoDinamicoServidor = 1000;
 
         async function carregarLinkWhatsappMembro() {
             try {
@@ -814,7 +815,16 @@
         }
         carregarLinkWhatsappMembro();
 
-        // --- CORREÇÃO SAFARI/IOS PARA ABERTURA DO WHATSAPP ---
+        async function carregarValorMissaoDinamico() {
+            try {
+                const res = await fetch('/api/admin/config/missao-valor');
+                const data = await res.json();
+                if (data.success && data.valor !== undefined) {
+                    valorMissaoDinamicoServidor = Number(data.valor);
+                }
+            } catch (e) {}
+        }
+
         async function abrirGrupoWhatsapp() {
             try {
                 const res = await fetch(`/api/membro/perfil/${encodeURIComponent(user.nickname)}`);
@@ -962,9 +972,16 @@
             ];
         }
 
+        // --- CORREÇÃO PRINCIPAL: SINCRONIZAÇÃO REAL DA CARTEIRA E RESET ---
         async function sincronizarCarteiraEMissoes() {
+            await carregarValorMissaoDinamico();
             const cicloAtual = obterDataCicloOperacional();
             document.getElementById('patenteAtualTexto').innerText = user.cargo || 'Soldado';
+            
+            const valorFormatadoDestaque = Number(valorMissaoDinamicoServidor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            document.getElementById('textoValorMissaoDestaque').innerText = valorFormatadoDestaque;
+            document.getElementById('textoDescricaoCarteira').innerHTML = `• Cada missão diária concluída com comprovante (print) gera <b>+${valorFormatadoDestaque}</b> na tua carteira digital.`;
+
             const containerMissoes = document.getElementById('conteudoMissoesDiarias');
 
             let plantaoOkHoje = localStorage.getItem(`plantao_cumprido_${user.nickname}_${cicloAtual}`) === 'true';
@@ -988,29 +1005,47 @@
             } catch (e) {}
 
             let saldoServidor = null;
+            let servidorRespondeu = false;
             try {
-                const res = await fetch(`/api/membro/carteira/${encodeURIComponent(user.nickname)}`);
+                const res = await fetch(`/api/membro/carteira/${encodeURIComponent(user.nickname)}?_=${Date.now()}`);
                 if (res.ok) {
                     const data = await res.json();
                     if (data.success) {
+                        servidorRespondeu = true;
                         if (typeof data.saldo === 'number') saldoServidor = data.saldo;
-                        if (Array.isArray(data.missoes)) missoesServidorCache = data.missoes;
+                        missoesServidorCache = Array.isArray(data.missoes) ? data.missoes : [];
                     }
                 }
             } catch (e) {}
 
             const chaveMissoes = `missoes_ciclo_${user.nickname}_${cicloAtual}`;
-            const concluidasLocal = JSON.parse(localStorage.getItem(chaveMissoes)) || {};
-            missoesServidorCache.forEach(ms => { if (ms.ciclo === cicloAtual && ms.concluida) concluidasLocal[ms.id] = true; });
-            localStorage.setItem(chaveMissoes, JSON.stringify(concluidasLocal));
+            let concluidasLocal = JSON.parse(localStorage.getItem(chaveMissoes)) || {};
 
-            let saldoBase = saldoServidor !== null ? saldoServidor : parseInt(localStorage.getItem(`carteira_saldo_${user.nickname}`) || '0', 10);
+            // Se o servidor respondeu e o saldo foi zerado pelo ADM (saldoServidor === 0),
+            // limpamos o cache local de ganhos/missões pagas para não ressuscitar o valor antigo!
+            if (servidorRespondeu && saldoServidor === 0) {
+                localStorage.setItem(`carteira_saldo_${user.nickname}`, '0');
+                if (missoesServidorCache.length === 0) {
+                    concluidasLocal = {};
+                    localStorage.removeItem(chaveMissoes);
+                }
+            }
+
+            if (servidorRespondeu && missoesServidorCache.length > 0) {
+                missoesServidorCache.forEach(ms => { 
+                    if (ms.ciclo === cicloAtual && ms.concluida) concluidasLocal[ms.id] = true; 
+                });
+                localStorage.setItem(chaveMissoes, JSON.stringify(concluidasLocal));
+            }
+
             const missoesArray = obterDefinicoesMissoesPorCargo();
             let htmlMissao = '', ganhoHoje = 0;
 
             missoesArray.forEach((m, idx) => {
                 const isConcluida = !!concluidasLocal[m.id];
-                if (isConcluida) ganhoHoje += 1000;
+                if (isConcluida && !(servidorRespondeu && saldoServidor === 0)) {
+                    ganhoHoje += valorMissaoDinamicoServidor;
+                }
                 const botaoAcao = isConcluida 
                     ? `<span style="color: #34d399; font-size: 12px; font-weight: bold;">Concluído ✅</span>`
                     : `<button onclick="abrirModalMissao('${m.id}', '${m.titulo}')" style="background: linear-gradient(135deg, #eab308, #ca8a04); border: none; color: #000; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer;">Enviar Print 📸</button>`;
@@ -1021,15 +1056,22 @@
                             <span style="${isConcluida ? 'text-decoration: line-through; color: #94a3b8;' : 'color: #e2e8f0;'}"><b>M${idx+1}:</b> ${m.titulo}</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 10px;">
-                            <span style="color: #34d399; font-size: 11px; font-weight: bold; background: rgba(16, 185, 129, 0.18); padding: 4px 8px; border-radius: 6px;">+R$ 1.000</span>
+                            <span style="color: #34d399; font-size: 11px; font-weight: bold; background: rgba(16, 185, 129, 0.18); padding: 4px 8px; border-radius: 6px;">+${valorFormatadoDestaque}</span>
                             ${botaoAcao}
                         </div>
                     </div>
                 `;
             });
 
-            if (saldoBase < ganhoHoje) saldoBase = ganhoHoje;
-            saldoCarteiraAtual = saldoBase;
+            // O saldo do servidor tem prioridade absoluta sobre o localStorage
+            if (servidorRespondeu && saldoServidor !== null) {
+                saldoCarteiraAtual = saldoServidor;
+            } else {
+                let saldoLocal = parseInt(localStorage.getItem(`carteira_saldo_${user.nickname}`) || '0', 10);
+                if (saldoLocal < ganhoHoje) saldoLocal = ganhoHoje;
+                saldoCarteiraAtual = saldoLocal;
+            }
+
             localStorage.setItem(`carteira_saldo_${user.nickname}`, saldoCarteiraAtual.toString());
 
             containerMissoes.innerHTML = htmlMissao;
@@ -1051,6 +1093,9 @@
         function abrirModalMissao(idMissao, tituloMissao) {
             missaoSelecionadaAtual = idMissao; fotoPrintMissaoBase64 = '';
             document.getElementById('tituloModalMissao').innerText = `📸 Comprovante: ${tituloMissao}`;
+            const valorFormatadoDestaque = Number(valorMissaoDinamicoServidor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            document.getElementById('textoInstrucaoPrintModal').innerHTML = `Anexe o print que comprove a realização da atividade (Gera <b>+${valorFormatadoDestaque}</b>):`;
+            document.getElementById('btnEnviarPrintMissao').innerText = `Enviar Comprovante e Ganhar ${valorFormatadoDestaque}`;
             document.getElementById('fotoPrintMissao').value = '';
             document.getElementById('statusPrintMissao').innerText = '';
             document.getElementById('modalMissaoComprovante').style.display = 'flex';
@@ -1074,6 +1119,7 @@
             }
             processandoMissao = true;
             const btnEnv = document.getElementById('btnEnviarPrintMissao');
+            const valorFormatadoDestaque = Number(valorMissaoDinamicoServidor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             if (btnEnv) { btnEnv.disabled = true; btnEnv.innerText = 'A enviar comprovante...'; }
 
             fecharModalMissao();
@@ -1081,13 +1127,13 @@
             const concluidas = JSON.parse(localStorage.getItem(`missoes_ciclo_${user.nickname}_${cicloAtual}`)) || {};
             if (concluidas[missaoSelecionadaAtual]) {
                 processandoMissao = false;
-                if (btnEnv) { btnEnv.disabled = false; btnEnv.innerText = 'Enviar Comprovante e Ganhar R$ 1.000'; }
+                if (btnEnv) { btnEnv.disabled = false; btnEnv.innerText = `Enviar Comprovante e Ganhar ${valorFormatadoDestaque}`; }
                 return;
             }
 
             concluidas[missaoSelecionadaAtual] = true;
             localStorage.setItem(`missoes_ciclo_${user.nickname}_${cicloAtual}`, JSON.stringify(concluidas));
-            saldoCarteiraAtual += 1000;
+            saldoCarteiraAtual += valorMissaoDinamicoServidor;
             localStorage.setItem(`carteira_saldo_${user.nickname}`, saldoCarteiraAtual.toString());
 
             try {
@@ -1096,6 +1142,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         nickname: user.nickname, 
+                        missaoId: missaoSelecionadaAtual,
                         saldoTotal: saldoCarteiraAtual, 
                         motivo: `Missão Diária Concluída`, 
                         ciclo: cicloAtual, 
@@ -1105,12 +1152,12 @@
             } catch (e) {}
 
             processandoMissao = false;
-            if (btnEnv) { btnEnv.disabled = false; btnEnv.innerText = 'Enviar Comprovante e Ganhar R$ 1.000'; }
-            mostrarModalCustomizado('Sucesso', 'Comprovante verificado e registado nas logs do comando! <b>+R$ 1.000</b> adicionados à sua Carteira.');
+            if (btnEnv) { btnEnv.disabled = false; btnEnv.innerText = `Enviar Comprovante e Ganhar ${valorFormatadoDestaque}`; }
+            mostrarModalCustomizado('Sucesso', `Comprovante verificado e registado nas logs do comando! <b>+${valorFormatadoDestaque}</b> adicionados à sua Carteira.`);
             sincronizarCarteiraEMissoes();
         }
 
-        setInterval(sincronizarCarteiraEMissoes, 60000);
+        setInterval(sincronizarCarteiraEMissoes, 15000);
         sincronizarCarteiraEMissoes();
 
         async function verificarEstadoPush() {
@@ -1232,6 +1279,20 @@
 
         const socket = io();
         socket.emit('entrar_sala', { salaId: 'sala_geral_salazar', nickname: user.nickname, cargo: user.cargo || 'Soldado', emPlantao: false });
+
+        // Escuta atualizações em tempo real caso o ADM resete a carteira ou altere o status geral
+        socket.on('atualizar_status_geral_tropa', () => {
+            sincronizarCarteiraEMissoes();
+            carregarCaixaEntrada();
+        });
+
+        socket.on('atualizar_carteira_membro', (dados) => {
+            if (!dados || !dados.nickname || dados.nickname.toLowerCase() === user.nickname.toLowerCase()) {
+                localStorage.setItem(`carteira_saldo_${user.nickname}`, '0');
+                sincronizarCarteiraEMissoes();
+                carregarCaixaEntrada();
+            }
+        });
 
         socket.on('atualizar_usuarios_online', (usuarios) => {
             const lista = document.getElementById('listaOnline');

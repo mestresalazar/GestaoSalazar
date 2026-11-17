@@ -547,7 +547,6 @@ app.put('/api/membro/status-plantao', async (req, res) => {
             estadoTurno: estadoTurno || 'parado'
         };
 
-        // BLINDAGEM CRUCIAL: Se já estava em plantão no banco, preservamos o início e os segundos caso venham zerados acidentalmente
         if (emPlantao && membroAtual.emPlantao) {
             updateData.inicioPlantao = inicioPlantao ? new Date(inicioPlantao) : membroAtual.inicioPlantao;
             updateData.segundosAcumulados = (segundosAcumulados !== undefined && segundosAcumulados > 0) ? segundosAcumulados : (membroAtual.segundosAcumulados || 0);
@@ -591,7 +590,7 @@ app.post('/api/membro/turno', async (req, res) => {
         }
 
         if (segundosFinais < 5) {
-            segundosFinais = 5; // Margem de segurança mínima para evitar rejeição por frações de segundo
+            segundosFinais = 5; 
         }
 
         const duracaoFormatada = converterSegundosParaDuracao(segundosFinais);
@@ -626,6 +625,102 @@ app.post('/api/membro/turno', async (req, res) => {
         res.status(500).json({ success: false, message: 'Erro ao guardar turno: ' + error.message });
     }
 });
+
+// --- NOVAS ROTAS DE GESTÃO DE CARTEIRA E MISSÕES PELO ADMIN ---
+app.get('/api/admin/membro/carteira/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        let query = { _id: id };
+        if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+            query = { nickname: new RegExp('^' + decodeURIComponent(id) + '$', 'i') };
+        }
+
+        const membro = await User.findOne(query, 'nickname cargo carteiraSaldo historicoMissoes').lean();
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        res.json({
+            success: true,
+            nickname: membro.nickname,
+            cargo: membro.cargo || 'Privado',
+            saldo: membro.carteiraSaldo !== undefined ? membro.carteiraSaldo : 0,
+            historicoMissoes: membro.historicoMissoes || []
+        });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao carregar carteira do membro.' });
+    }
+});
+
+app.put('/api/admin/membro/carteira/resetar/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { adminNickname } = req.body;
+
+        const membro = await User.findById(id, 'nickname carteiraSaldo').lean();
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        const saldoPago = membro.carteiraSaldo || 0;
+
+        await User.updateOne(
+            { _id: id },
+            { 
+                $set: { carteiraSaldo: 0 },
+                $push: { 
+                    caixaEntrada: {
+                        titulo: '💰 Pagamento Efetuado!',
+                        mensagem: `O Comando efetuou o pagamento do seu saldo acumulado de <b>R$ ${saldoPago.toLocaleString('pt-BR')}</b>. A carteira foi reiniciada para R$ 0,00.`,
+                        data: new Date()
+                    }
+                }
+            }
+        );
+
+        io.emit('atualizar_status_geral_tropa');
+        await registarLogAdmin(adminNickname || 'Comando', 'Pagamento de Carteira', `Efetuado pagamento de R$ ${saldoPago} para ${membro.nickname} e saldo zerado.`);
+        
+        res.json({ success: true, message: `Pagamento registado e carteira de ${membro.nickname} zerada com sucesso!` });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao processar pagamento.' });
+    }
+});
+
+app.get('/api/admin/config/missao-valor', async (req, res) => {
+    try {
+        const config = await ConfigSorteio.collection.findOne({ chave: 'valor_missao_diaria' });
+        res.json({ success: true, valor: config ? config.valor : 50000 });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao buscar configuração.' });
+    }
+});
+
+app.post('/api/admin/config/missao-valor', async (req, res) => {
+    try {
+        const { adminNickname, novoValor } = req.body;
+        const valorNumerico = Number(novoValor);
+
+        if (isNaN(valorNumerico) || valorNumerico < 0) {
+            return res.status(400).json({ success: false, message: 'Valor inválido.' });
+        }
+
+        await ConfigSorteio.collection.updateOne(
+            { chave: 'valor_missao_diaria' },
+            { 
+                $set: { 
+                    chave: 'valor_missao_diaria',
+                    valor: valorNumerico, 
+                    atualizadoPor: adminNickname || 'Comando', 
+                    data: new Date() 
+                } 
+            },
+            { upsert: true }
+        );
+
+        await registarLogAdmin(adminNickname || 'Comando', 'Atualizou Valor da Missão', `Novo valor configurado: R$ ${valorNumerico.toLocaleString('pt-BR')}`);
+        res.json({ success: true, message: 'Valor das missões diárias atualizado com sucesso!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao salvar configuração.' });
+    }
+});
+// -------------------------------------------------------------
 
 app.get('/api/membro/carteira/:nickname', async (req, res) => {
     try {

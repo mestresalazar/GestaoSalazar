@@ -232,6 +232,7 @@
         .btn-parar-turno { background-color: rgba(245, 158, 11, 0.9); color: #000; }
         .btn-prints { background-color: rgba(234, 179, 8, 0.9); color: #000; }
         .btn-perfil { background-color: rgba(147, 51, 234, 0.9); }
+        .btn-carteira { background-color: rgba(34, 197, 94, 0.9); color: #fff; }
 
         .status-dot-offline { display: inline-block; width: 8px; height: 8px; background: #64748b; border-radius: 50%; margin-right: 5px; }
         .status-dot-online { display: inline-block; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; margin-right: 5px; box-shadow: 0 0 6px #22c55e; }
@@ -367,6 +368,16 @@
                     </div>
                 </div>
 
+                <!-- CONFIGURAR VALOR DA MISSÃO DIÁRIA -->
+                <div class="card" style="border: 2px dashed #38bdf8; background: rgba(56, 189, 248, 0.05);">
+                    <h3 style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.3);">💰 Configurar Valor de Missões Diárias</h3>
+                    <p style="color: #e2e8f0; margin-bottom: 12px; font-size: 13px;">Defina o valor em dinheiro pago aos operacionais ao concluir as missões diárias.</p>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <input type="number" id="inputValorMissaoAdmin" placeholder="Ex: 50000" class="search-input-box" style="flex: 1; margin-bottom: 0;">
+                        <button class="btn-action" style="background-color: #38bdf8; color: #000; padding: 10px 18px; font-weight: bold;" onclick="salvarValorMissaoAdmin()">💾 Salvar Valor</button>
+                    </div>
+                </div>
+
                 <!-- DISPARAR ALARME -->
                 <div class="card" style="border: 2px dashed #ef4444; background: rgba(239, 68, 68, 0.05);">
                     <h3 style="color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">🚨 Alarme Geral de Ação</h3>
@@ -424,7 +435,7 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- ABA 3: SORTEIOS E ROLETA (SEM HORA LÁ EM CIMA) -->
+    <!-- ABA 3: SORTEIOS E ROLETA -->
     <!-- ========================================== -->
     <div id="aba-sorteios" class="tab-content">
         <div class="card" style="max-width: 800px; margin: 0 auto;">
@@ -530,6 +541,22 @@
         </div>
     </div>
 
+    <!-- MODAL DE CARTEIRA E PAGAMENTO DO MEMBRO -->
+    <div id="modalAdminCarteira" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.85); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 10000; padding: 16px;">
+        <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 100%; max-width: 450px; border-radius: 16px; padding: 24px; border: 1px solid rgba(34, 197, 94, 0.4); text-align: center; color: #fff; max-height: 85vh; overflow-y: auto;">
+            <button class="close-modal" onclick="document.getElementById('modalAdminCarteira').style.display='none'">X</button>
+            <h3 id="tituloCarteiraAdmin" style="color: #22c55e; margin-bottom: 10px;">💰 Gestão de Carteira</h3>
+            <p id="subCarteiraAdmin" style="font-size: 12px; color: #94a3b8; margin-bottom: 20px;"></p>
+
+            <div style="background: rgba(7, 13, 22, 0.75); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 10px; padding: 16px; text-align: left; font-size: 14px; margin-bottom: 20px;">
+                <p style="margin-bottom: 10px;"><b>Saldo Acumulado:</b> <span id="saldoAtualAdmin" style="color: #22c55e; font-size: 18px; font-weight: bold;">R$ 0,00</span></p>
+                <p style="font-size: 12px; color: #94a3b8; line-height: 1.4;">Ao efetuar o pagamento em dinheiro do jogo, clique no botão abaixo para registrar a quitação e zerar o saldo acumulado do operacional.</p>
+            </div>
+
+            <button class="btn-action" style="background-color: #22c55e; color: #fff; width: 100%; padding: 12px; font-weight: bold; border-radius: 10px; font-size: 14px;" onclick="efetuarPagamentoCarteira()">💸 Efetuar Pagamento & Zerar Saldo</button>
+        </div>
+    </div>
+
     <!-- MODAL DE PERFIL DO OPERACIONAL (COM TELEFONE) -->
     <div id="modalPerfilAdmin" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.85); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 10000; padding: 16px;">
         <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 100%; max-width: 450px; border-radius: 16px; padding: 24px; border: 1px solid rgba(56, 189, 248, 0.4); text-align: center; color: #fff; max-height: 85vh; overflow-y: auto;">
@@ -600,6 +627,7 @@
         let listaMembrosCache = [];
         let usuariosOnlineSocket = [];
         let cacheGlobalLogs = [];
+        let membroIdSelecionadoCarteira = null;
 
         const socket = io({
             reconnection: true,
@@ -664,6 +692,38 @@
             } catch (e) {}
         }
         carregarLinkWhatsappAdmin();
+
+        async function carregarValorMissaoAdmin() {
+            try {
+                const res = await fetch('/api/admin/config/missao-valor');
+                const data = await res.json();
+                if (data.success && data.valor !== undefined) {
+                    document.getElementById('inputValorMissaoAdmin').value = data.valor;
+                }
+            } catch (e) {}
+        }
+        carregarValorMissaoAdmin();
+
+        async function salvarValorMissaoAdmin() {
+            const novoValor = document.getElementById('inputValorMissaoAdmin').value.trim();
+            if (!novoValor) return;
+
+            try {
+                const res = await fetch('/api/admin/config/missao-valor', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ adminNickname: user.nickname, novoValor })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    mostrarModalCustomizado('Sucesso', data.message || 'Valor das missões atualizado com sucesso!');
+                } else {
+                    mostrarModalCustomizado('Erro', data.message || 'Erro ao atualizar valor.');
+                }
+            } catch (e) {
+                mostrarModalCustomizado('Erro', 'Erro de conexão.');
+            }
+        }
 
         async function salvarLinkWhatsappAdmin() {
             const link = document.getElementById('inputLinkWhatsappAdmin').value.trim();
@@ -950,6 +1010,14 @@
                 container.appendChild(btnParar);
             }
 
+            const btnCarteira = document.createElement('button');
+            btnCarteira.className = 'btn-action btn-carteira';
+            btnCarteira.style.width = '100%';
+            btnCarteira.style.padding = '10px';
+            btnCarteira.innerText = '💰 Ver Carteira & Efetuar Pagamento';
+            btnCarteira.onclick = () => { modal.style.display = 'none'; abrirModalCarteiraAdmin(id, nickname); };
+            container.appendChild(btnCarteira);
+
             const btnHistorico = document.createElement('button');
             btnHistorico.className = 'btn-action btn-historico';
             btnHistorico.style.width = '100%';
@@ -991,6 +1059,58 @@
             container.appendChild(btnDemitir);
 
             modal.style.display = 'flex';
+        }
+
+        async function abrirModalCarteiraAdmin(id, nickname) {
+            membroIdSelecionadoCarteira = id;
+            document.getElementById('tituloCarteiraAdmin').innerText = `💰 Carteira de ${nickname}`;
+            document.getElementById('subCarteiraAdmin').innerText = `A carregar saldo...`;
+            document.getElementById('saldoAtualAdmin').innerText = `R$ 0,00`;
+            document.getElementById('modalAdminCarteira').style.display = 'flex';
+
+            try {
+                const res = await fetch(`/api/admin/membro/carteira/${id}`);
+                const data = await res.json();
+                if (data.success) {
+                    const saldoFormatado = Number(data.saldo || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    document.getElementById('saldoAtualAdmin').innerText = saldoFormatado;
+                    document.getElementById('subCarteiraAdmin').innerText = `Cargo: ${data.cargo}`;
+                } else {
+                    document.getElementById('subCarteiraAdmin').innerText = `Erro ao carregar dados.`;
+                }
+            } catch (e) {
+                document.getElementById('subCarteiraAdmin').innerText = `Erro de conexão.`;
+            }
+        }
+
+        async function efetuarPagamentoCarteira() {
+            if (!membroIdSelecionadoCarteira) return;
+
+            mostrarModalCustomizado(
+                'Efetuar Pagamento',
+                'Tem a certeza que efetuou o pagamento em dinheiro do jogo e deseja zerar o saldo desta carteira?',
+                'confirmacao',
+                async () => {
+                    try {
+                        const res = await fetch(`/api/admin/membro/carteira/resetar/${membroIdSelecionadoCarteira}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ adminNickname: user.nickname })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            document.getElementById('modalAdminCarteira').style.display = 'none';
+                            mostrarModalCustomizado('Sucesso', data.message || 'Pagamento registado com sucesso!');
+                            carregarEfetivo();
+                            carregarLogsAdmin();
+                        } else {
+                            mostrarModalCustomizado('Erro', data.message || 'Erro ao efetuar pagamento.');
+                        }
+                    } catch (e) {
+                        mostrarModalCustomizado('Erro', 'Erro de conexão.');
+                    }
+                }
+            );
         }
 
         async function abrirPerfilAdmin(nickname) {
