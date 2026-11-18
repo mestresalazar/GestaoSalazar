@@ -1114,7 +1114,7 @@ app.put('/api/admin/membro/resetar-turnos/:id', async (req, res) => {
 app.delete('/api/admin/membro/:id/turno/:turnoId', async (req, res) => {
     try {
         const { id, turnoId } = req.params;
-        const { autor } = req.query; // ou req.body se for POST/DELETE com body
+        const { autor } = req.query;
         const membro = await User.findByIdAndUpdate(
             id,
             { $pull: { historicoTurnos: { _id: turnoId } } },
@@ -1675,7 +1675,7 @@ function obterUtilizadoresVoz(salaVozId) {
   return lista;
 }
 
-function atualizarEstadoOperacional(salaId) {
+async function atualizarEstadoOperacional(salaId) {
   const conexõesNaSala = Object.values(usuariosOnline).filter(u => u.salaId === salaId);
   const unicosMap = {};
   conexõesNaSala.forEach(u => { unicosMap[u.nickname] = u; });
