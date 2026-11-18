@@ -932,11 +932,11 @@
                 img.onload = function() {
                     const canvas = document.createElement('canvas');
                     let largura = img.width, altura = img.height;
-                    const maxDim = 600; // Reduzido de 1280 para 600px para garantir imagens extremamente leves
+                    const maxDim = 600;
                     if (largura > maxDim) { altura = Math.round((altura * maxDim) / largura); largura = maxDim; }
                     canvas.width = largura; canvas.height = altura;
                     canvas.getContext('2d').drawImage(img, 0, 0, largura, altura);
-                    callback(canvas.toDataURL('image/jpeg', 0.45)); // Qualidade otimizada para 45% (poucos KBs)
+                    callback(canvas.toDataURL('image/jpeg', 0.45));
                 };
                 img.src = e.target.result;
             };
@@ -1352,6 +1352,14 @@
         let processandoCheckin = false, processandoCheckout = false;
         const TEMPO_MINIMO_SEGUNDOS = 30 * 60;
 
+        function limparPrintTurnoLocal() {
+            fotoComprovanteBase64 = '';
+            const inputFile = document.getElementById('fotoComprovante');
+            if (inputFile) inputFile.value = '';
+            const statusAnexoEl = document.getElementById('statusAnexo');
+            if (statusAnexoEl) statusAnexoEl.innerText = '';
+        }
+
         function calcularSegundosTotais() {
             return (estadoTurno === 'ativo' && timestampInicioServer) ? segundosAcumuladosBase + Math.floor((Date.now() - timestampInicioServer) / 1000) : segundosAcumuladosBase;
         }
@@ -1373,11 +1381,16 @@
                     estadoTurno = data.membro.estadoTurno || 'parado';
                     segundosAcumuladosBase = data.membro.segundosAcumulados || 0;
                     timestampInicioServer = data.membro.inicioPlantao ? new Date(data.membro.inicioPlantao).getTime() : null;
-                    fotoComprovanteBase64 = data.membro.fotoComprovanteAtiva || '';
+                    fotoComprovanteBase64 = (estadoTurno === 'ativo' || estadoTurno === 'pausado') ? (data.membro.fotoComprovanteAtiva || '') : '';
                 }
             } catch (e) {}
 
-            if (fotoComprovanteBase64) document.getElementById('statusAnexo').innerText = '✅ Print guardado e pronto!';
+            if (fotoComprovanteBase64) {
+                document.getElementById('statusAnexo').innerText = '✅ Print guardado e pronto!';
+            } else {
+                limparPrintTurnoLocal();
+            }
+
             if (estadoTurno === 'ativo') {
                 document.getElementById('btnCheckin').disabled = true;
                 document.getElementById('btnPausar').style.display = 'block';
@@ -1450,7 +1463,8 @@
                     if (processandoCheckout) return;
                     processandoCheckout = true;
                     clearInterval(timerInterval);
-                    await fetch('/api/membro/status-plantao', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: user.nickname, emPlantao: false, estadoTurno: 'parado', segundosAcumulados: 0 }) });
+                    limparPrintTurnoLocal();
+                    await fetch('/api/membro/status-plantao', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: user.nickname, emPlantao: false, estadoTurno: 'parado', segundosAcumulados: 0, fotoComprovanteAtiva: '' }) });
                     window.location.reload();
                 });
                 return;
@@ -1480,6 +1494,7 @@
                 });
                 const data = await res.json();
                 if (data.success) { 
+                    limparPrintTurnoLocal();
                     window.location.reload(); 
                 } else {
                     processandoCheckout = false;
