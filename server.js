@@ -18,8 +18,8 @@ const privateVapidKey = process.env.VAPID_PRIVATE_KEY || 'zpTFhXUSrW9O8iuzIMZ_-_
 
 try {
     webpush.setVapidDetails(
-        'mailto:rafael.limaaypa@gmail.com', 
-        publicVapidKey, 
+        'mailto:rafael.limaaypa@gmail.com',
+        publicVapidKey,
         privateVapidKey
     );
     console.log("Chaves VAPID configuradas com sucesso!");
@@ -67,7 +67,7 @@ async function registarLogAdmin(autor, acao, detalhes) {
 
 function converterDuracaoParaSegundos(duracaoStr) {
   if (!duracaoStr) return 0;
-  const partes = duracaoStr.split(':');
+  const partes = String(duracaoStr).split(':');
   if (partes.length !== 3) return 0;
   return (parseInt(partes[0], 10) * 3600) + (parseInt(partes[1], 10) * 60) + parseInt(partes[2], 10);
 }
@@ -80,8 +80,19 @@ function converterSegundosParaDuracao(segundosTotais) {
   return `${horas}:${minutos}:${segundos}`;
 }
 
+// Helper consistente para horário de Brasília (UTC-3), independente do fuso do servidor
+function obterDataEmBrasil(timestamp = Date.now()) {
+    return new Date(Number(timestamp) - (3 * 3600 * 1000));
+}
+
+function horaBrasiliaEstaNaJanelaTurno(dateObj) {
+    const dBrasil = obterDataEmBrasil(dateObj);
+    const hora = dBrasil.getUTCHours();
+    return (hora >= 17 && hora <= 23) || (hora >= 0 && hora < 2);
+}
+
 function obterDataCicloBrasil() {
-    const agoraBrasil = new Date(Date.now() - (3 * 3600 * 1000));
+    const agoraBrasil = obterDataEmBrasil(Date.now());
     if (agoraBrasil.getUTCHours() < 2) {
         agoraBrasil.setUTCDate(agoraBrasil.getUTCDate() - 1);
     }
@@ -89,22 +100,32 @@ function obterDataCicloBrasil() {
 }
 
 function calcularSegundosValidosNoHorario(inicioTimestamp, fimTimestamp) {
-    const inicio = new Date(inicioTimestamp);
-    const fim = new Date(fimTimestamp);
-    if (fim <= inicio) return 0;
+    const inicioMs = new Date(inicioTimestamp).getTime();
+    const fimMs = new Date(fimTimestamp).getTime();
+    if (isNaN(inicioMs) || isNaN(fimMs) || fimMs <= inicioMs) return 0;
 
-    const janelaInicio = new Date(inicio);
-    if (janelaInicio.getHours() < 2) {
-        janelaInicio.setDate(janelaInicio.getDate() - 1);
+    // Trabalha em timestamps UTC deslocados em -3h para alinhar exatamente às 17:00 e 02:00 de Brasília
+    const offsetMs = 3 * 3600 * 1000;
+    const inicioBrt = new Date(inicioMs - offsetMs);
+
+    const janelaInicioBrt = new Date(Date.UTC(
+        inicioBrt.getUTCFullYear(),
+        inicioBrt.getUTCMonth(),
+        inicioBrt.getUTCDate(),
+        17, 0, 0, 0
+    ));
+
+    if (inicioBrt.getUTCHours() < 2) {
+        janelaInicioBrt.setUTCDate(janelaInicioBrt.getUTCDate() - 1);
     }
-    janelaInicio.setHours(17, 0, 0, 0);
 
-    const janelaFim = new Date(janelaInicio);
-    janelaFim.setDate(janelaFim.getDate() + 1);
-    janelaFim.setHours(2, 0, 0, 0);
+    const janelaFimBrt = new Date(janelaInicioBrt.getTime() + (9 * 3600 * 1000)); // 17:00 até 02:00 (+9h)
 
-    const inicioValido = Math.max(inicio.getTime(), janelaInicio.getTime());
-    const fimValido = Math.min(fim.getTime(), janelaFim.getTime());
+    const janelaInicioRealMs = janelaInicioBrt.getTime() + offsetMs;
+    const janelaFimRealMs = janelaFimBrt.getTime() + offsetMs;
+
+    const inicioValido = Math.max(inicioMs, janelaInicioRealMs);
+    const fimValido = Math.min(fimMs, janelaFimRealMs);
 
     if (fimValido <= inicioValido) return 0;
 
@@ -119,8 +140,7 @@ function turnoEstaNoHorarioPermitido(t) {
     const d = new Date(t.data);
     if (isNaN(d.getTime())) return false;
 
-    const horaBrasil = (d.getUTCHours() - 3 + 24) % 24;
-    return (horaBrasil >= 17 && horaBrasil <= 23) || (horaBrasil >= 0 && horaBrasil < 2);
+    return horaBrasiliaEstaNaJanelaTurno(d);
 }
 
 function turnoPertenceAoCicloAtual(t) {
@@ -131,8 +151,8 @@ function turnoPertenceAoCicloAtual(t) {
     const d = new Date(t.data);
     if (isNaN(d.getTime())) return false;
 
-    const agoraBrasil = new Date(Date.now() - (3 * 3600 * 1000));
-    const dBrasil = new Date(d.getTime() - (3 * 3600 * 1000));
+    const agoraBrasil = obterDataEmBrasil(Date.now());
+    const dBrasil = obterDataEmBrasil(d);
     const horaAtual = agoraBrasil.getUTCHours();
 
     const hojeStr = agoraBrasil.toISOString().split('T')[0];
@@ -161,16 +181,16 @@ app.get('/api/admin/whatsapp-link', async (req, res) => {
 app.post('/api/admin/whatsapp-link', async (req, res) => {
     try {
         const { adminNickname, link } = req.body;
-        
+
         await ConfigSorteio.collection.updateOne(
             { chave: 'whatsapp_grupo' },
-            { 
-                $set: { 
+            {
+                $set: {
                     chave: 'whatsapp_grupo',
-                    link: link || '', 
-                    atualizadoPor: adminNickname || 'Comando', 
-                    data: new Date() 
-                } 
+                    link: link || '',
+                    atualizadoPor: adminNickname || 'Comando',
+                    data: new Date()
+                }
             },
             { upsert: true }
         );
@@ -183,16 +203,16 @@ app.post('/api/admin/whatsapp-link', async (req, res) => {
     }
 });
 
-// --- VERIFICAÇÃO AUTOMÁTICA DE FECHO DE TURNO ÀS 02:05 ---
+// --- VERIFICAÇÃO AUTOMÁTICA DE FECHO DE TURNO ÀS 02:05 (BRASÍLIA) ---
 async function verificarFechamentoAutomaticoTurnos() {
     try {
-        const agoraBrasil = new Date(Date.now() - (3 * 3600 * 1000));
+        const agoraBrasil = obterDataEmBrasil(Date.now());
         const hora = agoraBrasil.getUTCHours();
         const minuto = agoraBrasil.getUTCMinutes();
 
         if (hora === 2 && minuto >= 5 && minuto <= 7) {
             const membrosEmPlantao = await User.find({ emPlantao: true }, 'nickname segundosAcumulados inicioPlantao').lean();
-            
+
             for (const membro of membrosEmPlantao) {
                 let segundosTotais = membro.segundosAcumulados || 0;
                 if (membro.inicioPlantao) {
@@ -212,22 +232,22 @@ async function verificarFechamentoAutomaticoTurnos() {
 
                     await User.updateOne(
                         { _id: membro._id },
-                        { 
-                            $push: { 
+                        {
+                            $push: {
                                 historicoTurnos: novoTurno,
                                 caixaEntrada: {
                                     titulo: '⏱️ Turno Finalizado Automaticamente',
                                     mensagem: `O teu plantão foi encerrado e salvo automaticamente pelo sistema devido ao atingimento do horário limite (02:05). Duração: <b>${duracaoFormatada}</b>.`,
                                     data: new Date()
                                 }
-                            }, 
-                            $set: { 
-                                emPlantao: false, 
+                            },
+                            $set: {
+                                emPlantao: false,
                                 estadoTurno: 'parado',
                                 inicioPlantao: null,
                                 segundosAcumulados: 0,
                                 fotoComprovanteAtiva: ''
-                            } 
+                            }
                         }
                     );
 
@@ -262,7 +282,7 @@ async function verificarInatividadeTropa() {
             }
 
             if (ultimoTurnoData < tresDiasAtras) {
-                const jaNotificadoRecente = (membro.caixaEntrada || []).some(n => 
+                const jaNotificadoRecente = (membro.caixaEntrada || []).some(n =>
                     n.titulo && n.titulo.includes('Inatividade') && (agora - new Date(n.data)) < 24 * 60 * 60 * 1000
                 );
 
@@ -331,7 +351,7 @@ app.post('/api/auth/login', async (req, res) => {
         const { nickname, senha, password } = req.body;
         const passFinal = senha || password;
         if (!nickname || !passFinal) return res.status(400).json({ success: false, message: 'Preencha os campos.' });
-        
+
         const user = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') }, 'nickname password cargo role status').lean();
         if (!user) return res.status(400).json({ success: false, message: 'Utilizador não encontrado.' });
         if (user.password && user.password !== passFinal) {
@@ -392,8 +412,8 @@ app.get('/api/membro/perfil/:nickname', async (req, res) => {
         const diffDias = Math.floor(Math.abs(new Date() - dataCriacao) / (1000 * 60 * 60 * 24));
         const tempoGestaoStr = diffDias === 0 ? 'Menos de 1 dia' : `${diffDias} dia(s) na organização`;
 
-        const ultimoTurno = membro.historicoTurnos && membro.historicoTurnos.length > 0 
-            ? `${membro.historicoTurnos[membro.historicoTurnos.length - 1].duracao} (${new Date(membro.historicoTurnos[membro.historicoTurnos.length - 1].data).toLocaleDateString()})` 
+        const ultimoTurno = membro.historicoTurnos && membro.historicoTurnos.length > 0
+            ? `${membro.historicoTurnos[membro.historicoTurnos.length - 1].duracao} (${new Date(membro.historicoTurnos[membro.historicoTurnos.length - 1].data).toLocaleDateString()})`
             : 'Nenhum';
 
         res.json({
@@ -461,8 +481,8 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
         ).lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
-        const ultimoTurno = membro.historicoTurnos && membro.historicoTurnos.length > 0 
-            ? membro.historicoTurnos[membro.historicoTurnos.length - 1] 
+        const ultimoTurno = membro.historicoTurnos && membro.historicoTurnos.length > 0
+            ? membro.historicoTurnos[membro.historicoTurnos.length - 1]
             : null;
 
         res.json({
@@ -514,7 +534,7 @@ app.post('/api/admin/disparar-acao', async (req, res) => {
             const adminUser = await User.findOne({ nickname: new RegExp('^' + adminNickname + '$', 'i') }, 'role cargo').lean();
             const cargoAdmin = adminUser ? (adminUser.cargo || '') : '';
             const ehAdminValido = adminUser && (adminUser.role === 'admin' || cargoAdmin === 'General' || cargoAdmin === 'Coronel All');
-            
+
             if (!ehAdminValido) {
                 return res.status(403).json({ success: false, message: 'Acesso negado. Apenas o Comando Superior (General ou Coronel All) pode disparar ações.' });
             }
@@ -554,68 +574,95 @@ app.post('/api/admin/disparar-acao', async (req, res) => {
     }
 });
 
-// --- ROTA BLINDADA DE STATUS DE PLANTÃO (IMPEDE DUPLICIDADE/TURNO DUPLO) ---
+// --- ROTA BLINDADA DE STATUS DE PLANTÃO (IMPEDE DUPLICIDADE / SINCRONIZA ESTADO) ---
 app.put('/api/membro/status-plantao', async (req, res) => {
     try {
         const { nickname, emPlantao, estadoTurno, inicioPlantao, segundosAcumulados, fotoComprovanteAtiva } = req.body;
         if (!nickname) return res.status(400).json({ success: false, message: 'Nickname obrigatório.' });
 
-        const membroAtual = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, 'emPlantao inicioPlantao segundosAcumulados cargo').lean();
+        const membroAtual = await User.findOne(
+            { nickname: new RegExp('^' + String(nickname).trim() + '$', 'i') },
+            'emPlantao estadoTurno inicioPlantao segundosAcumulados cargo'
+        ).lean();
         if (!membroAtual) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
-        if (emPlantao) {
-            // VERIFICAÇÃO DE TURNO DUPLO: se já estiver em plantão e tentar iniciar outro
-            if (membroAtual.emPlantao && estadoTurno === 'ativo') {
-                return res.status(400).json({ success: false, message: 'Já possui um turno ativo no momento! Termine o turno atual antes de iniciar outro.' });
-            }
+        // Só bloqueia início de turno novo se o usuário já estiver com plantão ATIVO e não estiver apenas pausando/retomando/atualizando
+        if (emPlantao && estadoTurno === 'ativo' && membroAtual.emPlantao && membroAtual.estadoTurno === 'ativo') {
+            return res.status(400).json({
+                success: false,
+                message: 'Já possui um turno ativo no momento! Termine o turno atual antes de iniciar outro.'
+            });
+        }
 
-            const agoraBrasil = new Date(Date.now() - (3 * 3600 * 1000));
+        // Ao INICIAR um plantão novo (não estava em plantão), valida horário de Brasília (17:00 às 02:00)
+        if (emPlantao && !membroAtual.emPlantao) {
+            const agoraBrasil = obterDataEmBrasil(Date.now());
             const hora = agoraBrasil.getUTCHours();
-
             const cargo = membroAtual.cargo || '';
-            const ehMestre = nickname.toLowerCase().trim() === 'mestre' || cargo === 'General' || cargo === 'Coronel All';
+            const ehMestre = String(nickname).toLowerCase().trim() === 'mestre' || cargo === 'General' || cargo === 'Coronel All';
 
             if (!ehMestre && !(hora >= 17 || hora < 2)) {
-                return res.status(400).json({ 
-                    success: false, 
-                    message: 'Plantões só podem ser iniciados a partir das 17:00 até às 02:00 da madrugada!' 
+                return res.status(400).json({
+                    success: false,
+                    message: 'Plantões só podem ser iniciados a partir das 17:00 até às 02:00 da madrugada!'
                 });
             }
         }
 
         const updateData = {
             emPlantao: !!emPlantao,
-            estadoTurno: estadoTurno || 'parado'
+            estadoTurno: estadoTurno || (emPlantao ? 'ativo' : 'parado')
         };
 
-        if (emPlantao && membroAtual.emPlantao) {
-            updateData.inicioPlantao = inicioPlantao ? new Date(inicioPlantao) : membroAtual.inicioPlantao;
-            updateData.segundosAcumulados = (segundosAcumulados !== undefined && segundosAcumulados > 0) ? segundosAcumulados : (membroAtual.segundosAcumulados || 0);
+        if (!emPlantao) {
+            updateData.inicioPlantao = null;
+            updateData.segundosAcumulados = 0;
+            updateData.fotoComprovanteAtiva = '';
         } else {
-            if (inicioPlantao !== undefined) updateData.inicioPlantao = inicioPlantao ? new Date(inicioPlantao) : null;
-            if (segundosAcumulados !== undefined) updateData.segundosAcumulados = segundosAcumulados;
+            if (inicioPlantao !== undefined) {
+                updateData.inicioPlantao = inicioPlantao ? new Date(inicioPlantao) : null;
+            } else if (!membroAtual.inicioPlantao && updateData.estadoTurno === 'ativo') {
+                updateData.inicioPlantao = new Date();
+            }
+
+            if (segundosAcumulados !== undefined) {
+                updateData.segundosAcumulados = Math.max(0, parseInt(segundosAcumulados, 10) || 0);
+            }
+
+            if (fotoComprovanteAtiva !== undefined) {
+                updateData.fotoComprovanteAtiva = fotoComprovanteAtiva;
+            }
         }
 
-        if (fotoComprovanteAtiva !== undefined) updateData.fotoComprovanteAtiva = fotoComprovanteAtiva;
+        await User.updateOne(
+            { nickname: new RegExp('^' + String(nickname).trim() + '$', 'i') },
+            { $set: updateData }
+        );
 
-        await User.updateOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, { $set: updateData });
-
-        io.emit('atualizar_estado_turno_usuario', { nickname: nickname.toLowerCase() });
+        io.emit('atualizar_estado_turno_usuario', { nickname: String(nickname).toLowerCase().trim() });
         io.emit('atualizar_status_geral_tropa');
 
-        res.json({ success: true, message: 'Estado do turno sincronizado com segurança!' });
+        res.json({
+            success: true,
+            message: 'Estado do turno sincronizado com segurança!',
+            estado: updateData
+        });
     } catch (e) {
+        console.error("Erro ao atualizar status-plantao:", e);
         res.status(500).json({ success: false, message: 'Erro ao atualizar status na conta.' });
     }
 });
 
-// --- ROTA DE TURNO BLINDADA CONTRA ERROS DE COMPROVANTE ---
+// --- ROTA DE TURNO BLINDADA CONTRA ERROS DE COMPROVANTE E PERDA DE DADOS ---
 app.post('/api/membro/turno', async (req, res) => {
     try {
         const { nickname, duracao, segundosTotais, fotoComprovante } = req.body;
         if (!nickname) return res.status(400).json({ success: false, message: 'Nickname não fornecido.' });
 
-        const membroDoc = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, '_id inicioPlantao').lean();
+        const membroDoc = await User.findOne(
+            { nickname: new RegExp('^' + String(nickname).trim() + '$', 'i') },
+            '_id nickname inicioPlantao segundosAcumulados'
+        ).lean();
         if (!membroDoc) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
         let segundosFinais = parseInt(segundosTotais, 10) || 0;
@@ -623,15 +670,18 @@ app.post('/api/membro/turno', async (req, res) => {
             segundosFinais = converterDuracaoParaSegundos(duracao);
         }
 
-        if (membroDoc.inicioPlantao) {
-            const segundosCalculadosValidos = calcularSegundosValidosNoHorario(membroDoc.inicioPlantao, Date.now());
-            if (segundosCalculadosValidos > 0 && segundosCalculadosValidos < segundosFinais) {
-                segundosFinais = segundosCalculadosValidos;
+        // Se ainda não veio segundosTotais/duracao, tenta calcular pelo inicioPlantao + segundosAcumulados salvos
+        if (segundosFinais <= 0) {
+            let calc = Number(membroDoc.segundosAcumulados || 0);
+            if (membroDoc.inicioPlantao) {
+                const diff = Math.floor((Date.now() - new Date(membroDoc.inicioPlantao).getTime()) / 1000);
+                if (diff > 0) calc += diff;
             }
+            segundosFinais = calc;
         }
 
         if (segundosFinais < 5) {
-            segundosFinais = 5; 
+            segundosFinais = 5;
         }
 
         const duracaoFormatada = converterSegundosParaDuracao(segundosFinais);
@@ -639,28 +689,34 @@ app.post('/api/membro/turno', async (req, res) => {
         const novoTurno = {
             data: new Date(),
             duracao: duracaoFormatada,
-            fotoComprovante: fotoComprovante && fotoComprovante.trim() !== '' ? fotoComprovante : 'Comprovante Padrão / Validado'
+            fotoComprovante: fotoComprovante && String(fotoComprovante).trim() !== ''
+                ? fotoComprovante
+                : 'Comprovante Padrão / Validado'
         };
 
         await User.updateOne(
             { _id: membroDoc._id },
-            { 
-                $push: { historicoTurnos: novoTurno }, 
-                $set: { 
-                    emPlantao: false, 
+            {
+                $push: { historicoTurnos: novoTurno },
+                $set: {
+                    emPlantao: false,
                     estadoTurno: 'parado',
                     inicioPlantao: null,
                     segundosAcumulados: 0,
                     fotoComprovanteAtiva: ''
-                } 
+                }
             }
         );
 
-        io.emit('atualizar_estado_turno_usuario', { nickname: nickname.toLowerCase() });
+        io.emit('atualizar_estado_turno_usuario', { nickname: String(nickname).toLowerCase().trim() });
         io.emit('atualizar_status_geral_tropa');
-        await registarLogAdmin(nickname, 'Registo de Turno', `Turno de duração ${duracaoFormatada} concluído e registado.`);
+        await registarLogAdmin(membroDoc.nickname, 'Registo de Turno', `Turno de duração ${duracaoFormatada} concluído e registado.`);
 
-        res.json({ success: true, message: 'Turno validado e registado com sucesso!' });
+        res.json({
+            success: true,
+            message: 'Turno validado e registado com sucesso!',
+            turno: novoTurno
+        });
     } catch (error) {
         console.error("Erro ao guardar turno:", error);
         res.status(500).json({ success: false, message: 'Erro ao guardar turno: ' + error.message });
@@ -703,9 +759,9 @@ app.put('/api/admin/membro/carteira/resetar/:id', async (req, res) => {
 
         await User.updateOne(
             { _id: id },
-            { 
+            {
                 $set: { carteiraSaldo: 0 },
-                $push: { 
+                $push: {
                     caixaEntrada: {
                         titulo: '💰 Pagamento Efetuado!',
                         mensagem: `O Comando efetuou o pagamento do seu saldo acumulado de <b>R$ ${saldoPago.toLocaleString('pt-BR')}</b>. A carteira foi reiniciada para R$ 0,00.`,
@@ -717,7 +773,7 @@ app.put('/api/admin/membro/carteira/resetar/:id', async (req, res) => {
 
         io.emit('atualizar_status_geral_tropa');
         await registarLogAdmin(adminNickname || 'Comando', 'Pagamento de Carteira', `Efetuado pagamento de R$ ${saldoPago} para ${membro.nickname} e saldo zerado.`);
-        
+
         res.json({ success: true, message: `Pagamento registado e carteira de ${membro.nickname} zerada com sucesso!` });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao processar pagamento.' });
@@ -744,13 +800,13 @@ app.post('/api/admin/config/missao-valor', async (req, res) => {
 
         await ConfigSorteio.collection.updateOne(
             { chave: 'valor_missao_diaria' },
-            { 
-                $set: { 
+            {
+                $set: {
                     chave: 'valor_missao_diaria',
-                    valor: valorNumerico, 
-                    atualizadoPor: adminNickname || 'Comando', 
-                    data: new Date() 
-                } 
+                    valor: valorNumerico,
+                    atualizadoPor: adminNickname || 'Comando',
+                    data: new Date()
+                }
             },
             { upsert: true }
         );
@@ -769,7 +825,7 @@ app.get('/api/membro/carteira/:nickname', async (req, res) => {
             { nickname: new RegExp(`^${nickname}$`, 'i') },
             'carteiraSaldo ultimoCicloMissoes missoesConcluidasCiclo'
         );
-        
+
         if (!membro) {
             return res.json({ success: false, message: 'Membro não encontrado.' });
         }
@@ -832,8 +888,8 @@ app.post('/api/membro/carteira/atualizar', async (req, res) => {
         await membro.save();
 
         await registarLogAdmin(
-            nickname, 
-            'Missão Diária Concluída', 
+            nickname,
+            'Missão Diária Concluída',
             `Completou missão no ciclo ${ciclo || cicloAtualBrasil}. Novo Saldo na Carteira: R$ ${saldoFinal.toLocaleString('pt-BR')}`
         );
 
@@ -909,10 +965,10 @@ app.get(['/api/membro/em-plantao', '/api/membro/em-plantao/:nickname'], async (r
         let nickname = req.params.nickname || req.query.nickname;
         if (!nickname) {
             const membrosAtivos = await User.find({ emPlantao: true }, 'nickname cargo inicioPlantao fotoComprovanteAtiva').lean();
-            return res.json({ 
-                success: true, 
-                emPlantao: membrosAtivos, 
-                emPlantaoLista: membrosAtivos 
+            return res.json({
+                success: true,
+                emPlantao: membrosAtivos,
+                emPlantaoLista: membrosAtivos
             });
         }
 
@@ -979,11 +1035,11 @@ app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
 
 app.get('/api/admin/membros', async (req, res) => {
   try {
-    const membros = await User.find({}, 'nickname cargo status emPlantao historicoTurnos.duracao historicoTurnos.data').lean(); 
+    const membros = await User.find({}, 'nickname cargo status emPlantao historicoTurnos.duracao historicoTurnos.data').lean();
     const membrosFormatados = membros.map(m => {
       const totalSegundosAcumulados = (m.historicoTurnos || []).reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
       const totalHorasFormatado = converterSegundosParaDuracao(totalSegundosAcumulados);
-      
+
       const ultimoTurno = m.historicoTurnos && m.historicoTurnos.length > 0 ? m.historicoTurnos[m.historicoTurnos.length - 1] : null;
       return {
         _id: m._id,
@@ -991,8 +1047,8 @@ app.get('/api/admin/membros', async (req, res) => {
         cargo: m.cargo || 'Privado',
         status: m.status || 'ativo',
         emPlantao: !!m.emPlantao,
-        ultimoPlantao: totalSegundosAcumulados > 0 
-          ? `Total: ${totalHorasFormatado} (${m.historicoTurnos.length} turnos)` 
+        ultimoPlantao: totalSegundosAcumulados > 0
+          ? `Total: ${totalHorasFormatado} (${m.historicoTurnos.length} turnos)`
           : (ultimoTurno ? `${ultimoTurno.duracao} (${new Date(ultimoTurno.data).toLocaleDateString()})` : 'Nenhum plantão registado')
       };
     });
@@ -1040,7 +1096,7 @@ app.put('/api/admin/membro/:id', async (req, res) => {
 
         const membro = await User.findByIdAndUpdate(id, { $set: updateData }, { new: true, select: 'nickname cargo status' }).lean();
         const nomeAutor = autor || 'Comando';
-        
+
         if (cargo && cargo !== membroAntigo.cargo) {
             const acaoStr = cargoAniPrecedencia(cargo, membroAntigo.cargo) ? 'Promoção de Cargo' : 'Alteração / Rebaixamento de Cargo';
             await User.updateOne({ _id: id }, { $push: { historicoPromocoes: { novoCargo: cargo, cargoAnterior: membroAntigo.cargo, data: new Date() } } });
@@ -1076,14 +1132,14 @@ app.put('/api/admin/membro/forcar-fim-turno/:id', async (req, res) => {
 
         await User.updateOne(
             { _id: id },
-            { 
-                $set: { 
-                    emPlantao: false, 
+            {
+                $set: {
+                    emPlantao: false,
                     estadoTurno: 'parado',
                     inicioPlantao: null,
                     segundosAcumulados: 0,
                     fotoComprovanteAtiva: ''
-                } 
+                }
             }
         );
 
@@ -1189,7 +1245,7 @@ app.put('/api/admin/ranking/resetar', async (req, res) => {
     try {
         const { adminNickname } = req.body;
         const dataAtualReset = new Date();
-        
+
         await ConfigSorteio.collection.updateOne(
             { chave: 'config_ranking_semanal' },
             { $set: { chave: 'config_ranking_semanal', dataUltimoReset: dataAtualReset } },
@@ -1201,10 +1257,10 @@ app.put('/api/admin/ranking/resetar', async (req, res) => {
             mensagem: 'O comando iniciou um novo ciclo semanal no ranking. O seu histórico pessoal de horas continua guardado no perfil!',
             data: dataAtualReset
         };
-        
+
         await User.updateMany({}, { $push: { caixaEntrada: notif } });
         io.emit('atualizar_status_geral_tropa');
-        
+
         await registarLogAdmin(adminNickname || 'Comando', 'Reset de Ranking', `Novo ciclo semanal iniciado por ${adminNickname || 'Comando'}.`);
         res.json({ success: true, message: 'Ranking semanal resetado com sucesso! O histórico dos membros foi preservado.' });
     } catch (e) {
@@ -1338,9 +1394,9 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
         if (aprovado) {
             await User.updateOne(
                 { _id: membro._id },
-                { 
+                {
                     $set: { cargo: cargoAlvo, cooldownProvaAte: null },
-                    $push: { 
+                    $push: {
                         historicoPromocoes: { novoCargo: cargoAlvo, cargoAnterior: membro.cargo, data: new Date() },
                         caixaEntrada: {
                             titulo: '🎉 Aprovado na Prova!',
@@ -1452,7 +1508,7 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
         { 'historicoTurnos.0': { $exists: true } },
         'nickname cargo historicoTurnos.duracao historicoTurnos.data historicoTurnos.manual'
     ).lean();
-    
+
     const elegiveis = membros.filter(m => {
       const nicknameLower = m.nickname.toLowerCase().trim();
       if (ganhadoresCiclo.includes(nicknameLower)) return false;
@@ -1512,10 +1568,10 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
     });
 
     await registarLogAdmin(adminNickname || 'Comando', 'Giro da Roleta Oficial', `Vencedor: ${vencedor.nickname} | Prêmio: ${premioSorteado} (Realizado por ${adminNickname || 'Comando'})`);
-    
-    res.json({ 
-        success: true, 
-        ganhadores: [{ nickname: vencedor.nickname, cargo: vencedor.cargo, premio: premioSorteado }] 
+
+    res.json({
+        success: true,
+        ganhadores: [{ nickname: vencedor.nickname, cargo: vencedor.cargo, premio: premioSorteado }]
     });
   } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao realizar sorteio na roleta: ' + e.message });
@@ -1555,7 +1611,7 @@ app.post('/api/admin/sorteio/realizar-um-turno', async (req, res) => {
         { 'historicoTurnos.0': { $exists: true } },
         'nickname cargo historicoTurnos.data historicoTurnos.manual'
     ).lean();
-    
+
     const elegiveis = membros.filter(m => {
       const nicknameLower = m.nickname.toLowerCase().trim();
       if (ganhadoresCiclo.includes(nicknameLower)) return false;
@@ -1595,17 +1651,17 @@ app.post('/api/admin/sorteio/realizar-um-turno', async (req, res) => {
     );
 
     await registarLogAdmin(adminNickname || 'Comando', 'Giro Roleta 1 Turno Hoje', `Vencedor: ${vencedor.nickname} | Prêmio: ${premioSorteado} (Realizado por ${adminNickname || 'Comando'})`);
-    
-    res.json({ 
-        success: true, 
-        ganhadores: [{ nickname: vencedor.nickname, cargo: vencedor.cargo, premio: premioSorteado }] 
+
+    res.json({
+        success: true,
+        ganhadores: [{ nickname: vencedor.nickname, cargo: vencedor.cargo, premio: premioSorteado }]
     });
   } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao realizar sorteio: ' + e.message });
   }
 });
 
-const usuariosOnline = {}; 
+const usuariosOnline = {};
 io.on('connection', (socket) => {
   socket.on('entrar_sala', (data) => {
     let salaId = typeof data === 'string' ? data : (data.salaId || 'sala_geral_salazar');
@@ -1664,7 +1720,7 @@ io.on('connection', (socket) => {
 function obterUtilizadoresVoz(salaVozId) {
   const socketsNaSala = io.sockets.adapter.rooms.get(salaVozId);
   if (!socketsNaSala) return [];
-  
+
   const lista = [];
   for (const socketId of socketsNaSala) {
       const s = io.sockets.sockets.get(socketId);
