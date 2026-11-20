@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestão Salazar - Painel do Membro</title>
-    <!-- SUPORTE PWA PARA ANDROID E IOS -->
     <meta name="theme-color" content="#070d16">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -25,8 +24,6 @@
             color: #ffffff;
             padding: 16px;
         }
-
-        /* --- MENU SUPERIOR PROFISSIONAL & ABAS --- */
         .navbar {
             display: flex;
             justify-content: space-between;
@@ -86,8 +83,6 @@
         .logout-btn:hover {
             background-color: #dc2626;
         }
-
-        /* --- SISTEMA DE ABAS (MÓDULOS) --- */
         .tab-content {
             display: none;
             animation: fadeIn 0.3s ease-in-out;
@@ -99,8 +94,6 @@
             from { opacity: 0; transform: translateY(6px); }
             to { opacity: 1; transform: translateY(0); }
         }
-
-        /* Grelha de conteúdos internos da aba */
         .grid-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -128,7 +121,6 @@
                 padding: 7px 10px;
             }
         }
-
         .card {
             background: linear-gradient(145deg, rgba(15, 23, 42, 0.85), rgba(7, 13, 22, 0.95)) !important;
             backdrop-filter: blur(16px) !important;
@@ -197,12 +189,10 @@
             margin-left: 10px;
         }
         .status-ativo { background-color: #22c55e; color: #fff; box-shadow: 0 0 10px rgba(34, 197, 94, 0.4); }
-        
         .badge-cargo-general, .badge-cargo-coronel { background: linear-gradient(135deg, #ef4444, #b91c1c); color: #fff; padding: 4px 10px; border-radius: 6px; font-weight: bold; }
         .badge-cargo-major, .badge-cargo-tenente { background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; padding: 4px 10px; border-radius: 6px; font-weight: bold; }
         .badge-cargo-sargento { background: linear-gradient(135deg, #38bdf8, #0284c7); color: #000; padding: 4px 10px; border-radius: 6px; font-weight: bold; }
         .badge-cargo-soldado, .badge-cargo-privado { background: rgba(51, 65, 85, 0.85); color: #e2e8f0; padding: 4px 10px; border-radius: 6px; font-weight: bold; }
-
         .avatar-preview {
             width: 95px;
             height: 95px;
@@ -218,7 +208,6 @@
             color: #38bdf8;
             margin: 0 auto 16px auto;
         }
-
         .timer-display {
             font-size: 32px;
             font-weight: 800;
@@ -370,7 +359,6 @@
             color: #e2e8f0;
             font-size: 13px;
         }
-
         #modalHistorico, #modalMissaoComprovante, #modalPerfil {
             display: none;
             position: fixed;
@@ -403,7 +391,6 @@
             cursor: pointer;
             font-weight: bold;
         }
-
         #modalRoletaAoVivo {
             display: none;
             position: fixed;
@@ -449,7 +436,6 @@
 </head>
 <body>
 
-    <!-- NAVBAR COM ABAS PROFISSIONAIS -->
     <div class="navbar">
         <div class="nav-brand">Gestão Salazar</div>
         <div class="nav-links">
@@ -466,20 +452,15 @@
         </div>
     </div>
 
-    <!-- BANNER DE ATIVAÇÃO DE NOTIFICAÇÕES PUSH -->
     <div id="bannerPush" class="card" style="border: 2px solid #22c55e; background: rgba(34, 197, 94, 0.08); display: none; text-align: center; margin-bottom: 20px;">
         <h3 style="color: #22c55e; border: none; margin-bottom: 8px;">🔔 Ativar Alertas no Telemóvel / PC</h3>
         <p style="color: #e2e8f0; font-size: 13px; margin-bottom: 16px;">Para receber os alarmes de AÇÃO diretamente na barra de notificações, clique no botão abaixo.</p>
         <button class="btn-action" style="background-color: rgba(34, 197, 94, 0.9); width: auto; display: inline-block; padding: 10px 25px; margin-top: 0;" onclick="ativarNotificacoesPush()">✅ Ativar Notificações Push</button>
     </div>
 
-    <!-- ========================================== -->
-    <!-- ABA 1: MÓDULO DE TURNOS E CARTEIRA (PRINCIPAL) -->
-    <!-- ========================================== -->
     <div id="aba-turnos" class="tab-content active">
         <div class="grid-container">
             <div>
-                <!-- CARTEIRA DIGITAL DO OPERACIONAL -->
                 <div class="card" style="border: 2px solid #10b981;">
                     <h3>💳 Carteira Digital Salazar</h3>
                     <div class="wallet-box">
@@ -497,11 +478,10 @@
                     </p>
                 </div>
 
-                <!-- MÓDULO BATE-PONTO & TURNOS -->
                 <div class="card">
                     <h3>🪖 Módulo Bate-Ponto & Turnos</h3>
-                    <p id="etapaAtual" style="color: #e2e8f0; font-size: 13px;">Detectando etapa atual...</p>
-                    
+                    <p id="etapaAtual" style="color: #e2e8f0; font-size: 13px;">Etapa: Aguardando início de turno</p>
+
                     <div class="timer-display" id="timerDisplay">00:00:00</div>
                     <p id="avisoTempoMinimo" style="text-align: center; font-size: 12px; color: #eab308; margin-top: 10px;">⏱️ Tempo mínimo para computar horas: <b>30 minutos</b>.</p>
 
@@ -510,7 +490,7 @@
                         <input type="file" id="fotoComprovante" accept="image/*" style="width: 100%; padding: 10px; margin-top: 6px; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 13px;" onchange="converterFotoLocal(this)">
                         <div id="statusAnexo" style="font-size: 12px; color: #22c55e; margin-top: 6px;"></div>
                     </div>
-                    
+
                     <button class="btn-action" id="btnCheckin" onclick="fazerCheckin()">Iniciar Turno (Check-in)</button>
                     <button class="btn-action" id="btnPausar" style="background: linear-gradient(135deg, #eab308, #ca8a04); color: #000; display: none;" onclick="alternarPausa()">Pausar Turno</button>
                     <button class="btn-action" id="btnCheckout" style="background: linear-gradient(135deg, #16a34a, #15803d);" onclick="fazerCheckout()">Finalizar Turno (Check-out)</button>
@@ -518,14 +498,12 @@
             </div>
 
             <div>
-                <!-- EXAME OFICIAL DE PROVAS -->
                 <div class="card" id="cardModuloProvas" style="border: 2px dashed #38bdf8; display: none;">
                     <h3>🎓 Exame Oficial Exército Brasileiro</h3>
                     <p id="infoStatusProva" style="color: #e2e8f0; font-size: 13px; margin-bottom: 14px;">A verificar progresso...</p>
                     <button class="btn-action" id="btnIniciarProva" style="background: linear-gradient(135deg, #16a34a, #15803d); display: none; margin-top: 0;" onclick="abrirModalProva()">📝 Realizar Prova para <span id="spanCargoAlvo"></span></button>
                 </div>
 
-                <!-- STATUS DO SORTEIO -->
                 <div class="card">
                     <h3>🎁 Status do Sorteio Diário</h3>
                     <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Para participar hoje, cumpre pelo menos 2h acumuladas no dia atual (17h–02h).</p>
@@ -534,7 +512,6 @@
                     </div>
                 </div>
 
-                <!-- CAIXA DE ENTRADA -->
                 <div class="card">
                     <h3>📥 Caixa de Entrada & Notificações</h3>
                     <div id="caixaEntradaContainer" style="max-height: 180px; overflow-y: auto; -webkit-overflow-scrolling: touch; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; padding: 12px; font-size: 13px; color: #e2e8f0;">
@@ -545,9 +522,6 @@
         </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- ABA 2: MISSÕES DIÁRIAS -->
-    <!-- ========================================== -->
     <div id="aba-missoes" class="tab-content">
         <div class="card" style="border: 2px solid #eab308; background: linear-gradient(145deg, rgba(234, 179, 8, 0.08), rgba(15, 23, 42, 0.82)); max-width: 700px; margin: 0 auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(234, 179, 8, 0.3); padding-bottom: 10px; margin-bottom: 14px;">
@@ -555,19 +529,15 @@
                 <span style="font-size: 11px; background: rgba(234, 179, 8, 0.25); color: #fde047; padding: 4px 10px; border-radius: 8px; font-weight: 600;">Reinicia às 02:00</span>
             </div>
             <p style="color: #e2e8f0; font-size: 13px; margin-bottom: 14px;">Patente: <b id="patenteAtualTexto"></b> | Cada missão concluída com <b>print da ação</b> vale <b id="textoValorMissaoDestaque">R$ 500</b>.</p>
-            
+
             <div id="conteudoMissoesDiarias" style="background: rgba(7, 13, 22, 0.75); padding: 16px; border-radius: 10px; border: 1px solid rgba(234, 179, 8, 0.3); font-size: 13px; color: #e2e8f0; line-height: 1.5;">
                 A carregar missões...
             </div>
         </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- ABA 3: TROPA & RÁDIO TÁTICO -->
-    <!-- ========================================== -->
     <div id="aba-tropa" class="tab-content">
         <div class="grid-container">
-            <!-- FISCALIZAÇÃO -->
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(56, 189, 248, 0.2); padding-bottom: 10px; margin-bottom: 16px;">
                     <h3 style="border: none; margin: 0; padding: 0;">👀 Fiscalização de Plantão</h3>
@@ -579,7 +549,6 @@
                 </div>
             </div>
 
-            <!-- RÁDIO TÁTICO -->
             <div class="card">
                 <h3>💬 Rádio Tático da Tropa</h3>
                 <div class="chat-container-wrapper">
@@ -600,17 +569,15 @@
             </div>
         </div>
 
-        <!-- 🎙️ BLOCO: CANAL DE VOZ & HIERARQUIA ESTILO DISCORD -->
         <div class="card" style="margin-top: 20px; border: 2px solid #5865f2; background: linear-gradient(145deg, rgba(88, 101, 242, 0.08), rgba(15, 23, 42, 0.9));">
             <h3 style="color: #5865f2; border-color: rgba(88, 101, 242, 0.3);">🎙️ Central de Voz & Hierarquia da Tropa (Estilo Discord)</h3>
-            
+
             <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 15px;">
-                <!-- Controles de Voz -->
                 <div style="flex: 1; min-width: 260px; background: rgba(7, 13, 22, 0.8); padding: 16px; border-radius: 12px; border: 1px solid rgba(88, 101, 242, 0.3);">
                     <h4 style="color: #949ba4; font-size: 12px; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 1px;">Canais de Voz Ativos</h4>
                     <div style="font-weight: bold; color: #23a55a; margin-bottom: 8px; font-size: 14px;">🔊 Sala de Reunião Geral</div>
                     <div id="painel-voz-status" style="font-size: 12px; color: #949ba4; margin-bottom: 14px;">Estado: Desconectado do Voz</div>
-                    
+
                     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                         <button onclick="entrarCanalVoz('sala_geral_salazar', user.nickname, user.cargo)" style="background: #23a55a; color: white; border: none; padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: bold;">Entrar no Voz</button>
                         <button id="btn-mute-audio" onclick="alternarMuteMicrofone()" style="background: #5865f2; color: white; border: none; padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: bold;">Mutar 🎙️</button>
@@ -618,7 +585,6 @@
                     </div>
                 </div>
 
-                <!-- Utilizadores Conectados na Sala de Voz / Hierarquia -->
                 <div style="flex: 2; min-width: 300px; background: rgba(7, 13, 22, 0.8); padding: 16px; border-radius: 12px; border: 1px solid rgba(88, 101, 242, 0.3);">
                     <h4 style="color: #949ba4; font-size: 12px; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 1px;">Operacionais no Canal de Voz</h4>
                     <div id="avatares-falando-grid" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
@@ -629,9 +595,6 @@
         </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- ABA 4: RANKING -->
-    <!-- ========================================== -->
     <div id="aba-ranking" class="tab-content">
         <div class="card" style="max-width: 700px; margin: 0 auto;">
             <h3>🏆 Ranking da Tropa (17h às 02h)</h3>
@@ -655,7 +618,6 @@
         </div>
     </div>
 
-    <!-- MODAL DA ROLETA AO VIVO -->
     <div id="modalRoletaAoVivo">
         <div class="roleta-container">
             <span style="background: rgba(234, 179, 8, 0.25); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.5); padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 800; text-transform: uppercase;">🎰 Roleta Tática Oficial</span>
@@ -669,16 +631,15 @@
                 <p style="color: #94a3b8; font-size: 13px;">A girar a roleta...</p>
             </div>
 
-            <button id="btnFecharRoleta" onclick="document.getElementById('modalRoletaAoVivo').style.display='none'" style="display: none; margin-top: 18px; background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; border: none; padding: 13px 24px; font-weight: 800; cursor: pointer; width: 100%; border-radius: 12px;">Fechar Roleta</button>
+            <button id="btnFecharRoleta" onclick="fecharRoletaAoVivo()" style="display: none; margin-top: 18px; background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; border: none; padding: 13px 24px; font-weight: 800; cursor: pointer; width: 100%; border-radius: 12px;">Fechar Roleta</button>
         </div>
     </div>
 
-    <!-- Modal de Perfil do Membro -->
     <div id="modalPerfil">
         <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 90%; max-width: 450px; border-radius: 16px; padding: 28px; border: 1px solid rgba(56, 189, 248, 0.4); text-align: center; max-height: 85vh; overflow-y: auto; -webkit-overflow-scrolling: touch;">
             <button class="close-modal" onclick="fecharPerfilModal()">X</button>
             <h3 style="color: #38bdf8; margin-bottom: 20px;">👤 Perfil do Operacional</h3>
-            
+
             <div id="avatarContainer">
                 <div class="avatar-preview" id="imgAvatarVisualizar">🛡️</div>
             </div>
@@ -705,13 +666,12 @@
         </div>
     </div>
 
-    <!-- Modal de Envio de Comprovante de Missão -->
     <div id="modalMissaoComprovante">
         <div class="modal-content">
             <button class="close-modal" onclick="fecharModalMissao()">X</button>
             <h3 style="color: #38bdf8; margin-bottom: 15px;" id="tituloModalMissao">📸 Comprovante de Missão</h3>
             <p style="font-size: 13px; color: #e2e8f0; margin-bottom: 16px;" id="textoInstrucaoPrintModal">Anexe o print que comprove a realização da atividade:</p>
-            
+
             <div style="margin-bottom: 18px;">
                 <input type="file" id="fotoPrintMissao" accept="image/*" style="width: 100%; padding: 10px; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 13px;" onchange="converterFotoMissaoLocal(this)">
                 <div id="statusPrintMissao" style="font-size: 12px; color: #22c55e; margin-top: 6px;"></div>
@@ -721,7 +681,6 @@
         </div>
     </div>
 
-    <!-- Modais Gerais -->
     <div id="modalProva" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 10000;">
         <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 90%; max-width: 600px; border-radius: 16px; padding: 28px; border: 1px solid rgba(56, 189, 248, 0.4); max-height: 85vh; overflow-y: auto; -webkit-overflow-scrolling: touch;">
             <h3 id="tituloModalProva" style="color: #38bdf8; margin-bottom: 16px;">Avaliação Oficial</h3>
@@ -753,17 +712,28 @@
         </div>
     </div>
 
-    <!-- SCRIPT DE VOZ ESTILO DISCORD -->
     <script src="/voz.js"></script>
 
     <script>
-        // --- FUNÇÃO DE ALTERNAR ABAS (MÓDULOS) ---
+       function escapeHTML(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&')
+                .replace(/</g, '<')
+                .replace(/>/g, '>')
+                .replace(/"/g, '"')
+                .replace(/\x27/g, ''');
+        }
+
         function mudarAba(nomeAba, elementoBtn) {
             document.querySelectorAll('.tab-content').forEach(aba => aba.classList.remove('active'));
             document.querySelectorAll('.nav-btn-aba').forEach(btn => btn.classList.remove('active'));
-            
-            document.getElementById('aba-' + nomeAba).classList.add('active');
-            if(elementoBtn) elementoBtn.classList.add('active');
+
+            const alvo = document.getElementById('aba-' + nomeAba);
+            if (alvo) alvo.classList.add('active');
+            if (elementoBtn) elementoBtn.classList.add('active');
+
+            if (nomeAba === 'ranking') carregarRanking();
+            if (nomeAba === 'tropa') atualizarFiscalizacaoServidor();
         }
 
         const userStr = localStorage.getItem('user');
@@ -778,16 +748,11 @@
         }
 
         function atualizarBadgeUsuarioUI() {
-            document.getElementById('userBadgeInfo').innerHTML = `${user.nickname} (${user.cargo || 'Privado'}) <span class="status-badge status-${user.status || 'ativo'}">${(user.status || 'ativo').toUpperCase()}</span>`;
-            
             const cargosAdminPermitidos = ['General', 'Coronel All'];
             const temPermissaoAdmin = user.role === 'admin' || cargosAdminPermitidos.includes(user.cargo);
-            
-            if (temPermissaoAdmin) {
-                document.getElementById('navAdminLink').style.display = 'inline-block';
-            } else {
-                document.getElementById('navAdminLink').style.display = 'none';
-            }
+
+            document.getElementById('userBadgeInfo').innerHTML = `${escapeHTML(user.nickname)} (${escapeHTML(user.cargo || 'Privado')}) <span class="status-badge status-${escapeHTML(user.status || 'ativo')}">${escapeHTML((user.status || 'ativo').toUpperCase())}</span>`;
+            document.getElementById('navAdminLink').style.display = temPermissaoAdmin ? 'inline-block' : 'none';
         }
         atualizarBadgeUsuarioUI();
 
@@ -836,7 +801,7 @@
 
             if (!telefoneMembroAtualCache || telefoneMembroAtualCache.trim() === '') {
                 mostrarModalCustomizado(
-                    '⚠️ Contacto Obrigatório', 
+                    '⚠️ Contacto Obrigatório',
                     'Para entrar no Grupo do WhatsApp, deve primeiro registar o seu número no seu <b>Perfil</b>.',
                     'alerta',
                     () => { abrirPerfilModal(); }
@@ -845,7 +810,7 @@
             }
 
             if (linkGrupoWhatsappGlobal) {
-                const novaJanela = window.open(linkGrupoWhatsappGlobal, '_blank');
+                const novaJanela = window.open(linkGrupoWhatsappGlobal, '_blank', 'noopener,noreferrer');
                 if (!novaJanela) {
                     window.location.href = linkGrupoWhatsappGlobal;
                 }
@@ -864,19 +829,22 @@
                     document.getElementById('perfilNickname').innerText = p.nickname;
                     document.getElementById('inputTelefonePerfil').value = p.telefone || '';
                     telefoneMembroAtualCache = p.telefone || '';
-                    
-                    const cargoClass = `badge-cargo-${(p.cargo || 'soldado').toLowerCase()}`;
-                    document.getElementById('perfilCargo').innerHTML = `<span class="${cargoClass}">${p.cargo}</span>`;
-                    
+
+                    const cargoClass = `badge-cargo-${(p.cargo || 'soldado').toLowerCase().replace(/[^a-z0-9-]/g, '')}`;
+                    document.getElementById('perfilCargo').innerHTML = `<span class="${cargoClass}">${escapeHTML(p.cargo)}</span>`;
+
                     document.getElementById('perfilTotalHoras').innerText = p.totalHoras;
                     document.getElementById('perfilTempoGestao').innerText = p.tempoGestao;
                     document.getElementById('perfilUltimoPlantao').innerText = p.ultimoPlantao;
 
                     const avatarDiv = document.getElementById('imgAvatarVisualizar');
                     if (p.avatar) {
-                        avatarDiv.innerHTML = `<img src="${p.avatar}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+                        const img = document.createElement('img');
+                        img.src = p.avatar;
+                        img.style.cssText = 'width: 100%; height: 100%; border-radius: 50%; object-fit: cover;';
+                        avatarDiv.replaceChildren(img);
                     } else {
-                        avatarDiv.innerHTML = `🛡️`;
+                        avatarDiv.textContent = '🛡️';
                     }
                 }
             } catch (e) {}
@@ -908,7 +876,12 @@
         function converterAvatarLocal(input) {
             if (input.files && input.files[0]) {
                 comprimirImagemBase64(input.files[0], async function(base64Avatar) {
-                    document.getElementById('imgAvatarVisualizar').innerHTML = `<img src="${base64Avatar}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+                    const avatarDiv = document.getElementById('imgAvatarVisualizar');
+                    const img = document.createElement('img');
+                    img.src = base64Avatar;
+                    img.style.cssText = 'width: 100%; height: 100%; border-radius: 50%; object-fit: cover;';
+                    avatarDiv.replaceChildren(img);
+
                     await fetch('/api/membro/atualizar-perfil', {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
@@ -924,7 +897,6 @@
             return agora.toISOString().split('T')[0];
         }
 
-        // --- COMPRESSÃO OTIMIZADA PARA EVITAR ERRO 16MB DO MONGODB ---
         function comprimirImagemBase64(file, callback) {
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -944,6 +916,24 @@
         }
 
         let missaoSelecionadaAtual = null, fotoPrintMissaoBase64 = '', saldoCarteiraAtual = 0, missoesServidorCache = [], processandoMissao = false;
+        let segundosHojeCiclo = 0;
+
+        function atualizarStatusSorteioUI() {
+            const el = document.getElementById('statusSorteio');
+            if (!el) return;
+            const metaSegundos = 2 * 3600;
+            const totalAtual = segundosHojeCiclo + (estadoTurno === 'ativo' ? calcularSegundosTotais() : 0);
+            if (totalAtual >= metaSegundos) {
+                el.style.color = '#34d399';
+                el.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+                el.innerText = '✅ Elegível ao sorteio diário de HOJE (2h+ cumpridas)!';
+            } else {
+                const restanteMin = Math.max(1, Math.ceil((metaSegundos - totalAtual) / 60));
+                el.style.color = '#eab308';
+                el.style.borderColor = 'rgba(234, 179, 8, 0.35)';
+                el.innerText = `Elegível ao atingir 2h de plantão HOJE (faltam ~${restanteMin} min).`;
+            }
+        }
 
         function obterDefinicoesMissoesPorCargo() {
             const cargo = (user.cargo || 'Soldado').toLowerCase();
@@ -977,32 +967,35 @@
             await carregarValorMissaoDinamico();
             const cicloAtual = obterDataCicloOperacional();
             document.getElementById('patenteAtualTexto').innerText = user.cargo || 'Soldado';
-            
+
             const valorFormatadoDestaque = Number(valorMissaoDinamicoServidor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             document.getElementById('textoValorMissaoDestaque').innerText = valorFormatadoDestaque;
-            document.getElementById('textoDescricaoCarteira').innerHTML = `• Cada missão diária concluída com comprovante (print) gera <b>+${valorFormatadoDestaque}</b> na tua carteira digital.`;
+            document.getElementById('textoDescricaoCarteira').innerHTML = `• Cada missão diária concluída com comprovante (print) gera <b>+${escapeHTML(valorFormatadoDestaque)}</b> na tua carteira digital.`;
 
             const containerMissoes = document.getElementById('conteudoMissoesDiarias');
 
             let plantaoOkHoje = localStorage.getItem(`plantao_cumprido_${user.nickname}_${cicloAtual}`) === 'true';
+            segundosHojeCiclo = 0;
+
             try {
                 const resHist = await fetch(`/api/membro/historico/${encodeURIComponent(user.nickname)}`);
                 if (resHist.ok) {
                     const dataHist = await resHist.json();
                     if (dataHist.success && Array.isArray(dataHist.historicoTurnos)) {
-                        let segundosHoje = 0;
                         dataHist.historicoTurnos.forEach(t => {
                             const dt = new Date(t.data);
                             if (dt.getHours() < 2) dt.setDate(dt.getDate() - 1);
                             if (dt.toISOString().split('T')[0] === cicloAtual && t.duracao) {
                                 const partes = t.duracao.split(':');
-                                if (partes.length === 3) segundosHoje += (parseInt(partes[0]) * 3600) + (parseInt(partes[1]) * 60) + parseInt(partes[2]);
+                                if (partes.length === 3) segundosHojeCiclo += (parseInt(partes[0], 10) * 3600) + (parseInt(partes[1], 10) * 60) + parseInt(partes[2], 10);
                             }
                         });
-                        if (segundosHoje >= 1800) plantaoOkHoje = true;
+                        if (segundosHojeCiclo >= 1800) plantaoOkHoje = true;
                     }
                 }
             } catch (e) {}
+
+            atualizarStatusSorteioUI();
 
             let saldoServidor = null;
             let servidorRespondeu = false;
@@ -1030,8 +1023,8 @@
             }
 
             if (servidorRespondeu && missoesServidorCache.length > 0) {
-                missoesServidorCache.forEach(ms => { 
-                    if (ms.ciclo === cicloAtual && ms.concluida) concluidasLocal[ms.id] = true; 
+                missoesServidorCache.forEach(ms => {
+                    if (ms.ciclo === cicloAtual && ms.concluida) concluidasLocal[ms.id] = true;
                 });
                 localStorage.setItem(chaveMissoes, JSON.stringify(concluidasLocal));
             }
@@ -1044,17 +1037,17 @@
                 if (isConcluida && !(servidorRespondeu && saldoServidor === 0)) {
                     ganhoHoje += valorMissaoDinamicoServidor;
                 }
-                const botaoAcao = isConcluida 
+                const botaoAcao = isConcluida
                     ? `<span style="color: #34d399; font-size: 12px; font-weight: bold;">Concluído ✅</span>`
-                    : `<button onclick="abrirModalMissao('${m.id}', '${m.titulo}')" style="background: linear-gradient(135deg, #eab308, #ca8a04); border: none; color: #000; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer;">Enviar Print 📸</button>`;
+                    : `<button onclick="abrirModalMissao('${escapeHTML(m.id)}', '${escapeHTML(m.titulo)}')" style="background: linear-gradient(135deg, #eab308, #ca8a04); border: none; color: #000; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer;">Enviar Print 📸</button>`;
 
                 htmlMissao += `
-                    <div style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; background: rgba(30, 41, 59, 0.7); padding: 12px; border-radius: 10px; border: 1px solid ${isConcluida ? 'rgba(16, 185, 129, 0.5)' : 'rgba(56, 189, 248, 0.15);'};">
+                    <div style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; background: rgba(30, 41, 59, 0.7); padding: 12px; border-radius: 10px; border: 1px solid ${isConcluida ? 'rgba(16, 185, 129, 0.5)' : 'rgba(56, 189, 248, 0.15)'};">
                         <div style="flex: 1; padding-right: 10px;">
-                            <span style="${isConcluida ? 'text-decoration: line-through; color: #94a3b8;' : 'color: #e2e8f0;'}"><b>M${idx+1}:</b> ${m.titulo}</span>
+                            <span style="${isConcluida ? 'text-decoration: line-through; color: #94a3b8;' : 'color: #e2e8f0;'}"><b>M${idx+1}:</b> ${escapeHTML(m.titulo)}</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 10px;">
-                            <span style="color: #34d399; font-size: 11px; font-weight: bold; background: rgba(16, 185, 129, 0.18); padding: 4px 8px; border-radius: 6px;">+${valorFormatadoDestaque}</span>
+                            <span style="color: #34d399; font-size: 11px; font-weight: bold; background: rgba(16, 185, 129, 0.18); padding: 4px 8px; border-radius: 6px;">+${escapeHTML(valorFormatadoDestaque)}</span>
                             ${botaoAcao}
                         </div>
                     </div>
@@ -1079,10 +1072,10 @@
 
             const statusMetaEl = document.getElementById('statusMetaPlantao');
             if (plantaoOkHoje) {
-                statusMetaEl.innerText = 'Cumprido ✅'; 
+                statusMetaEl.innerText = 'Cumprido ✅';
                 statusMetaEl.style.color = '#34d399';
             } else {
-                statusMetaEl.innerText = 'Ativo'; 
+                statusMetaEl.innerText = 'Ativo';
                 statusMetaEl.style.color = '#38bdf8';
             }
         }
@@ -1091,7 +1084,7 @@
             missaoSelecionadaAtual = idMissao; fotoPrintMissaoBase64 = '';
             document.getElementById('tituloModalMissao').innerText = `📸 Comprovante: ${tituloMissao}`;
             const valorFormatadoDestaque = Number(valorMissaoDinamicoServidor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            document.getElementById('textoInstrucaoPrintModal').innerHTML = `Anexe o print que comprove a realização da atividade (Gera <b>+${valorFormatadoDestaque}</b>):`;
+            document.getElementById('textoInstrucaoPrintModal').innerHTML = `Anexe o print que comprove a realização da atividade (Gera <b>+${escapeHTML(valorFormatadoDestaque)}</b>):`;
             document.getElementById('btnEnviarPrintMissao').innerText = `Enviar Comprovante e Ganhar ${valorFormatadoDestaque}`;
             document.getElementById('fotoPrintMissao').value = '';
             document.getElementById('statusPrintMissao').innerText = '';
@@ -1137,20 +1130,20 @@
                 await fetch('/api/membro/carteira/atualizar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        nickname: user.nickname, 
+                    body: JSON.stringify({
+                        nickname: user.nickname,
                         missaoId: missaoSelecionadaAtual,
-                        saldoTotal: saldoCarteiraAtual, 
-                        motivo: `Missão Diária Concluída`, 
-                        ciclo: cicloAtual, 
-                        comprovantePrint: fotoPrintMissaoBase64 
+                        saldoTotal: saldoCarteiraAtual,
+                        motivo: `Missão Diária Concluída`,
+                        ciclo: cicloAtual,
+                        comprovantePrint: fotoPrintMissaoBase64
                     })
                 });
             } catch (e) {}
 
             processandoMissao = false;
             if (btnEnv) { btnEnv.disabled = false; btnEnv.innerText = `Enviar Comprovante e Ganhar ${valorFormatadoDestaque}`; }
-            mostrarModalCustomizado('Sucesso', `Comprovante verificado e registado nas logs do comando! <b>+${valorFormatadoDestaque}</b> adicionados à sua Carteira.`);
+            mostrarModalCustomizado('Sucesso', `Comprovante verificado e registado nas logs do comando! <b>+${escapeHTML(valorFormatadoDestaque)}</b> adicionados à sua Carteira.`);
             sincronizarCarteiraEMissoes();
         }
 
@@ -1191,15 +1184,15 @@
                     const btn = document.getElementById('btnIniciarProva');
                     card.style.display = 'block';
                     if (data.bloqueadoPorCooldown) {
-                        info.innerHTML = `⏳ <span style="color: #ef4444; font-weight: bold;">${data.message}</span>`;
+                        info.innerHTML = `⏳ <span style="color: #ef4444; font-weight: bold;">${escapeHTML(data.message)}</span>`;
                         btn.style.display = 'none';
                     } else if (data.provaDisponivelPara) {
                         cargoDestinoAtual = data.provaDisponivelPara;
                         document.getElementById('spanCargoAlvo').innerText = cargoDestinoAtual;
-                        info.innerHTML = `✅ Exame oficial para <b>${cargoDestinoAtual}</b> liberado!`;
+                        info.innerHTML = `✅ Exame oficial para <b>${escapeHTML(cargoDestinoAtual)}</b> liberado!`;
                         btn.style.display = 'block';
                     } else {
-                        info.innerHTML = `⏳ Tens <b>${data.totalHoras}h</b> acumuladas. Faltam <b>${data.horasFaltando}h</b> para a próxima prova.`;
+                        info.innerHTML = `⏳ Tens <b>${escapeHTML(data.totalHoras)}h</b> acumuladas. Faltam <b>${escapeHTML(data.horasFaltando)}h</b> para a próxima prova.`;
                         btn.style.display = 'none';
                     }
                 }
@@ -1229,7 +1222,7 @@
                 });
                 const data = await res.json();
                 fecharModalProva();
-                mostrarModalCustomizado(data.aprovado ? 'Parabéns!' : 'Resultado', data.message, 'alerta', () => {
+                mostrarModalCustomizado(data.aprovado ? 'Parabéns!' : 'Resultado', escapeHTML(data.message), 'alerta', () => {
                     if (data.aprovado) { user.cargo = cargoDestinoAtual; localStorage.setItem('user', JSON.stringify(user)); window.location.reload(); }
                 });
             } catch (e) {}
@@ -1242,8 +1235,8 @@
                 const container = document.getElementById('caixaEntradaContainer');
                 container.innerHTML = '';
                 if (data.success && data.caixaEntrada && data.caixaEntrada.length > 0) {
-                    data.caixaEntrada.reverse().forEach(n => {
-                        container.innerHTML += `<div style="background: rgba(30, 41, 59, 0.7); padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #38bdf8;"><p style="font-weight: bold; color: #38bdf8;">${n.titulo}</p><p style="font-size: 12px; color: #cbd5e1;">${n.mensagem}</p></div>`;
+                    [...data.caixaEntrada].reverse().forEach(n => {
+                        container.innerHTML += `<div style="background: rgba(30, 41, 59, 0.7); padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #38bdf8;"><p style="font-weight: bold; color: #38bdf8;">${escapeHTML(n.titulo)}</p><p style="font-size: 12px; color: #cbd5e1;">${escapeHTML(n.mensagem)}</p></div>`;
                     });
                 } else { container.innerHTML = '<span style="color: #94a3b8;">Nenhuma notificação.</span>'; }
             } catch (e) {}
@@ -1255,11 +1248,11 @@
             const container = document.getElementById('listaFiscalizacaoPlantao');
             const busca = (document.getElementById('inputPesquisaFiscalizacao')?.value || '').toLowerCase();
             container.innerHTML = '';
-            const filtrados = cacheFiscalizacaoMembros.filter(u => u.nickname.toLowerCase().includes(busca));
+            const filtrados = cacheFiscalizacaoMembros.filter(u => (u.nickname || '').toLowerCase().includes(busca));
             if (filtrados.length > 0) {
                 filtrados.forEach(u => {
                     const mins = u.inicioPlantao ? Math.floor((Date.now() - new Date(u.inicioPlantao).getTime()) / 60000) : 0;
-                    container.innerHTML += `<div style="padding: 8px; margin-bottom: 6px; background: rgba(30, 41, 59, 0.8); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;"><span>🪖 <b>${u.nickname}</b> <span style="color:#38bdf8;">(${u.cargo})</span> • <span style="color:#eab308;">${mins}m</span></span><span class="status-badge status-ativo" style="font-size:10px;">EM PLANTÃO</span></div>`;
+                    container.innerHTML += `<div style="padding: 8px; margin-bottom: 6px; background: rgba(30, 41, 59, 0.8); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;"><span>🪖 <b>${escapeHTML(u.nickname)}</b> <span style="color:#38bdf8;">(${escapeHTML(u.cargo)})</span> • <span style="color:#eab308;">${mins}m</span></span><span class="status-badge status-ativo" style="font-size:10px;">EM PLANTÃO</span></div>`;
                 });
             } else { container.innerHTML = '<span style="color: #94a3b8; font-size:12px;">Nenhum operacional em plantão.</span>'; }
         }
@@ -1295,15 +1288,73 @@
             lista.innerHTML = '';
             if (usuarios && usuarios.length > 0) {
                 usuarios.forEach(u => {
-                    lista.innerHTML += `<div class="online-user-item"><span class="${u.emPlantao ? 'plantao-dot' : 'online-dot'}"></span> <b>${u.nickname}</b></div>`;
+                    lista.innerHTML += `<div class="online-user-item"><span class="${u.emPlantao ? 'plantao-dot' : 'online-dot'}"></span> <b>${escapeHTML(u.nickname)}</b></div>`;
                 });
             } else { lista.innerHTML = '<span style="font-size: 11px; color: #94a3b8;">Nenhum online</span>'; }
         });
 
+        function fecharRoletaAoVivo() {
+            document.getElementById('modalRoletaAoVivo').style.display = 'none';
+            document.getElementById('btnFecharRoleta').style.display = 'none';
+        }
+
+        function desenharRoletaCanvas(participantes, anguloAtual) {
+            const canvas = document.getElementById('canvasRoleta');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const raio = Math.min(cx, cy) - 8;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const lista = Array.isArray(participantes) && participantes.length > 0 ? participantes : ['Sem participantes'];
+            const fatia = (Math.PI * 2) / lista.length;
+            const cores = ['#0284c7', '#0f172a', '#0369a1', '#1e293b', '#0ea5e9', '#1e3a8a'];
+
+            lista.forEach((nome, i) => {
+                const inicio = anguloAtual + i * fatia;
+                const fim = inicio + fatia;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.arc(cx, cy, raio, inicio, fim);
+                ctx.closePath();
+                ctx.fillStyle = cores[i % cores.length];
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(inicio + fatia / 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 12px Inter, sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText(String(nome).slice(0, 14), raio - 14, 4);
+                ctx.restore();
+            });
+        }
+
         socket.on('girar_roleta_ao_vivo', (dados) => {
-            const { participantes, vencedor, cargoVencedor, indiceVencedor, premio } = dados;
+            const { participantes = [], vencedor = 'Definido', cargoVencedor = '', premio = '-' } = dados || {};
             document.getElementById('roletaPremioTexto').innerText = `🎁 Prêmio: ${premio}`;
+            document.getElementById('roletaResultadoBox').innerHTML = `<p style="color: #94a3b8; font-size: 13px;">A girar a roleta...</p>`;
+            document.getElementById('btnFecharRoleta').style.display = 'none';
             document.getElementById('modalRoletaAoVivo').style.display = 'flex';
+
+            let angulo = 0;
+            let passos = 0;
+            const totalPassos = 36;
+            const anim = setInterval(() => {
+                passos++;
+                angulo += 0.45 * (1 - passos / (totalPassos + 6));
+                desenharRoletaCanvas(participantes, angulo);
+                if (passos >= totalPassos) {
+                    clearInterval(anim);
+                    document.getElementById('roletaResultadoBox').innerHTML = `<p style="color: #34d399; font-size: 15px; font-weight: 800;">🏆 Vencedor: ${escapeHTML(vencedor)}${cargoVencedor ? ` (${escapeHTML(cargoVencedor)})` : ''}</p>`;
+                    document.getElementById('btnFecharRoleta').style.display = 'block';
+                }
+            }, 45);
         });
 
         function carregarHistoricoChatLocal() {
@@ -1314,7 +1365,7 @@
         }
         function adicionarMsgNoChat(data, salvar = true) {
             const chatBox = document.getElementById('chatBox');
-            chatBox.innerHTML += `<div class="chat-msg"><div class="chat-header-info"><span class="autor">${data.nickname} (${data.cargo})</span><span class="hora">${data.hora}</span></div><div class="texto-msg">${data.mensagem}</div></div>`;
+            chatBox.innerHTML += `<div class="chat-msg"><div class="chat-header-info"><span class="autor">${escapeHTML(data.nickname)} (${escapeHTML(data.cargo)})</span><span class="hora">${escapeHTML(data.hora)}</span></div><div class="texto-msg">${escapeHTML(data.mensagem)}</div></div>`;
             chatBox.scrollTop = chatBox.scrollHeight;
             if (salvar) {
                 const msgs = JSON.parse(localStorage.getItem('chat_historico_salazar')) || [];
@@ -1341,7 +1392,7 @@
                 tbody.innerHTML = '';
                 if (data.success && data.ranking.length > 0) {
                     data.ranking.forEach((item, index) => {
-                        tbody.innerHTML += `<tr><td><b>${index+1}º</b></td><td>${item.nickname}</td><td style="color: #38bdf8; font-weight: bold;">${item.totalFormatado}</td></tr>`;
+                        tbody.innerHTML += `<tr><td><b>${index+1}º</b></td><td>${escapeHTML(item.nickname)}</td><td style="color: #38bdf8; font-weight: bold;">${escapeHTML(item.totalFormatado)}</td></tr>`;
                     });
                 } else { tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8;">Sem registos no horário.</td></tr>`; }
             } catch (e) {}
@@ -1351,6 +1402,19 @@
         let timerInterval = null, estadoTurno = 'parado', segundosAcumuladosBase = 0, timestampInicioServer = null, fotoComprovanteBase64 = '';
         let processandoCheckin = false, processandoCheckout = false;
         const TEMPO_MINIMO_SEGUNDOS = 30 * 60;
+
+        function atualizarEtapaTurnoUI() {
+            const etapaEl = document.getElementById('etapaAtual');
+            if (!etapaEl) return;
+            if (estadoTurno === 'ativo') {
+                etapaEl.innerHTML = 'Etapa: <b style="color: #34d399;">Turno em andamento (Check-in ativo)</b>';
+            } else if (estadoTurno === 'pausado') {
+                etapaEl.innerHTML = 'Etapa: <b style="color: #eab308;">Turno pausado</b>';
+            } else {
+                etapaEl.innerHTML = 'Etapa: <span style="color: #cbd5e1;">Aguardando início de turno</span>';
+            }
+            atualizarStatusSorteioUI();
+        }
 
         function limparPrintTurnoLocal() {
             fotoComprovanteBase64 = '';
@@ -1366,6 +1430,7 @@
         function atualizarDisplayTimer() {
             const total = calcularSegundosTotais();
             document.getElementById('timerDisplay').innerText = `${String(Math.floor(total / 3600)).padStart(2, '0')}:${String(Math.floor((total % 3600) / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+            atualizarStatusSorteioUI();
             return total;
         }
         function iniciarLoopTimer() {
@@ -1394,12 +1459,17 @@
             if (estadoTurno === 'ativo') {
                 document.getElementById('btnCheckin').disabled = true;
                 document.getElementById('btnPausar').style.display = 'block';
+                document.getElementById('btnPausar').innerText = 'Pausar Turno';
                 iniciarLoopTimer();
             } else if (estadoTurno === 'pausado') {
                 document.getElementById('btnCheckin').disabled = true;
                 document.getElementById('btnPausar').style.display = 'block';
                 document.getElementById('btnPausar').innerText = 'Retomar Turno';
+            } else {
+                document.getElementById('btnCheckin').disabled = false;
+                document.getElementById('btnPausar').style.display = 'none';
             }
+            atualizarEtapaTurnoUI();
             atualizarDisplayTimer();
         }
         restaurarEstadoTurno();
@@ -1417,7 +1487,7 @@
         async function fazerCheckin() {
             if (estadoTurno === 'ativo' || processandoCheckin) return;
             if (!fotoComprovanteBase64) { mostrarModalCustomizado('Atenção', 'Anexe o print do turno antes de iniciar!'); return; }
-            
+
             processandoCheckin = true;
             const btnCheckinEl = document.getElementById('btnCheckin');
             if (btnCheckinEl) btnCheckinEl.disabled = true;
@@ -1427,11 +1497,14 @@
                 estadoTurno = 'ativo'; timestampInicioServer = agora; segundosAcumuladosBase = 0;
                 await fetch('/api/membro/status-plantao', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: user.nickname, emPlantao: true, estadoTurno: 'ativo', inicioPlantao: agora, segundosAcumulados: 0, fotoComprovanteAtiva: fotoComprovanteBase64 }) });
                 document.getElementById('btnPausar').style.display = 'block';
+                document.getElementById('btnPausar').innerText = 'Pausar Turno';
+                atualizarEtapaTurnoUI();
                 iniciarLoopTimer();
                 mostrarModalCustomizado('Sucesso', 'Check-in iniciado!');
             } catch (e) {
                 estadoTurno = 'parado';
                 if (btnCheckinEl) btnCheckinEl.disabled = false;
+                atualizarEtapaTurnoUI();
             } finally {
                 processandoCheckin = false;
             }
@@ -1444,11 +1517,13 @@
                 clearInterval(timerInterval);
                 await fetch('/api/membro/status-plantao', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: user.nickname, emPlantao: false, estadoTurno: 'pausado', segundosAcumulados: segundosAcumuladosBase }) });
                 document.getElementById('btnPausar').innerText = 'Retomar Turno';
+                atualizarEtapaTurnoUI();
                 mostrarModalCustomizado('Pausado', 'Turno pausado.');
             } else {
                 const agora = Date.now(); estadoTurno = 'ativo'; timestampInicioServer = agora;
                 await fetch('/api/membro/status-plantao', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: user.nickname, emPlantao: true, estadoTurno: 'ativo', inicioPlantao: agora, segundosAcumulados: segundosAcumuladosBase }) });
                 document.getElementById('btnPausar').innerText = 'Pausar Turno';
+                atualizarEtapaTurnoUI();
                 iniciarLoopTimer();
                 mostrarModalCustomizado('Retomado', 'Turno a contar novamente.');
             }
@@ -1458,6 +1533,11 @@
             if (processandoCheckout) return;
 
             const total = atualizarDisplayTimer();
+            if (estadoTurno === 'parado' && total === 0) {
+                mostrarModalCustomizado('Aviso', 'Não há turno em andamento no momento. Faça o Check-in primeiro.');
+                return;
+            }
+
             if (total < TEMPO_MINIMO_SEGUNDOS) {
                 mostrarModalCustomizado('⚠️ Atenção', `Plantão abaixo de 30 minutos. Deseja fechar e descartar?`, 'confirmacao', async () => {
                     if (processandoCheckout) return;
@@ -1469,9 +1549,9 @@
                 });
                 return;
             }
-            if (!fotoComprovanteBase64) { 
-                mostrarModalCustomizado('Atenção', 'Anexe o comprovante.'); 
-                return; 
+            if (!fotoComprovanteBase64) {
+                mostrarModalCustomizado('Atenção', 'Anexe o comprovante.');
+                return;
             }
 
             processandoCheckout = true;
@@ -1487,15 +1567,15 @@
             const duracaoTxt = document.getElementById('timerDisplay').innerText;
 
             try {
-                const res = await fetch('/api/membro/turno', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ nickname: user.nickname, duracao: duracaoTxt, segundosTotais: total, fotoComprovante: fotoComprovanteBase64 }) 
+                const res = await fetch('/api/membro/turno', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nickname: user.nickname, duracao: duracaoTxt, segundosTotais: total, fotoComprovante: fotoComprovanteBase64 })
                 });
                 const data = await res.json();
-                if (data.success) { 
+                if (data.success) {
                     limparPrintTurnoLocal();
-                    window.location.reload(); 
+                    window.location.reload();
                 } else {
                     processandoCheckout = false;
                     if (btnCheckoutEl) {
@@ -1503,7 +1583,7 @@
                         btnCheckoutEl.innerText = 'Finalizar Turno (Check-out)';
                     }
                     if (btnPausarEl) btnPausarEl.disabled = false;
-                    mostrarModalCustomizado('Erro', data.message || 'Erro ao finalizar turno.');
+                    mostrarModalCustomizado('Erro', escapeHTML(data.message || 'Erro ao finalizar turno.'));
                 }
             } catch (e) {
                 processandoCheckout = false;
@@ -1520,7 +1600,7 @@
             const modal = document.getElementById('customModal');
             document.getElementById('modalCustomTitle').innerText = titulo;
             document.getElementById('modalCustomMessage').innerHTML = msg;
-            const b = document.getElementById('modalCustomButtons'); 
+            const b = document.getElementById('modalCustomButtons');
             b.innerHTML = '';
 
             if (tipo === 'confirmacao') {
@@ -1534,27 +1614,34 @@
                 b.appendChild(cancelar);
             }
 
-            const ok = document.createElement('button'); 
-            ok.innerText = tipo === 'confirmacao' ? 'Confirmar' : 'OK'; 
-            ok.className = 'btn-action'; 
-            ok.style.width = 'auto'; 
+            const ok = document.createElement('button');
+            ok.innerText = tipo === 'confirmacao' ? 'Confirmar' : 'OK';
+            ok.className = 'btn-action';
+            ok.style.width = 'auto';
             ok.style.padding = '8px 20px';
             if (tipo === 'confirmacao') {
                 ok.style.background = 'linear-gradient(135deg, #16a34a, #15803d)';
             }
             ok.onclick = () => { modal.style.display = 'none'; if(cb) cb(); };
             b.appendChild(ok);
-            
+
             modal.style.display = 'flex';
         }
 
         async function abrirHistorico() {
             document.getElementById('modalHistorico').style.display = 'flex';
             const c = document.getElementById('conteudoHistorico');
-            const res = await fetch(`/api/membro/historico/${encodeURIComponent(user.nickname)}`);
-            const data = await res.json();
-            if (data.success) {
-                c.innerHTML = data.historicoTurnos.map(t => `<p>• ${t.duracao} (${new Date(t.data).toLocaleDateString()})</p>`).join('') || 'Nenhum turno.';
+            c.innerHTML = '<p>A carregar histórico...</p>';
+            try {
+                const res = await fetch(`/api/membro/historico/${encodeURIComponent(user.nickname)}`);
+                const data = await res.json();
+                if (data.success) {
+                    c.innerHTML = (data.historicoTurnos || []).map(t => `<p>• ${escapeHTML(t.duracao)} (${escapeHTML(new Date(t.data).toLocaleDateString())})</p>`).join('') || '<p>Nenhum turno.</p>';
+                } else {
+                    c.innerHTML = '<p>Não foi possível carregar o histórico.</p>';
+                }
+            } catch (e) {
+                c.innerHTML = '<p>Erro de ligação ao carregar histórico.</p>';
             }
         }
         function fecharHistorico() { document.getElementById('modalHistorico').style.display = 'none'; }
