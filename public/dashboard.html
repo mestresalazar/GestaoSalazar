@@ -715,13 +715,13 @@
     <script src="/voz.js"></script>
 
     <script>
-       function escapeHTML(str) {
+        function escapeHTML(str) {
             return String(str ?? '')
                 .replace(/&/g, '&')
                 .replace(/</g, '<')
                 .replace(/>/g, '>')
                 .replace(/"/g, '"')
-                .replace(/\x27/g, ''');
+                .replace(/'/g, '&#39;');
         }
 
         function mudarAba(nomeAba, elementoBtn) {
@@ -1479,14 +1479,28 @@
                 comprimirImagemBase64(input.files[0], async function(base64) {
                     fotoComprovanteBase64 = base64;
                     document.getElementById('statusAnexo').innerText = `✅ Print carregado com sucesso`;
-                    await fetch('/api/membro/status-plantao', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: user.nickname, emPlantao: (estadoTurno === 'ativo'), estadoTurno, fotoComprovanteAtiva: fotoComprovanteBase64 }) });
+                    try {
+                        await fetch('/api/membro/status-plantao', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                nickname: user.nickname,
+                                emPlantao: (estadoTurno === 'ativo'),
+                                estadoTurno,
+                                fotoComprovanteAtiva: fotoComprovanteBase64
+                            })
+                        });
+                    } catch (e) {}
                 });
             }
         }
 
         async function fazerCheckin() {
             if (estadoTurno === 'ativo' || processandoCheckin) return;
-            if (!fotoComprovanteBase64) { mostrarModalCustomizado('Atenção', 'Anexe o print do turno antes de iniciar!'); return; }
+            if (!fotoComprovanteBase64) {
+                mostrarModalCustomizado('Atenção', 'Anexe o print do turno antes de iniciar!');
+                return;
+            }
 
             processandoCheckin = true;
             const btnCheckinEl = document.getElementById('btnCheckin');
@@ -1494,8 +1508,27 @@
 
             try {
                 const agora = Date.now();
-                estadoTurno = 'ativo'; timestampInicioServer = agora; segundosAcumuladosBase = 0;
-                await fetch('/api/membro/status-plantao', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: user.nickname, emPlantao: true, estadoTurno: 'ativo', inicioPlantao: agora, segundosAcumulados: 0, fotoComprovanteAtiva: fotoComprovanteBase64 }) });
+                const res = await fetch('/api/membro/status-plantao', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nickname: user.nickname,
+                        emPlantao: true,
+                        estadoTurno: 'ativo',
+                        inicioPlantao: agora,
+                        segundosAcumulados: 0,
+                        fotoComprovanteAtiva: fotoComprovanteBase64
+                    })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || data.success === false) {
+                    throw new Error(data.message || 'Falha ao registar check-in no servidor.');
+                }
+
+                estadoTurno = 'ativo';
+                timestampInicioServer = agora;
+                segundosAcumuladosBase = 0;
+
                 document.getElementById('btnPausar').style.display = 'block';
                 document.getElementById('btnPausar').innerText = 'Pausar Turno';
                 atualizarEtapaTurnoUI();
@@ -1503,8 +1536,10 @@
                 mostrarModalCustomizado('Sucesso', 'Check-in iniciado!');
             } catch (e) {
                 estadoTurno = 'parado';
+                timestampInicioServer = null;
                 if (btnCheckinEl) btnCheckinEl.disabled = false;
                 atualizarEtapaTurnoUI();
+                mostrarModalCustomizado('Erro', escapeHTML(e.message || 'Não foi possível iniciar o turno.'));
             } finally {
                 processandoCheckin = false;
             }
