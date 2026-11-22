@@ -47,75 +47,265 @@
             box-sizing: border-box;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
             letter-spacing: -0.01em;
+            -webkit-tap-highlight-color: transparent;
         }
         body {
-            background-image: linear-gradient(rgba(7, 13, 22, 0.8), rgba(7, 13, 22, 0.9)), url('/background.jpg');
+            background-image: linear-gradient(rgba(7, 13, 22, 0.88), rgba(7, 13, 22, 0.96)), url('/background.jpg');
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
             background-color: #070d16;
             color: #ffffff;
-            padding: 16px;
+            padding: 10px 12px calc(80px + env(safe-area-inset-bottom, 12px)) 12px;
+            overflow-x: hidden;
+            width: 100%;
+            min-height: 100vh;
         }
 
-        /* --- NAVBAR COM ABAS PROFISSIONAIS --- */
-        .navbar {
+        /* --- TOP APP BAR COMPACTO (ESTILO APP NATIVO) --- */
+        .app-header {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            background: linear-gradient(145deg, rgba(15, 23, 42, 0.92), rgba(7, 13, 22, 0.98)) !important;
-            backdrop-filter: blur(16px) !important;
-            padding: 14px 20px;
-            border-radius: 16px !important;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.75) !important;
-            border: 1px solid rgba(56, 189, 248, 0.25) !important;
-            flex-wrap: wrap;
+            justify-content: space-between;
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(7, 13, 22, 0.98));
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: calc(env(safe-area-inset-top, 0px) + 8px) 14px 10px 14px;
+            border-radius: 16px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(56, 189, 248, 0.28);
+            box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.7);
+            position: sticky;
+            top: 6px;
+            z-index: 900;
+        }
+        .app-header-left {
+            display: flex;
+            align-items: center;
             gap: 12px;
         }
-        .nav-brand {
+        .btn-side-menu-trigger {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.35);
             color: #38bdf8;
-            font-size: 18px;
-            font-weight: 800;
-            text-shadow: 0 2px 6px rgba(0,0,0,0.8);
-        }
-        .nav-links {
+            font-size: 20px;
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
             display: flex;
-            gap: 8px;
             align-items: center;
-            flex-wrap: wrap;
-        }
-        .nav-btn-aba {
-            background: rgba(30, 41, 59, 0.7);
-            color: #cbd5e1;
-            border: 1px solid rgba(56, 189, 248, 0.15);
-            padding: 8px 14px;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 13px;
+            justify-content: center;
             cursor: pointer;
-            transition: all 0.25s ease;
-            text-decoration: none;
-            display: inline-block;
+            transition: all 0.2s ease;
         }
-        .nav-btn-aba:hover, .nav-btn-aba.active {
-            background: rgba(56, 189, 248, 0.2);
+        .btn-side-menu-trigger:hover, .btn-side-menu-trigger:active {
+            background: rgba(56, 189, 248, 0.3);
+            transform: scale(0.97);
+        }
+        .app-header-title-box {
+            display: flex;
+            flex-direction: column;
+        }
+        .app-header-brand {
+            font-size: 16px;
+            font-weight: 800;
             color: #38bdf8;
-            border-color: rgba(56, 189, 248, 0.5);
-            box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+            letter-spacing: -0.02em;
+            line-height: 1.2;
         }
-        .logout-btn {
-            background-color: rgba(239, 68, 68, 0.9);
-            color: white;
-            border: none;
-            padding: 8px 14px;
+        .app-header-category {
+            font-size: 11px;
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .app-header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .app-header-user-btn {
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            color: #e2e8f0;
+            padding: 6px 12px;
             border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
             cursor: pointer;
-            font-weight: 700;
-            font-size: 13px;
-            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
         }
-        .logout-btn:hover { background-color: #dc2626; }
+
+        /* --- SIDE DRAWER (MENU LATERAL DESLIZANTE) --- */
+        .drawer-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(3, 7, 18, 0.7);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .drawer-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        .side-drawer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 290px;
+            max-width: 82vw;
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99));
+            border-right: 1px solid rgba(56, 189, 248, 0.3);
+            z-index: 2100;
+            transform: translateX(-100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 10px 0 30px rgba(0, 0, 0, 0.8);
+        }
+        .side-drawer.open {
+            transform: translateX(0);
+        }
+        .drawer-header {
+            padding: 20px 18px;
+            border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(15, 23, 42, 0.6);
+        }
+        .drawer-user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .drawer-avatar-mini {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 2px solid #38bdf8;
+            background: rgba(30, 41, 59, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        .drawer-user-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .drawer-user-rank {
+            font-size: 11px;
+            color: #38bdf8;
+            font-weight: 600;
+        }
+        .drawer-close-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px;
+        }
+        .drawer-body {
+            padding: 12px 10px;
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .drawer-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            color: #cbd5e1;
+            font-size: 14px;
+            font-weight: 600;
+            background: none;
+            border: 1px solid transparent;
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+        .drawer-nav-item:hover, .drawer-nav-item.active {
+            background: rgba(56, 189, 248, 0.15);
+            color: #38bdf8;
+            border-color: rgba(56, 189, 248, 0.35);
+        }
+        .drawer-nav-item span.icon {
+            font-size: 18px;
+            width: 22px;
+            text-align: center;
+        }
+        .drawer-footer {
+            padding: 14px;
+            border-top: 1px solid rgba(56, 189, 248, 0.2);
+            background: rgba(7, 13, 22, 0.7);
+        }
+
+        /* --- BARRA INFERIOR FIXA (BOTTOM NAV) --- */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.97), rgba(7, 13, 22, 0.99));
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(56, 189, 248, 0.28);
+            z-index: 1000;
+            padding: 6px 10px calc(env(safe-area-inset-bottom, 6px) + 4px) 10px;
+            box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+        .bottom-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 5px 8px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-height: 48px;
+            min-width: 54px;
+            touch-action: manipulation;
+            user-select: none;
+            text-decoration: none;
+        }
+        .bottom-nav-item span.icon {
+            font-size: 19px;
+            margin-bottom: 2px;
+            line-height: 1;
+        }
+        .bottom-nav-item.active {
+            color: #38bdf8;
+            background: rgba(56, 189, 248, 0.14);
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+        }
 
         /* --- SISTEMA DE ABAS (MÓDULOS) --- */
         .tab-content {
@@ -137,10 +327,7 @@
         }
         @media(max-width: 900px) {
             .grid-container { grid-template-columns: 1fr; }
-            body { padding: 10px; }
-            .navbar { padding: 12px 14px; flex-direction: column; align-items: stretch; text-align: center; }
-            .nav-links { justify-content: center; gap: 6px; }
-            .nav-btn-aba { font-size: 12px; padding: 7px 10px; }
+            body { padding: 8px; padding-bottom: 92px; }
         }
 
         .card {
@@ -286,22 +473,81 @@
 </head>
 <body>
 
-    <!-- NAVBAR COM ABAS PROFISSIONAIS ADM -->
-    <div class="navbar">
-        <div class="nav-brand">Gestão Salazar - Comando</div>
-        <div class="nav-links">
-            <button class="nav-btn-aba active" onclick="mudarAba('efetivo', this)">👥 Efetivo & Membros</button>
-            <button class="nav-btn-aba" onclick="mudarAba('carteiras', this)">💳 Saldos & Carteiras</button>
-            <button class="nav-btn-aba" onclick="mudarAba('inativos', this)">⚠️ Inativos (+3 dias)</button>
-            <button class="nav-btn-aba" onclick="mudarAba('comandos', this)">⚡ Comandos & Ações</button>
-            <button class="nav-btn-aba" onclick="mudarAba('sorteios', this)">🎁 Sorteios & Roleta</button>
-            <button class="nav-btn-aba" onclick="mudarAba('auditoria', this)">📋 Auditoria & Logs</button>
-            <button class="nav-btn-aba" onclick="mudarAba('radio', this)">💬 Rádio Tático</button>
-            <a href="dashboard.html" class="nav-btn-aba" style="background: rgba(3, 105, 161, 0.25); color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">Painel de Turnos</a>
-            <span id="userBadgeInfo" style="font-size: 12px; color: #e2e8f0; font-weight: 600; margin-left: 6px;"></span>
-            <button class="logout-btn" onclick="logout()">Sair</button>
+    <!-- TOP APP BAR COMPACTO ADM -->
+    <header class="app-header">
+        <div class="app-header-left">
+            <button class="btn-side-menu-trigger" onclick="alternarSideDrawer(true)" aria-label="Abrir Menu">☰</button>
+            <div class="app-header-title-box">
+                <span class="app-header-brand">Comando Salazar</span>
+                <span class="app-header-category" id="appHeaderCategoryTitle">Efetivo & Membros</span>
+            </div>
         </div>
-    </div>
+        <div class="app-header-right">
+            <a href="dashboard.html" class="app-header-user-btn" style="color: #38bdf8;">
+                <span>🪖</span>
+                <span>Turnos</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- BACKDROP & MENU LATERAL (SIDE DRAWER) -->
+    <div id="drawerOverlay" class="drawer-overlay" onclick="alternarSideDrawer(false)"></div>
+    <aside id="sideDrawer" class="side-drawer">
+        <div class="drawer-header">
+            <div class="drawer-user-info">
+                <div class="drawer-avatar-mini">⚡</div>
+                <div>
+                    <div class="drawer-user-name" id="drawerUserName">Comando</div>
+                    <div class="drawer-user-rank" id="drawerUserRank">General / Admin</div>
+                </div>
+            </div>
+            <button class="drawer-close-btn" onclick="alternarSideDrawer(false)">✕</button>
+        </div>
+
+        <nav class="drawer-body">
+            <button class="drawer-nav-item active" data-tab="efetivo" onclick="mudarAba('efetivo')">
+                <span class="icon">👥</span>
+                <span>Efetivo & Membros</span>
+            </button>
+            <button class="drawer-nav-item" data-tab="carteiras" onclick="mudarAba('carteiras')">
+                <span class="icon">💳</span>
+                <span>Saldos & Carteiras</span>
+            </button>
+            <button class="drawer-nav-item" data-tab="inativos" onclick="mudarAba('inativos')">
+                <span class="icon">⚠️</span>
+                <span>Inativos (+3 dias)</span>
+            </button>
+            <button class="drawer-nav-item" data-tab="comandos" onclick="mudarAba('comandos')">
+                <span class="icon">⚡</span>
+                <span>Comandos & Ações</span>
+            </button>
+            <button class="drawer-nav-item" data-tab="sorteios" onclick="mudarAba('sorteios')">
+                <span class="icon">🎁</span>
+                <span>Sorteios & Roleta</span>
+            </button>
+            <button class="drawer-nav-item" data-tab="auditoria" onclick="mudarAba('auditoria')">
+                <span class="icon">📋</span>
+                <span>Auditoria & Logs</span>
+            </button>
+            <button class="drawer-nav-item" data-tab="radio" onclick="mudarAba('radio')">
+                <span class="icon">💬</span>
+                <span>Rádio Tático</span>
+            </button>
+
+            <div style="height: 1px; background: rgba(56, 189, 248, 0.2); margin: 8px 6px;"></div>
+
+            <a href="dashboard.html" class="drawer-nav-item" style="color: #38bdf8;">
+                <span class="icon">🪖</span>
+                <span>Painel de Turnos</span>
+            </a>
+        </nav>
+
+        <div class="drawer-footer">
+            <button class="btn-action btn-demitir" style="margin-top: 0; width: 100%; padding: 11px; font-size: 13px;" onclick="logout()">
+                🚪 Sair da Conta
+            </button>
+        </div>
+    </aside>
 
     <!-- ========================================== -->
     <!-- ABA 1: EFETIVO E GESTÃO DE MEMBROS (PRINCIPAL) -->
@@ -716,19 +962,82 @@
         </div>
     </div>
 
+    <!-- BOTTOM NAV FIXA ADM (ESTILO APP PWA) -->
+    <nav class="bottom-nav">
+        <button class="bottom-nav-item active" data-tab="efetivo" onclick="mudarAba('efetivo')">
+            <span class="icon">👥</span>
+            <span>Efetivo</span>
+        </button>
+        <button class="bottom-nav-item" data-tab="carteiras" onclick="mudarAba('carteiras')">
+            <span class="icon">💳</span>
+            <span>Saldos</span>
+        </button>
+        <button class="bottom-nav-item" data-tab="comandos" onclick="mudarAba('comandos')">
+            <span class="icon">⚡</span>
+            <span>Ações</span>
+        </button>
+        <button class="bottom-nav-item" data-tab="sorteios" onclick="mudarAba('sorteios')">
+            <span class="icon">🎁</span>
+            <span>Roleta</span>
+        </button>
+        <button class="bottom-nav-item" onclick="alternarSideDrawer(true)">
+            <span class="icon">☰</span>
+            <span>Menu</span>
+        </button>
+    </nav>
+
     <script>
+        const titulosCategoriasAdmin = {
+            'efetivo': 'Efetivo & Membros',
+            'carteiras': 'Saldos & Carteiras',
+            'inativos': 'Inativos (+3 dias)',
+            'comandos': 'Comandos & Ações',
+            'sorteios': 'Sorteios & Roleta',
+            'auditoria': 'Auditoria & Logs',
+            'radio': 'Rádio Tático'
+        };
+
+        function alternarSideDrawer(abrir) {
+            const drawer = document.getElementById('sideDrawer');
+            const overlay = document.getElementById('drawerOverlay');
+            if (!drawer || !overlay) return;
+            if (abrir) {
+                drawer.classList.add('open');
+                overlay.classList.add('open');
+            } else {
+                drawer.classList.remove('open');
+                overlay.classList.remove('open');
+            }
+        }
+
         // --- FUNÇÃO DE ALTERNAR ABAS (MÓDULOS) ---
-        function mudarAba(nomeAba, elementoBtn) {
+        function mudarAba(nomeAba) {
+            alternarSideDrawer(false);
+
             document.querySelectorAll('.tab-content').forEach(aba => aba.classList.remove('active'));
-            document.querySelectorAll('.nav-btn-aba').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.drawer-nav-item').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === nomeAba);
+            });
+            document.querySelectorAll('.bottom-nav-item').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === nomeAba);
+            });
             
-            document.getElementById('aba-' + nomeAba).classList.add('active');
-            if(elementoBtn) elementoBtn.classList.add('active');
+            const alvo = document.getElementById('aba-' + nomeAba);
+            if (alvo) alvo.classList.add('active');
+
+            const titleEl = document.getElementById('appHeaderCategoryTitle');
+            if (titleEl && titulosCategoriasAdmin[nomeAba]) {
+                titleEl.innerText = titulosCategoriasAdmin[nomeAba];
+            }
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
 
             if (nomeAba === 'carteiras') {
                 carregarListaCarteirasAdmin();
             } else if (nomeAba === 'inativos') {
                 carregarMembrosInativos();
+            } else if (nomeAba === 'auditoria') {
+                carregarLogsAdmin();
             }
         }
 
@@ -741,7 +1050,11 @@
             mostrarModalCustomizado('Acesso Restrito', 'Acesso restrito exclusivamente ao Coronel All e General.', 'alerta', () => { window.location.href = 'dashboard.html'; });
         }
 
-        document.getElementById('userBadgeInfo').innerText = `${user.nickname} (${user.cargo || 'General'})`;
+        const drawerName = document.getElementById('drawerUserName');
+        if (drawerName) drawerName.innerText = user.nickname;
+
+        const drawerRank = document.getElementById('drawerUserRank');
+        if (drawerRank) drawerRank.innerText = `${user.cargo || 'General'} (Comando)`;
 
         if (user.nickname && user.nickname.toLowerCase().trim() === 'mestre') {
             document.getElementById('cardInjecaoMestre').style.display = 'block';
@@ -793,7 +1106,8 @@
                     alert('O seu cargo foi alterado e já não tem permissão para aceder ao Painel ADM.');
                     window.location.replace('dashboard.html');
                 } else {
-                    document.getElementById('userBadgeInfo').innerText = `${user.nickname} (${user.cargo})`;
+                    const drawerR = document.getElementById('drawerUserRank');
+                    if (drawerR) drawerR.innerText = `${user.cargo} (Comando)`;
                     document.documentElement.style.display = '';
                 }
             }

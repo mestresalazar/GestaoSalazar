@@ -790,19 +790,16 @@ app.put('/api/membro/status-plantao', async (req, res) => {
         const estadoTurnoDestino = estadoTurno || (emPlantao ? 'ativo' : 'parado');
         const ehNovoTurno = (membroAtual.estadoTurno === 'parado' || !membroAtual.estadoTurno) && estadoTurnoDestino === 'ativo';
 
-        // Ao INICIAR um novo plantão (vindo de parado), valida a janela regulamentar America/Recife (17h às 02h)
+        // Ao INICIAR um novo plantão (vindo de parado), valida estritamente a janela regulamentar America/Recife (17:00 às 02:00)
         if (ehNovoTurno) {
             const comp = obterComponentesRecife(new Date());
             const hora = comp.hora;
-            const cargo = membroAtual.cargo || '';
-            const ehMestre = String(nickname).toLowerCase().trim() === 'mestre' || cargo === 'General' || cargo === 'Coronel All';
-
             const dentroDoHorario = (hora >= 17 && hora <= 23) || (hora >= 0 && hora < 2);
 
-            if (!ehMestre && !dentroDoHorario) {
+            if (!dentroDoHorario) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Plantões só podem ser iniciados no horário regulamentar: das 17:00 até às 02:00 (America/Recife)!'
+                    message: 'Horário bloqueado! Plantões só podem ser iniciados no horário regulamentar: das 17:00 até às 02:00 (fuso America/Recife).'
                 });
             }
         }

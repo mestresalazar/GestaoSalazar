@@ -2530,23 +2530,53 @@
         function obterInfoEtapaHorarioBrasilia() {
             const agoraBrasil = new Date(Date.now() - (3 * 3600 * 1000));
             const hora = agoraBrasil.getUTCHours();
-            if (hora >= 17 && hora < 20) return { etapa: 1, nome: 'Etapa 1 (17h - 20h)' };
-            if (hora >= 20 && hora < 23) return { etapa: 2, nome: 'Etapa 2 (20h - 23h)' };
-            if (hora === 23 || hora === 0 || hora === 1) return { etapa: 3, nome: 'Etapa 3 (23h - 02h)' };
-            return { etapa: null, nome: 'Fora do Horário Regulamentar (17h - 02h)' };
+            const dentroDaJanela = (hora >= 17 && hora <= 23) || (hora >= 0 && hora < 2);
+
+            if (hora >= 17 && hora < 20) return { etapa: 1, nome: 'Etapa 1 (17h - 20h)', permitido: true };
+            if (hora >= 20 && hora < 23) return { etapa: 2, nome: 'Etapa 2 (20h - 23h)', permitido: true };
+            if (hora === 23 || hora === 0 || hora === 1) return { etapa: 3, nome: 'Etapa 3 (23h - 02h)', permitido: true };
+            return { etapa: null, nome: 'Fora do Horário Regulamentar (17h - 02h)', permitido: false };
         }
 
         function atualizarEtapaTurnoUI() {
             const etapaEl = document.getElementById('etapaAtual');
+            const btnCheckinEl = document.getElementById('btnCheckin');
+            const avisoTempo = document.getElementById('avisoTempoMinimo');
             if (!etapaEl) return;
             const info = obterInfoEtapaHorarioBrasilia();
 
             if (estadoTurno === 'ativo') {
                 etapaEl.innerHTML = `Etapa: <b style="color: #38bdf8;">${info.nome}</b> • <b style="color: #34d399;">Turno em andamento (Check-in ativo)</b>`;
+                if (btnCheckinEl) {
+                    btnCheckinEl.disabled = true;
+                    btnCheckinEl.innerText = 'Turno Ativo';
+                }
+                if (avisoTempo) avisoTempo.innerHTML = '⏱️ Tempo mínimo para computar horas: <b>30 minutos</b>.';
             } else if (estadoTurno === 'pausado') {
                 etapaEl.innerHTML = `Etapa: <b style="color: #38bdf8;">${info.nome}</b> • <b style="color: #eab308;">Turno pausado</b>`;
+                if (btnCheckinEl) {
+                    btnCheckinEl.disabled = true;
+                    btnCheckinEl.innerText = 'Turno em Pausa';
+                }
+                if (avisoTempo) avisoTempo.innerHTML = '⏱️ Turno pausado. Clique em Retomar para continuar.';
             } else {
-                etapaEl.innerHTML = `Etapa: <b style="color: #94a3b8;">${info.nome}</b> • <span style="color: #cbd5e1;">Aguardando início de turno</span>`;
+                if (!info.permitido) {
+                    etapaEl.innerHTML = `Etapa: <b style="color: #ef4444;">${info.nome}</b> • <span style="color: #f87171; font-weight: bold;">Início Bloqueado</span>`;
+                    if (btnCheckinEl) {
+                        btnCheckinEl.disabled = true;
+                        btnCheckinEl.innerText = '🔒 Check-in Bloqueado (Fora das 17h às 02h)';
+                    }
+                    if (avisoTempo) {
+                        avisoTempo.innerHTML = '🚫 <b>Plantão indisponível no momento:</b> o sistema só permite abrir turnos entre as <b>17:00 e 02:00</b> (horário de Brasília/Recife).';
+                    }
+                } else {
+                    etapaEl.innerHTML = `Etapa: <b style="color: #38bdf8;">${info.nome}</b> • <span style="color: #cbd5e1;">Aguardando início de turno</span>`;
+                    if (btnCheckinEl) {
+                        btnCheckinEl.disabled = false;
+                        btnCheckinEl.innerText = 'Iniciar Turno (Check-in)';
+                    }
+                    if (avisoTempo) avisoTempo.innerHTML = '⏱️ Tempo mínimo para computar horas: <b>30 minutos</b>.';
+                }
             }
             atualizarStatusSorteioUI();
         }
@@ -2663,6 +2693,13 @@
 
         async function fazerCheckin() {
             if (estadoTurno === 'ativo' || processandoCheckin) return;
+
+            const infoHorario = obterInfoEtapaHorarioBrasilia();
+            if (!infoHorario.permitido) {
+                mostrarModalCustomizado('Horário Bloqueado', 'Plantões só podem ser iniciados no horário regulamentar: das <b>17:00 até às 02:00</b> da madrugada (fuso America/Recife).');
+                return;
+            }
+
             if (!fotoComprovanteBase64) {
                 mostrarModalCustomizado('Atenção', 'Anexe o print do jogo comprovando a sua entrada no turno antes de fazer o Check-in!');
                 return;
