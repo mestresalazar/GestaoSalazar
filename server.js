@@ -7,6 +7,7 @@ const webpush = require('web-push');
 const path = require('path');
 const conectarDB = require('./config/db');
 const User = require('./models/User');
+const BatePonto = require('./models/BatePonto');
 const ConfigSorteio = require('./models/ConfigSorteio');
 const LogAdmin = require('./models/LogAdmin');
 
@@ -88,12 +89,35 @@ function obterDataEmBrasil(timestamp = Date.now()) {
 function horaBrasiliaEstaNaJanelaTurno(dateObj) {
     const dBrasil = obterDataEmBrasil(dateObj);
     const hora = dBrasil.getUTCHours();
-    return (hora >= 17 && hora <= 23) || (hora >= 0 && hora < 2);
+    const minuto = dBrasil.getUTCMinutes();
+    // 17:00 às 23:59
+    if (hora >= 17 && hora <= 23) return true;
+    // 00:00 às 01:59
+    if (hora >= 0 && hora < 2) return true;
+    // Tolerância até 02:15 para turnos da Etapa 3
+    if (hora === 2 && minuto <= 15) return true;
+    return false;
 }
 
-function obterDataCicloBrasil() {
-    const agoraBrasil = obterDataEmBrasil(Date.now());
-    if (agoraBrasil.getUTCHours() < 2) {
+function obterEtapaHorarioBrasilia(dateObj = new Date()) {
+    const dBrasil = obterDataEmBrasil(dateObj);
+    const hora = dBrasil.getUTCHours();
+    const minuto = dBrasil.getUTCMinutes();
+    // Etapa 1: 17h às 20h
+    if (hora >= 17 && hora < 20) return 1;
+    // Etapa 2: 20h às 23h
+    if (hora >= 20 && hora < 23) return 2;
+    // Etapa 3: 23h às 02h (com tolerância até 02:15)
+    if (hora === 23 || hora === 0 || hora === 1 || (hora === 2 && minuto <= 15)) return 3;
+    return null;
+}
+
+function obterDataCicloBrasil(timestamp = Date.now()) {
+    const agoraBrasil = obterDataEmBrasil(timestamp);
+    const hora = agoraBrasil.getUTCHours();
+    const min = agoraBrasil.getUTCMinutes();
+    // Ciclo diário de plantão vai das 17h até às 02h (com tolerância até 02:15)
+    if (hora < 2 || (hora === 2 && min <= 15)) {
         agoraBrasil.setUTCDate(agoraBrasil.getUTCDate() - 1);
     }
     return agoraBrasil.toISOString().split('T')[0];
@@ -115,11 +139,11 @@ function calcularSegundosValidosNoHorario(inicioTimestamp, fimTimestamp) {
         17, 0, 0, 0
     ));
 
-    if (inicioBrt.getUTCHours() < 2) {
+    if (inicioBrt.getUTCHours() < 2 || (inicioBrt.getUTCHours() === 2 && inicioBrt.getUTCMinutes() <= 15)) {
         janelaInicioBrt.setUTCDate(janelaInicioBrt.getUTCDate() - 1);
     }
 
-    const janelaFimBrt = new Date(janelaInicioBrt.getTime() + (9 * 3600 * 1000)); // 17:00 até 02:00 (+9h)
+    const janelaFimBrt = new Date(janelaInicioBrt.getTime() + (9 * 3600 * 1000) + (15 * 60 * 1000)); // 17:00 até 02:15 (+9h15m)
 
     const janelaInicioRealMs = janelaInicioBrt.getTime() + offsetMs;
     const janelaFimRealMs = janelaFimBrt.getTime() + offsetMs;
@@ -151,20 +175,10 @@ function turnoPertenceAoCicloAtual(t) {
     const d = new Date(t.data);
     if (isNaN(d.getTime())) return false;
 
-    const agoraBrasil = obterDataEmBrasil(Date.now());
-    const dBrasil = obterDataEmBrasil(d);
-    const horaAtual = agoraBrasil.getUTCHours();
+    const cicloAtual = obterDataCicloBrasil(Date.now());
+    const cicloTurno = obterDataCicloBrasil(d.getTime());
 
-    const hojeStr = agoraBrasil.toISOString().split('T')[0];
-    const dStr = dBrasil.toISOString().split('T')[0];
-
-    if (horaAtual >= 0 && horaAtual < 3) {
-        const ontemBrasil = new Date(agoraBrasil.getTime() - (24 * 3600 * 1000));
-        const ontemStr = ontemBrasil.toISOString().split('T')[0];
-        return dStr === hojeStr || dStr === ontemStr;
-    }
-
-    return dStr === hojeStr;
+    return cicloTurno === cicloAtual;
 }
 
 // --- ROTAS DO LINK DO WHATSAPP ---
@@ -211,7 +225,7 @@ async function verificarFechamentoAutomaticoTurnos() {
         const minuto = agoraBrasil.getUTCMinutes();
 
         if (hora === 2 && minuto >= 5 && minuto <= 7) {
-            const membrosEmPlantao = await User.find({ emPlantao: true }, 'nickname segundosAcumulados inicioPlantao').lean();
+            const membrosEmPlantao = await User.find({ emPlantao: true }, 'nickname cargo segundosAcumulados inicioPlantao fotoComprovanteAtiva');
 
             for (const membro of membrosEmPlantao) {
                 let segundosTotais = membro.segundosAcumulados || 0;
@@ -224,10 +238,11 @@ async function verificarFechamentoAutomaticoTurnos() {
 
                 if (segundosTotais >= 5) {
                     const duracaoFormatada = converterSegundosParaDuracao(segundosTotais);
+                    const comprovanteFinal = membro.fotoComprovanteAtiva || 'Fechamento Automático (Limite 02:05)';
                     const novoTurno = {
                         data: new Date(),
                         duracao: duracaoFormatada,
-                        fotoComprovante: 'Fechamento Automático (Limite 02:05)'
+                        fotoComprovante: comprovanteFinal
                     };
 
                     await User.updateOne(
@@ -249,6 +264,23 @@ async function verificarFechamentoAutomaticoTurnos() {
                                 fotoComprovanteAtiva: ''
                             }
                         }
+                    );
+
+                    // Regista o fechamento no modelo BatePonto (Etapa 3)
+                    const dataCiclo = obterDataCicloBrasil();
+                    await BatePonto.findOneAndUpdate(
+                        { usuario: membro._id, data: dataCiclo, etapa: 3 },
+                        {
+                            $set: {
+                                nickname: membro.nickname,
+                                status: 'presente',
+                                duracao: duracaoFormatada,
+                                segundosTotais: segundosTotais,
+                                fotoComprovante: comprovanteFinal,
+                                dataRegistro: new Date()
+                            }
+                        },
+                        { upsert: true, new: true }
                     );
 
                     io.emit('atualizar_estado_turno_usuario', { nickname: membro.nickname.toLowerCase() });
@@ -574,7 +606,7 @@ app.post('/api/admin/disparar-acao', async (req, res) => {
     }
 });
 
-// --- ROTA BLINDADA DE STATUS DE PLANTÃO (IMPEDE DUPLICIDADE / SINCRONIZA ESTADO) ---
+// --- ROTA DE STATUS DE PLANTÃO (CHECK-IN / PAUSA / RETOMADA) ---
 app.put('/api/membro/status-plantao', async (req, res) => {
     try {
         const { nickname, emPlantao, estadoTurno, inicioPlantao, segundosAcumulados, fotoComprovanteAtiva } = req.body;
@@ -582,29 +614,32 @@ app.put('/api/membro/status-plantao', async (req, res) => {
 
         const membroAtual = await User.findOne(
             { nickname: new RegExp('^' + String(nickname).trim() + '$', 'i') },
-            'emPlantao estadoTurno inicioPlantao segundosAcumulados cargo'
-        ).lean();
+            'emPlantao estadoTurno inicioPlantao segundosAcumulados cargo fotoComprovanteAtiva'
+        );
         if (!membroAtual) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
-        // Só bloqueia início de turno novo se o usuário já estiver com plantão ATIVO e não estiver apenas pausando/retomando/atualizando
-        if (emPlantao && estadoTurno === 'ativo' && membroAtual.emPlantao && membroAtual.estadoTurno === 'ativo') {
+        // Só bloqueia novo início se já estiver com plantão ativo e não for pausa/atualização
+        if (emPlantao && estadoTurno === 'ativo' && membroAtual.emPlantao && membroAtual.estadoTurno === 'ativo' && !inicioPlantao) {
             return res.status(400).json({
                 success: false,
                 message: 'Já possui um turno ativo no momento! Termine o turno atual antes de iniciar outro.'
             });
         }
 
-        // Ao INICIAR um plantão novo (não estava em plantão), valida horário de Brasília (17:00 às 02:00)
-        if (emPlantao && !membroAtual.emPlantao) {
+        // Ao INICIAR um plantão novo (não estava em plantão ativo), valida a janela regulamentar de Brasília (17h às 02h)
+        if (emPlantao && (!membroAtual.emPlantao || membroAtual.estadoTurno === 'parado')) {
             const agoraBrasil = obterDataEmBrasil(Date.now());
             const hora = agoraBrasil.getUTCHours();
+            const minuto = agoraBrasil.getUTCMinutes();
             const cargo = membroAtual.cargo || '';
             const ehMestre = String(nickname).toLowerCase().trim() === 'mestre' || cargo === 'General' || cargo === 'Coronel All';
 
-            if (!ehMestre && !(hora >= 17 || hora < 2)) {
+            const dentroDoHorario = (hora >= 17 && hora <= 23) || (hora >= 0 && hora < 2) || (hora === 2 && minuto <= 15);
+
+            if (!ehMestre && !dentroDoHorario) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Plantões só podem ser iniciados a partir das 17:00 até às 02:00 da madrugada!'
+                    message: 'Plantões só podem ser iniciados no horário regulamentar: das 17:00 até às 02:00 da madrugada!'
                 });
             }
         }
@@ -614,7 +649,7 @@ app.put('/api/membro/status-plantao', async (req, res) => {
             estadoTurno: estadoTurno || (emPlantao ? 'ativo' : 'parado')
         };
 
-        if (!emPlantao) {
+        if (!emPlantao && estadoTurno === 'parado') {
             updateData.inicioPlantao = null;
             updateData.segundosAcumulados = 0;
             updateData.fotoComprovanteAtiva = '';
@@ -635,7 +670,7 @@ app.put('/api/membro/status-plantao', async (req, res) => {
         }
 
         await User.updateOne(
-            { nickname: new RegExp('^' + String(nickname).trim() + '$', 'i') },
+            { _id: membroAtual._id },
             { $set: updateData }
         );
 
@@ -644,7 +679,7 @@ app.put('/api/membro/status-plantao', async (req, res) => {
 
         res.json({
             success: true,
-            message: 'Estado do turno sincronizado com segurança!',
+            message: 'Estado do turno sincronizado com sucesso!',
             estado: updateData
         });
     } catch (e) {
@@ -653,7 +688,7 @@ app.put('/api/membro/status-plantao', async (req, res) => {
     }
 });
 
-// --- ROTA DE TURNO BLINDADA CONTRA ERROS DE COMPROVANTE E PERDA DE DADOS ---
+// --- ROTA DE CHECK-OUT E REGISTO DE TURNO (INTEGRADA COM BATEPONTO) ---
 app.post('/api/membro/turno', async (req, res) => {
     try {
         const { nickname, duracao, segundosTotais, fotoComprovante } = req.body;
@@ -661,8 +696,8 @@ app.post('/api/membro/turno', async (req, res) => {
 
         const membroDoc = await User.findOne(
             { nickname: new RegExp('^' + String(nickname).trim() + '$', 'i') },
-            '_id nickname inicioPlantao segundosAcumulados'
-        ).lean();
+            '_id nickname cargo inicioPlantao segundosAcumulados fotoComprovanteAtiva'
+        );
         if (!membroDoc) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
         let segundosFinais = parseInt(segundosTotais, 10) || 0;
@@ -670,7 +705,6 @@ app.post('/api/membro/turno', async (req, res) => {
             segundosFinais = converterDuracaoParaSegundos(duracao);
         }
 
-        // Se ainda não veio segundosTotais/duracao, tenta calcular pelo inicioPlantao + segundosAcumulados salvos
         if (segundosFinais <= 0) {
             let calc = Number(membroDoc.segundosAcumulados || 0);
             if (membroDoc.inicioPlantao) {
@@ -685,15 +719,17 @@ app.post('/api/membro/turno', async (req, res) => {
         }
 
         const duracaoFormatada = converterSegundosParaDuracao(segundosFinais);
+        const comprovanteFinal = (fotoComprovante && String(fotoComprovante).trim() !== '')
+            ? fotoComprovante
+            : (membroDoc.fotoComprovanteAtiva || 'Comprovante Padrão / Validado');
 
         const novoTurno = {
             data: new Date(),
             duracao: duracaoFormatada,
-            fotoComprovante: fotoComprovante && String(fotoComprovante).trim() !== ''
-                ? fotoComprovante
-                : 'Comprovante Padrão / Validado'
+            fotoComprovante: comprovanteFinal
         };
 
+        // 1. Atualiza no User (historicoTurnos e zera estado)
         await User.updateOne(
             { _id: membroDoc._id },
             {
@@ -708,14 +744,39 @@ app.post('/api/membro/turno', async (req, res) => {
             }
         );
 
+        // 2. Persiste e atualiza no modelo BatePonto se estiver em etapa regulamentar
+        const dataInicioRef = membroDoc.inicioPlantao ? new Date(membroDoc.inicioPlantao) : new Date();
+        const etapaDeterminada = obterEtapaHorarioBrasilia(dataInicioRef) || obterEtapaHorarioBrasilia(new Date()) || 1;
+        const dataCiclo = obterDataCicloBrasil(dataInicioRef.getTime());
+
+        try {
+            await BatePonto.findOneAndUpdate(
+                { usuario: membroDoc._id, data: dataCiclo, etapa: etapaDeterminada },
+                {
+                    $set: {
+                        nickname: membroDoc.nickname,
+                        status: 'presente',
+                        duracao: duracaoFormatada,
+                        segundosTotais: segundosFinais,
+                        fotoComprovante: comprovanteFinal,
+                        dataRegistro: new Date()
+                    }
+                },
+                { upsert: true, new: true }
+            );
+        } catch (errBatePonto) {
+            console.error("Aviso ao persistir no BatePonto:", errBatePonto.message);
+        }
+
         io.emit('atualizar_estado_turno_usuario', { nickname: String(nickname).toLowerCase().trim() });
         io.emit('atualizar_status_geral_tropa');
-        await registarLogAdmin(membroDoc.nickname, 'Registo de Turno', `Turno de duração ${duracaoFormatada} concluído e registado.`);
+        await registarLogAdmin(membroDoc.nickname, 'Registo de Turno', `Turno de duração ${duracaoFormatada} concluído na Etapa ${etapaDeterminada}.`);
 
         res.json({
             success: true,
             message: 'Turno validado e registado com sucesso!',
-            turno: novoTurno
+            turno: novoTurno,
+            etapa: etapaDeterminada
         });
     } catch (error) {
         console.error("Erro ao guardar turno:", error);

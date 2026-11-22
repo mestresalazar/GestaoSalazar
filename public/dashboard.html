@@ -480,13 +480,13 @@
 
                 <div class="card">
                     <h3>🪖 Módulo Bate-Ponto & Turnos</h3>
-                    <p id="etapaAtual" style="color: #e2e8f0; font-size: 13px;">Etapa: Aguardando início de turno</p>
+                    <p id="etapaAtual" style="color: #e2e8f0; font-size: 13px;">Etapa: A carregar horário regulamentar...</p>
 
                     <div class="timer-display" id="timerDisplay">00:00:00</div>
                     <p id="avisoTempoMinimo" style="text-align: center; font-size: 12px; color: #eab308; margin-top: 10px;">⏱️ Tempo mínimo para computar horas: <b>30 minutos</b>.</p>
 
                     <div style="margin-top: 18px;">
-                        <label style="font-size: 13px; color: #e2e8f0; font-weight: 500;">Anexar Print do Jogo (Obrigatório)</label>
+                        <label style="font-size: 13px; color: #e2e8f0; font-weight: 500;">Anexar Print do Jogo (Obrigatório no Check-in ou Saída)</label>
                         <input type="file" id="fotoComprovante" accept="image/*" style="width: 100%; padding: 10px; margin-top: 6px; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 13px;" onchange="converterFotoLocal(this)">
                         <div id="statusAnexo" style="font-size: 12px; color: #22c55e; margin-top: 6px;"></div>
                     </div>
@@ -891,10 +891,15 @@
             }
         }
 
+        // Horário de Brasília (UTC-3) consistente
         function obterDataCicloOperacional() {
-            const agora = new Date();
-            if (agora.getHours() < 2) { agora.setDate(agora.getDate() - 1); }
-            return agora.toISOString().split('T')[0];
+            const agoraBrasil = new Date(Date.now() - (3 * 3600 * 1000));
+            const hora = agoraBrasil.getUTCHours();
+            const min = agoraBrasil.getUTCMinutes();
+            if (hora < 2 || (hora === 2 && min <= 15)) {
+                agoraBrasil.setUTCDate(agoraBrasil.getUTCDate() - 1);
+            }
+            return agoraBrasil.toISOString().split('T')[0];
         }
 
         function comprimirImagemBase64(file, callback) {
@@ -984,8 +989,11 @@
                     if (dataHist.success && Array.isArray(dataHist.historicoTurnos)) {
                         dataHist.historicoTurnos.forEach(t => {
                             const dt = new Date(t.data);
-                            if (dt.getHours() < 2) dt.setDate(dt.getDate() - 1);
-                            if (dt.toISOString().split('T')[0] === cicloAtual && t.duracao) {
+                            const dtBrasil = new Date(dt.getTime() - (3 * 3600 * 1000));
+                            if (dtBrasil.getUTCHours() < 2 || (dtBrasil.getUTCHours() === 2 && dtBrasil.getUTCMinutes() <= 15)) {
+                                dtBrasil.setUTCDate(dtBrasil.getUTCDate() - 1);
+                            }
+                            if (dtBrasil.toISOString().split('T')[0] === cicloAtual && t.duracao) {
                                 const partes = t.duracao.split(':');
                                 if (partes.length === 3) segundosHojeCiclo += (parseInt(partes[0], 10) * 3600) + (parseInt(partes[1], 10) * 60) + parseInt(partes[2], 10);
                             }
@@ -1275,6 +1283,12 @@
             carregarCaixaEntrada();
         });
 
+        socket.on('atualizar_estado_turno_usuario', (dados) => {
+            if (dados && dados.nickname && dados.nickname.toLowerCase() === user.nickname.toLowerCase()) {
+                restaurarEstadoTurno();
+            }
+        });
+
         socket.on('atualizar_carteira_membro', (dados) => {
             if (!dados || !dados.nickname || dados.nickname.toLowerCase() === user.nickname.toLowerCase()) {
                 localStorage.setItem(`carteira_saldo_${user.nickname}`, '0');
@@ -1403,15 +1417,27 @@
         let processandoCheckin = false, processandoCheckout = false;
         const TEMPO_MINIMO_SEGUNDOS = 30 * 60;
 
+        function obterInfoEtapaHorarioBrasilia() {
+            const agoraBrasil = new Date(Date.now() - (3 * 3600 * 1000));
+            const hora = agoraBrasil.getUTCHours();
+            const min = agoraBrasil.getUTCMinutes();
+            if (hora >= 17 && hora < 20) return { etapa: 1, nome: 'Etapa 1 (17h - 20h)' };
+            if (hora >= 20 && hora < 23) return { etapa: 2, nome: 'Etapa 2 (20h - 23h)' };
+            if (hora === 23 || hora === 0 || hora === 1 || (hora === 2 && min <= 15)) return { etapa: 3, nome: 'Etapa 3 (23h - 02h)' };
+            return { etapa: null, nome: 'Fora do Horário Regulamentar (17h - 02h)' };
+        }
+
         function atualizarEtapaTurnoUI() {
             const etapaEl = document.getElementById('etapaAtual');
             if (!etapaEl) return;
+            const info = obterInfoEtapaHorarioBrasilia();
+
             if (estadoTurno === 'ativo') {
-                etapaEl.innerHTML = 'Etapa: <b style="color: #34d399;">Turno em andamento (Check-in ativo)</b>';
+                etapaEl.innerHTML = `Etapa: <b style="color: #38bdf8;">${info.nome}</b> • <b style="color: #34d399;">Turno em andamento (Check-in ativo)</b>`;
             } else if (estadoTurno === 'pausado') {
-                etapaEl.innerHTML = 'Etapa: <b style="color: #eab308;">Turno pausado</b>';
+                etapaEl.innerHTML = `Etapa: <b style="color: #38bdf8;">${info.nome}</b> • <b style="color: #eab308;">Turno pausado</b>`;
             } else {
-                etapaEl.innerHTML = 'Etapa: <span style="color: #cbd5e1;">Aguardando início de turno</span>';
+                etapaEl.innerHTML = `Etapa: <b style="color: #94a3b8;">${info.nome}</b> • <span style="color: #cbd5e1;">Aguardando início de turno</span>`;
             }
             atualizarStatusSorteioUI();
         }
@@ -1427,12 +1453,14 @@
         function calcularSegundosTotais() {
             return (estadoTurno === 'ativo' && timestampInicioServer) ? segundosAcumuladosBase + Math.floor((Date.now() - timestampInicioServer) / 1000) : segundosAcumuladosBase;
         }
+
         function atualizarDisplayTimer() {
             const total = calcularSegundosTotais();
             document.getElementById('timerDisplay').innerText = `${String(Math.floor(total / 3600)).padStart(2, '0')}:${String(Math.floor((total % 3600) / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
             atualizarStatusSorteioUI();
             return total;
         }
+
         function iniciarLoopTimer() {
             if (timerInterval) clearInterval(timerInterval);
             timerInterval = setInterval(atualizarDisplayTimer, 1000);
@@ -1446,13 +1474,17 @@
                     estadoTurno = data.membro.estadoTurno || 'parado';
                     segundosAcumuladosBase = data.membro.segundosAcumulados || 0;
                     timestampInicioServer = data.membro.inicioPlantao ? new Date(data.membro.inicioPlantao).getTime() : null;
-                    fotoComprovanteBase64 = (estadoTurno === 'ativo' || estadoTurno === 'pausado') ? (data.membro.fotoComprovanteAtiva || '') : '';
+                    if (estadoTurno === 'ativo' || estadoTurno === 'pausado') {
+                        fotoComprovanteBase64 = data.membro.fotoComprovanteAtiva || '';
+                    } else {
+                        fotoComprovanteBase64 = '';
+                    }
                 }
             } catch (e) {}
 
             if (fotoComprovanteBase64) {
-                document.getElementById('statusAnexo').innerText = '✅ Print guardado e pronto!';
-            } else {
+                document.getElementById('statusAnexo').innerText = '✅ Print guardado e vinculado ao turno atual!';
+            } else if (estadoTurno === 'parado') {
                 limparPrintTurnoLocal();
             }
 
@@ -1460,37 +1492,46 @@
                 document.getElementById('btnCheckin').disabled = true;
                 document.getElementById('btnPausar').style.display = 'block';
                 document.getElementById('btnPausar').innerText = 'Pausar Turno';
+                document.getElementById('btnCheckout').disabled = false;
                 iniciarLoopTimer();
             } else if (estadoTurno === 'pausado') {
                 document.getElementById('btnCheckin').disabled = true;
                 document.getElementById('btnPausar').style.display = 'block';
                 document.getElementById('btnPausar').innerText = 'Retomar Turno';
+                document.getElementById('btnCheckout').disabled = false;
+                if (timerInterval) clearInterval(timerInterval);
             } else {
                 document.getElementById('btnCheckin').disabled = false;
                 document.getElementById('btnPausar').style.display = 'none';
+                document.getElementById('btnCheckout').disabled = false;
+                if (timerInterval) clearInterval(timerInterval);
             }
+
             atualizarEtapaTurnoUI();
             atualizarDisplayTimer();
         }
         restaurarEstadoTurno();
+        setInterval(atualizarEtapaTurnoUI, 10000);
 
         function converterFotoLocal(input) {
             if (input.files && input.files[0]) {
                 comprimirImagemBase64(input.files[0], async function(base64) {
                     fotoComprovanteBase64 = base64;
                     document.getElementById('statusAnexo').innerText = `✅ Print carregado com sucesso`;
-                    try {
-                        await fetch('/api/membro/status-plantao', {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                nickname: user.nickname,
-                                emPlantao: (estadoTurno === 'ativo'),
-                                estadoTurno,
-                                fotoComprovanteAtiva: fotoComprovanteBase64
-                            })
-                        });
-                    } catch (e) {}
+                    if (estadoTurno === 'ativo' || estadoTurno === 'pausado') {
+                        try {
+                            await fetch('/api/membro/status-plantao', {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    nickname: user.nickname,
+                                    emPlantao: (estadoTurno === 'ativo'),
+                                    estadoTurno,
+                                    fotoComprovanteAtiva: fotoComprovanteBase64
+                                })
+                            });
+                        } catch (e) {}
+                    }
                 });
             }
         }
@@ -1498,7 +1539,7 @@
         async function fazerCheckin() {
             if (estadoTurno === 'ativo' || processandoCheckin) return;
             if (!fotoComprovanteBase64) {
-                mostrarModalCustomizado('Atenção', 'Anexe o print do turno antes de iniciar!');
+                mostrarModalCustomizado('Atenção', 'Anexe o print do jogo comprovando a sua entrada no turno antes de fazer o Check-in!');
                 return;
             }
 
@@ -1531,9 +1572,10 @@
 
                 document.getElementById('btnPausar').style.display = 'block';
                 document.getElementById('btnPausar').innerText = 'Pausar Turno';
+                document.getElementById('btnCheckout').disabled = false;
                 atualizarEtapaTurnoUI();
                 iniciarLoopTimer();
-                mostrarModalCustomizado('Sucesso', 'Check-in iniciado!');
+                mostrarModalCustomizado('Sucesso', 'Check-in iniciado com sucesso! O teu turno está a ser contabilizado.');
             } catch (e) {
                 estadoTurno = 'parado';
                 timestampInicioServer = null;
@@ -1548,15 +1590,40 @@
         async function alternarPausa() {
             if (estadoTurno === 'parado') return;
             if (estadoTurno === 'ativo') {
-                segundosAcumuladosBase = calcularSegundosTotais(); timestampInicioServer = null; estadoTurno = 'pausado';
+                segundosAcumuladosBase = calcularSegundosTotais();
+                timestampInicioServer = null;
+                estadoTurno = 'pausado';
                 clearInterval(timerInterval);
-                await fetch('/api/membro/status-plantao', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: user.nickname, emPlantao: false, estadoTurno: 'pausado', segundosAcumulados: segundosAcumuladosBase }) });
+                await fetch('/api/membro/status-plantao', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nickname: user.nickname,
+                        emPlantao: false,
+                        estadoTurno: 'pausado',
+                        segundosAcumulados: segundosAcumuladosBase,
+                        fotoComprovanteAtiva: fotoComprovanteBase64
+                    })
+                });
                 document.getElementById('btnPausar').innerText = 'Retomar Turno';
                 atualizarEtapaTurnoUI();
-                mostrarModalCustomizado('Pausado', 'Turno pausado.');
+                mostrarModalCustomizado('Pausado', 'Turno pausado com sucesso.');
             } else {
-                const agora = Date.now(); estadoTurno = 'ativo'; timestampInicioServer = agora;
-                await fetch('/api/membro/status-plantao', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: user.nickname, emPlantao: true, estadoTurno: 'ativo', inicioPlantao: agora, segundosAcumulados: segundosAcumuladosBase }) });
+                const agora = Date.now();
+                estadoTurno = 'ativo';
+                timestampInicioServer = agora;
+                await fetch('/api/membro/status-plantao', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nickname: user.nickname,
+                        emPlantao: true,
+                        estadoTurno: 'ativo',
+                        inicioPlantao: agora,
+                        segundosAcumulados: segundosAcumuladosBase,
+                        fotoComprovanteAtiva: fotoComprovanteBase64
+                    })
+                });
                 document.getElementById('btnPausar').innerText = 'Pausar Turno';
                 atualizarEtapaTurnoUI();
                 iniciarLoopTimer();
@@ -1569,23 +1636,39 @@
 
             const total = atualizarDisplayTimer();
             if (estadoTurno === 'parado' && total === 0) {
-                mostrarModalCustomizado('Aviso', 'Não há turno em andamento no momento. Faça o Check-in primeiro.');
+                mostrarModalCustomizado('Aviso', 'Não há nenhum turno em andamento no momento. Faça o Check-in primeiro.');
                 return;
             }
 
             if (total < TEMPO_MINIMO_SEGUNDOS) {
-                mostrarModalCustomizado('⚠️ Atenção', `Plantão abaixo de 30 minutos. Deseja fechar e descartar?`, 'confirmacao', async () => {
-                    if (processandoCheckout) return;
-                    processandoCheckout = true;
-                    clearInterval(timerInterval);
-                    limparPrintTurnoLocal();
-                    await fetch('/api/membro/status-plantao', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: user.nickname, emPlantao: false, estadoTurno: 'parado', segundosAcumulados: 0, fotoComprovanteAtiva: '' }) });
-                    window.location.reload();
-                });
+                mostrarModalCustomizado(
+                    '⚠️ Tempo Mínimo Regulamentar',
+                    `O teu turno atual tem apenas <b>${document.getElementById('timerDisplay').innerText}</b> (mínimo regulamentar: 30 minutos). Desejas fechar e descartar este plantão?`,
+                    'confirmacao',
+                    async () => {
+                        if (processandoCheckout) return;
+                        processandoCheckout = true;
+                        clearInterval(timerInterval);
+                        limparPrintTurnoLocal();
+                        await fetch('/api/membro/status-plantao', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                nickname: user.nickname,
+                                emPlantao: false,
+                                estadoTurno: 'parado',
+                                segundosAcumulados: 0,
+                                fotoComprovanteAtiva: ''
+                            })
+                        });
+                        window.location.reload();
+                    }
+                );
                 return;
             }
+
             if (!fotoComprovanteBase64) {
-                mostrarModalCustomizado('Atenção', 'Anexe o comprovante.');
+                mostrarModalCustomizado('Atenção', 'Anexe o print comprovando o turno antes de finalizar!');
                 return;
             }
 
@@ -1605,12 +1688,19 @@
                 const res = await fetch('/api/membro/turno', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nickname: user.nickname, duracao: duracaoTxt, segundosTotais: total, fotoComprovante: fotoComprovanteBase64 })
+                    body: JSON.stringify({
+                        nickname: user.nickname,
+                        duracao: duracaoTxt,
+                        segundosTotais: total,
+                        fotoComprovante: fotoComprovanteBase64
+                    })
                 });
                 const data = await res.json();
                 if (data.success) {
                     limparPrintTurnoLocal();
-                    window.location.reload();
+                    mostrarModalCustomizado('Turno Registado!', `Turno de <b>${duracaoTxt}</b> validado e registado no sistema Salazar!`, 'alerta', () => {
+                        window.location.reload();
+                    });
                 } else {
                     processandoCheckout = false;
                     if (btnCheckoutEl) {

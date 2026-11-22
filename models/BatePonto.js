@@ -14,6 +14,9 @@ const BatePontoSchema = new mongoose.Schema({
     enum: ['presente', 'justificado', 'faltou'], 
     default: 'presente' 
   },
+  duracao: { type: String, default: '00:00:00' },
+  segundosTotais: { type: Number, default: 0 },
+  fotoComprovante: { type: String, default: '' },
   dataRegistro: { type: Date, default: Date.now }
 });
 
