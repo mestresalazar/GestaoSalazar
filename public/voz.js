@@ -197,6 +197,7 @@ async function entrarCanalVoz(salaId, nickname, cargo) {
         }
 
         if (statusEl) statusEl.innerText = 'Estado: Conectado ao Canal de Voz 🔊';
+        solicitarWakeLockVoz();
         atualizarBarraVozPersistente();
 
         // Registra listeners de WebRTC no socket
@@ -458,6 +459,7 @@ function sairCanalVoz() {
         btnMute.style.background = '#5865f2';
     }
 
+    liberarWakeLockVoz();
     atualizarBarraVozPersistente();
 
     // Consulta e atualiza lista visual remanescente
@@ -490,6 +492,92 @@ function atualizarBarraVozPersistente() {
         qtdEl.innerText = `${count} na call`;
     }
 }
+
+// ==========================================
+// RESILIÊNCIA EM SEGUNDO PLANO (VISIBILITY CHANGE / FOCUS / BACKGROUND RECOVERY)
+// ==========================================
+let wakeLockVoz = null;
+
+async function solicitarWakeLockVoz() {
+    try {
+        if ('wakeLock' in navigator && conectadoNaCall) {
+            wakeLockVoz = await navigator.wakeLock.request('screen');
+            wakeLockVoz.addEventListener('release', () => {
+                wakeLockVoz = null;
+            });
+        }
+    } catch (e) {
+        // Ignora caso a política de economia de bateria bloqueie
+    }
+}
+
+function liberarWakeLockVoz() {
+    if (wakeLockVoz) {
+        wakeLockVoz.release().catch(() => {});
+        wakeLockVoz = null;
+    }
+}
+
+async function revalidarAudioCallAposSegundoPlano() {
+    if (!conectadoNaCall) return;
+
+    // 1. Reativa contexto de áudio sintetizado
+    if (audioCtxSons && audioCtxSons.state === 'suspended') {
+        audioCtxSons.resume().catch(() => {});
+    }
+
+    // 2. Revalida tracks de microfone local caso o sistema móvel tenha silenciado
+    if (localStream) {
+        localStream.getAudioTracks().forEach(track => {
+            if (track.readyState === 'ended') {
+                console.warn("Track de microfone finalizado em segundo plano. Solicitando novo stream...");
+                navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+                    video: false
+                }).then(novoStream => {
+                    localStream = novoStream;
+                    localStream.getAudioTracks().forEach(t => { t.enabled = !isMuted; });
+                    // Atualiza tracks em todos os RTCPeerConnection ativos
+                    Object.values(peerConnections).forEach(pc => {
+                        const sender = pc.getSenders().find(s => s.track && s.track.kind === 'audio');
+                        if (sender) {
+                            sender.replaceTrack(novoStream.getAudioTracks()[0]).catch(() => {});
+                        }
+                    });
+                }).catch(() => {});
+            } else {
+                track.enabled = !isMuted;
+            }
+        });
+    }
+
+    // 3. Reativa reprodução de todos os elementos de áudio remoto suspensos
+    document.querySelectorAll('audio[id^="audio_"]').forEach(el => {
+        if (el.paused && el.srcObject) {
+            el.play().catch(err => {
+                console.log("Aguardando interação para reproduzir áudio após segundo plano:", err);
+            });
+        }
+    });
+
+    // 4. Verifica integridade do WebSocket
+    const s = obterSocketVoz();
+    if (s && !s.connected) {
+        s.connect();
+        s.emit('entrar_canal_voz', { salaId: salaVozAtual, nickname: (typeof user !== 'undefined' ? user.nickname : 'Operacional') });
+    }
+
+    atualizarBarraVozPersistente();
+}
+
+// Ouvintes para restaurar conexão ao voltar da aba minimizada ou tela inativa
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        revalidarAudioCallAposSegundoPlano();
+    }
+});
+window.addEventListener('focus', revalidarAudioCallAposSegundoPlano);
+window.addEventListener('pageshow', revalidarAudioCallAposSegundoPlano);
 
 // Inicializa a escuta assim que o script é carregado
 if (document.readyState === 'loading') {

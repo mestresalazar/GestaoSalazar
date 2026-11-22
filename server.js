@@ -100,40 +100,54 @@ app.get(['/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.
     res.send(gerarSvgIconeSalazar(512));
 });
 
-// Rota para Download do APK Android (com fallback amigável caso ainda não haja APK compilado na pasta)
-app.get(['/downloads/salazar.apk', '/api/app/download-apk'], (req, res) => {
-    const caminhoApk = path.join(__dirname, 'public', 'downloads', 'salazar.apk');
+// Rota para Download do APK Android (com suporte a arquivo local e variável de ambiente)
+app.get(['/app.apk', '/salazar.apk', '/downloads/salazar.apk', '/api/app/download-apk'], (req, res) => {
     const fs = require('fs');
-    if (fs.existsSync(caminhoApk)) {
-        res.download(caminhoApk, 'Salazar_Operacional.apk');
-    } else {
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.send(`
-            <!DOCTYPE html>
-            <html lang="pt-BR">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Download APK - Gestão Salazar</title>
-                <style>
-                    body { background: #070d16; color: #fff; font-family: sans-serif; text-align: center; padding: 40px 20px; }
-                    .card { background: #0f172a; border: 1px solid #38bdf8; border-radius: 16px; padding: 30px; max-width: 480px; margin: 0 auto; }
-                    h2 { color: #38bdf8; margin-bottom: 12px; }
-                    p { color: #cbd5e1; font-size: 14px; line-height: 1.6; }
-                    .btn { display: inline-block; background: #0284c7; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 10px; font-weight: bold; margin-top: 20px; }
-                </style>
-            </head>
-            <body>
-                <div class="card">
-                    <h2>🤖 APK Oficial Salazar (Android)</h2>
-                    <p>O pacote de instalação direta <b>.APK</b> para Android está em fase de distribuição interna.</p>
-                    <p>Você pode instalar o aplicativo agora mesmo em menos de 5 segundos diretamente pelo Chrome: toque no menu (3 pontinhos) e selecione <b>"Instalar aplicativo"</b>!</p>
-                    <a href="/dashboard.html" class="btn">Voltar ao Painel</a>
-                </div>
-            </body>
-            </html>
-        `);
+    const possiveisCaminhos = [
+        process.env.APK_FILE_PATH,
+        path.join(__dirname, 'public', 'downloads', 'salazar.apk'),
+        path.join(__dirname, 'public', 'salazar.apk'),
+        path.join(__dirname, 'public', 'app.apk'),
+        path.join(__dirname, 'app.apk'),
+        path.join(__dirname, 'downloads', 'salazar.apk')
+    ].filter(Boolean);
+
+    const caminhoEncontrado = possiveisCaminhos.find(p => fs.existsSync(p));
+
+    if (caminhoEncontrado) {
+        return res.download(caminhoEncontrado, 'Salazar_Operacional.apk');
     }
+
+    if (process.env.APK_DOWNLOAD_URL) {
+        return res.redirect(process.env.APK_DOWNLOAD_URL);
+    }
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Download APK Android - Gestão Salazar</title>
+            <style>
+                body { background: #070d16; color: #fff; font-family: -apple-system, BlinkMacSystemFont, sans-serif; text-align: center; padding: 40px 20px; }
+                .card { background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 18px; padding: 30px; max-width: 480px; margin: 0 auto; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+                h2 { color: #38bdf8; margin-bottom: 12px; font-size: 20px; }
+                p { color: #cbd5e1; font-size: 13px; line-height: 1.6; margin-bottom: 12px; }
+                .btn { display: inline-block; background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 10px; font-weight: bold; margin-top: 10px; font-size: 14px; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <h2>🤖 Aplicativo Android (.APK)</h2>
+                <p>O arquivo <b>app.apk</b> está a ser disponibilizado pelo comando da organização.</p>
+                <p>Caso prefira instalar de imediato no Android sem aguardar o arquivo, abra o site no <b>Google Chrome</b>, toque nos <b>3 pontinhos</b> (⋮) e selecione <b>"Instalar aplicativo"</b>!</p>
+                <a href="/dashboard.html" class="btn">Voltar ao Painel</a>
+            </div>
+        </body>
+        </html>
+    `);
 });
 
 app.get('/sw.js', (req, res) => {

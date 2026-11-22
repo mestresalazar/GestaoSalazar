@@ -1327,33 +1327,37 @@
                 Tenha acesso rápido direto da sua tela inicial com notificações em tempo real e experiência de aplicativo nativo.
             </p>
 
-            <div style="display: flex; flex-direction: column; gap: 12px; text-align: left;">
-                <!-- OPÇÃO 1: INSTALAR ATALHO / APP WEB -->
-                <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; padding: 14px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <b style="color: #38bdf8; font-size: 14px;">1. Instalar Atalho / App Web</b>
-                        <span style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700;">RECOMENDADO</span>
+            <div style="display: flex; flex-direction: column; gap: 14px; text-align: left;">
+                <!-- OPÇÃO 1 (SUPERIOR): IPHONE / IOS -->
+                <div style="background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 14px; padding: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <b style="color: #38bdf8; font-size: 14px;">📱 Opção 1: iPhone / iPad (iOS)</b>
+                        <span style="background: rgba(56, 189, 248, 0.2); color: #7dd3fc; font-size: 10px; padding: 2px 8px; border-radius: 6px; font-weight: 800;">APPLE SAFARI</span>
                     </div>
-                    <p style="font-size: 12px; color: #94a3b8; line-height: 1.4; margin-bottom: 10px;">
-                        • <b>No Android (Chrome):</b> Toque no botão abaixo ou nos 3 pontinhos do Chrome e escolha <i>"Instalar aplicativo"</i>.<br>
-                        • <b>No iPhone / iOS (Safari):</b> Toque no ícone <b>Compartilhar</b> (⎋) na barra do Safari e escolha <b>"Adicionar à Tela de Início"</b> (➕).
-                    </p>
-                    <button id="btnPromptInstalarPwa" onclick="acionarInstalacaoPwaPrompt()" class="btn-action" style="margin: 0; padding: 10px; font-size: 13px; background: linear-gradient(135deg, #0284c7, #0369a1);">
-                        ⚡ Instalar App Web Agora
+                    <div style="font-size: 12px; color: #cbd5e1; line-height: 1.6; background: rgba(7, 13, 22, 0.6); padding: 10px 12px; border-radius: 10px; border-left: 3px solid #38bdf8; margin-bottom: 10px;">
+                        <b>Passo a passo no iPhone:</b><br>
+                        1. Abra este site no navegador <b>Safari</b>.<br>
+                        2. Toque no botão de <b>Compartilhar</b> (quadrado com seta para cima ⎋ na barra inferior).<br>
+                        3. Role para baixo e selecione <b>"Adicionar à Tela de Início"</b> (➕).<br>
+                        4. Toque em <b>"Adicionar"</b> no canto superior direito.
+                    </div>
+                    <button onclick="instrucoesIosDetalhes()" class="btn-action" style="margin: 0; padding: 10px; font-size: 12px; background: rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; color: #38bdf8;">
+                        📲 Ver Instruções na Tela
                     </button>
                 </div>
 
-                <!-- OPÇÃO 2: BAIXAR APK ANDROID -->
-                <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(34, 197, 94, 0.35); border-radius: 12px; padding: 14px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <b style="color: #34d399; font-size: 14px;">2. Baixar APK (Android)</b>
-                        <span style="background: rgba(34, 197, 94, 0.2); color: #86efac; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700;">ANDROID ONLY</span>
+                <!-- OPÇÃO 2 (INFERIOR): ANDROID APK -->
+                <div style="background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 14px; padding: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <b style="color: #34d399; font-size: 14px;">🤖 Opção 2: Baixar Aplicativo (.APK)</b>
+                        <span style="background: rgba(34, 197, 94, 0.25); color: #86efac; font-size: 10px; padding: 2px 8px; border-radius: 6px; font-weight: 800;">EXCLUSIVO ANDROID</span>
                     </div>
-                    <p style="font-size: 11px; color: #94a3b8; line-height: 1.4; margin-bottom: 10px;">
-                        Instalador direto para smartphones Android. <b style="color: #fca5a5;">Aviso:</b> Arquivos .APK são exclusivos para Android e não funcionam em iPhones (iOS).
+                    <p style="font-size: 12px; color: #cbd5e1; line-height: 1.5; margin-bottom: 12px;">
+                        Download direto do arquivo de instalação <b>.APK</b> para telemóveis Android.<br>
+                        <span style="font-size: 11px; color: #94a3b8;">⚠️ <i>Nota: Arquivos .APK são exclusivos para dispositivos Android e não funcionam em iPhones (iOS).</i></span>
                     </p>
-                    <a href="/api/app/download-apk" target="_blank" class="btn-action" style="margin: 0; padding: 10px; font-size: 13px; text-decoration: none; display: block; text-align: center; background: linear-gradient(135deg, #16a34a, #15803d);">
-                        🤖 Baixar APK para Android
+                    <a href="/app.apk" class="btn-action" download="Salazar_Operacional.apk" style="margin: 0; padding: 12px; font-size: 13px; text-decoration: none; display: block; text-align: center; background: linear-gradient(135deg, #16a34a, #15803d); font-weight: 700;">
+                        📥 Baixar Aplicativo (.APK)
                     </a>
                 </div>
             </div>
@@ -1537,31 +1541,16 @@
             document.getElementById('modalInstalarApp').style.display = 'none';
         }
 
-        async function acionarInstalacaoPwaPrompt() {
-            const { ehIOS } = detectarPlataformaNavegador();
-
-            if (ehIOS) {
-                mostrarModalCustomizado(
-                    '📲 Instalação no iPhone / iPad',
-                    'Para instalar no iOS:<br><br>1. Toque no botão de <b>Compartilhar</b> (quadrado com seta ⎋) na barra do Safari;<br>2. Role a lista e toque em <b>"Adicionar à Tela de Início"</b> (➕);<br>3. Toque em <b>Adicionar</b> no canto superior.'
-                );
-                return;
-            }
-
-            if (deferredPromptInstalacao) {
-                deferredPromptInstalacao.prompt();
-                const choiceResult = await deferredPromptInstalacao.userChoice;
-                if (choiceResult.outcome === 'accepted') {
-                    fecharModalInstalarApp();
-                    mostrarModalCustomizado('Sucesso', 'Aplicativo instalado na sua Tela de Início!');
-                }
-                deferredPromptInstalacao = null;
-            } else {
-                mostrarModalCustomizado(
-                    'Instalação no Android / PC',
-                    'Para adicionar o atalho:<br><br>1. Toque nos <b>3 pontinhos</b> (⋮) no canto superior do navegador Chrome;<br>2. Selecione <b>"Instalar aplicativo"</b> ou <b>"Adicionar à tela inicial"</b>.'
-                );
-            }
+        function instrucoesIosDetalhes() {
+            mostrarModalCustomizado(
+                '📱 Instalação no iPhone / iPad',
+                '<b>Passo a passo no Safari:</b><br><br>' +
+                '1. Certifique-se de estar usando o navegador <b>Safari</b> da Apple.<br>' +
+                '2. Toque no ícone de <b>Compartilhar</b> (o quadrado com uma seta apontando para cima ⎋).<br>' +
+                '3. Role a tela para baixo até encontrar a opção <b>"Adicionar à Tela de Início"</b> (ícone ➕).<br>' +
+                '4. Toque em <b>"Adicionar"</b> no canto superior direito.<br><br>' +
+                'O ícone tático do Gestão Salazar aparecerá na sua tela inicial como um aplicativo nativo!'
+            );
         }
 
         function alternarSideDrawer(abrir) {
