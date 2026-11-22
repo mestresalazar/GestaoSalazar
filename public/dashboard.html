@@ -676,6 +676,10 @@
                 <span class="icon">📖</span>
                 <span>Regras & Cronograma</span>
             </button>
+            <button class="drawer-nav-item" data-tab="justificativas" onclick="mudarAba('justificativas')">
+                <span class="icon">📝</span>
+                <span>Justificativas de Ausência</span>
+            </button>
 
             <div style="height: 1px; background: rgba(56, 189, 248, 0.2); margin: 8px 6px;"></div>
 
@@ -1125,6 +1129,57 @@
         </div>
     </div>
 
+    <!-- ========================================== -->
+    <!-- CATEGORIA: JUSTIFICATIVAS DE AUSÊNCIA -->
+    <!-- ========================================== -->
+    <div id="aba-justificativas" class="tab-content">
+        <div style="max-width: 680px; margin: 0 auto;">
+            <!-- FORMULÁRIO DE ENVIO DE JUSTIFICATIVA -->
+            <div class="card" style="border: 1px solid rgba(56, 189, 248, 0.35);">
+                <h3>📝 Enviar Justificativa ao Comando</h3>
+                <p style="color: #cbd5e1; font-size: 13px; margin-bottom: 16px; line-height: 1.5;">
+                    Não poderá cumprir a escala ou plantão regulamentar? Preencha os detalhes abaixo com antecedência para análise do Comando Superior.
+                </p>
+
+                <form id="formJustificativaMembro" onsubmit="enviarJustificativaMembro(event)">
+                    <div style="margin-bottom: 14px;">
+                        <label style="font-size: 12px; color: #38bdf8; font-weight: 600; display: block; margin-bottom: 6px;">Motivo Principal:</label>
+                        <select id="inputMotivoJustificativa" class="search-input-box" required style="margin-bottom: 0;">
+                            <option value="">Selecione o motivo...</option>
+                            <option value="Trabalho / Emprego">Trabalho / Emprego</option>
+                            <option value="Estudos / Prova / Faculdade">Estudos / Prova / Faculdade</option>
+                            <option value="Saúde / Consulta Médica">Saúde / Consulta Médica</option>
+                            <option value="Problemas Pessoais / Família">Problemas Pessoais / Família</option>
+                            <option value="Problema Técnico / Internet / PC">Problema Técnico / Internet / PC</option>
+                            <option value="Viagem / Ausência da Cidade">Viagem / Ausência da Cidade</option>
+                            <option value="Outro Motivo">Outro Motivo</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="font-size: 12px; color: #38bdf8; font-weight: 600; display: block; margin-bottom: 6px;">Explicação Detalhada (Período / Previsão de Retorno):</label>
+                        <textarea id="inputTextoJustificativa" rows="4" required placeholder="Explique brevemente a situação e informe as datas ou horário previsto de ausência..." style="width: 100%; padding: 12px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 13px; outline: none; resize: none;"></textarea>
+                    </div>
+
+                    <button type="submit" id="btnEnviarJustificativa" class="btn-action" style="margin-top: 0; background: linear-gradient(135deg, #0284c7, #0369a1); font-weight: 700;">
+                        📤 Submeter Justificativa
+                    </button>
+                </form>
+            </div>
+
+            <!-- HISTÓRICO DE JUSTIFICATIVAS DO MEMBRO -->
+            <div class="card" style="border: 1px solid rgba(147, 51, 234, 0.35);">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(147, 51, 234, 0.25); padding-bottom: 10px; margin-bottom: 14px;">
+                    <h3 style="border: none; margin: 0; padding: 0; color: #c084fc;">📋 Minhas Justificativas Enviadas</h3>
+                    <button onclick="carregarMinhasJustificativas()" style="background: rgba(147, 51, 234, 0.2); border: 1px solid #a855f7; color: #c084fc; padding: 5px 12px; border-radius: 8px; font-size: 11px; cursor: pointer; font-weight: 600;">🔄 Atualizar</button>
+                </div>
+                <div id="listaMinhasJustificativas" style="display: flex; flex-direction: column; gap: 10px;">
+                    <p style="color: #94a3b8; font-size: 13px; text-align: center;">A carregar histórico...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="aba-ranking" class="tab-content">
         <div class="card" style="max-width: 700px; margin: 0 auto;">
             <h3>🏆 Ranking da Tropa (17h às 02h)</h3>
@@ -1290,7 +1345,8 @@
             'tropa': 'Tropa & Rádio Tático',
             'voz': 'Central de Voz (Call)',
             'ranking': 'Ranking da Semana',
-            'regras-cronograma': 'Regras & Cronograma'
+            'regras-cronograma': 'Regras & Cronograma',
+            'justificativas': 'Justificativas de Ausência'
         };
 
         function alternarSideDrawer(abrir) {
@@ -1338,6 +1394,98 @@
             }
             if (nomeAba === 'carteira' || nomeAba === 'missoes') {
                 sincronizarCarteiraEMissoes();
+            }
+            if (nomeAba === 'justificativas') {
+                carregarMinhasJustificativas();
+            }
+        }
+
+        async function enviarJustificativaMembro(event) {
+            event.preventDefault();
+            const motivo = document.getElementById('inputMotivoJustificativa')?.value;
+            const mensagem = document.getElementById('inputTextoJustificativa')?.value?.trim();
+
+            if (!motivo || !mensagem) {
+                mostrarModalCustomizado('Atenção', 'Selecione o motivo e escreva a explicação da sua justificativa.');
+                return;
+            }
+
+            const btn = document.getElementById('btnEnviarJustificativa');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = 'A submeter justificativa...';
+            }
+
+            try {
+                const res = await fetch('/api/membro/justificativa', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nickname: user.nickname,
+                        motivo,
+                        mensagem
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('inputMotivoJustificativa').value = '';
+                    document.getElementById('inputTextoJustificativa').value = '';
+                    mostrarModalCustomizado('Sucesso', data.message || 'Justificativa registada com sucesso!');
+                    carregarMinhasJustificativas();
+                } else {
+                    mostrarModalCustomizado('Erro', escapeHTML(data.message || 'Erro ao submeter justificativa.'));
+                }
+            } catch (e) {
+                mostrarModalCustomizado('Erro', 'Falha na conexão ao enviar a justificativa.');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = '📤 Submeter Justificativa';
+                }
+            }
+        }
+
+        async function carregarMinhasJustificativas() {
+            const container = document.getElementById('listaMinhasJustificativas');
+            if (!container) return;
+
+            try {
+                const res = await fetch(`/api/membro/justificativas/${encodeURIComponent(user.nickname)}?_=${Date.now()}`);
+                const data = await res.json();
+
+                if (data.success && Array.isArray(data.justificativas) && data.justificativas.length > 0) {
+                    container.innerHTML = '';
+                    data.justificativas.forEach(j => {
+                        const dataFormatada = new Date(j.dataCriacao).toLocaleString('pt-BR', {
+                            day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+                        });
+
+                        let statusBadge = '<span style="background: rgba(234, 179, 8, 0.25); color: #fde047; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;">PENDENTE</span>';
+                        if (j.status === 'aprovada') {
+                            statusBadge = '<span style="background: rgba(34, 197, 94, 0.25); color: #86efac; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;">APROVADA ✅</span>';
+                        } else if (j.status === 'arquivada') {
+                            statusBadge = '<span style="background: rgba(148, 163, 184, 0.25); color: #cbd5e1; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;">ARQUIVADA</span>';
+                        }
+
+                        container.innerHTML += `
+                            <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.2); padding: 12px; border-radius: 10px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+                                    <b style="color: #38bdf8; font-size: 13px;">${escapeHTML(j.motivo)}</b>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="color: #94a3b8; font-size: 11px;">${dataFormatada}</span>
+                                        ${statusBadge}
+                                    </div>
+                                </div>
+                                <p style="font-size: 12px; color: #e2e8f0; line-height: 1.5; margin-bottom: 4px;">${escapeHTML(j.mensagem)}</p>
+                                ${j.respostaComando ? `<div style="margin-top: 6px; background: rgba(7, 13, 22, 0.6); padding: 6px 10px; border-radius: 6px; border-left: 3px solid #38bdf8; font-size: 11px; color: #cbd5e1;"><b>Resposta do Comando:</b> ${escapeHTML(j.respostaComando)}</div>` : ''}
+                            </div>
+                        `;
+                    });
+                } else {
+                    container.innerHTML = '<p style="color: #94a3b8; font-size: 13px; text-align: center; padding: 12px;">Nenhuma justificativa enviada recentemente.</p>';
+                }
+            } catch (e) {
+                container.innerHTML = '<p style="color: #ef4444; font-size: 13px; text-align: center;">Erro ao carregar justificativas.</p>';
             }
         }
 
@@ -2340,9 +2488,15 @@
             carregarPremiacaoTropaUI();
             carregarRanking();
             verificarProgressoProvas();
+            carregarMinhasJustificativas();
             if (typeof consultarParticipantesVoz === 'function') {
                 consultarParticipantesVoz('sala_geral_salazar');
             }
+        });
+
+        socket.on('atualizar_justificativas', () => {
+            carregarMinhasJustificativas();
+            carregarCaixaEntrada();
         });
 
         socket.on('tocar_alarme_acao', (dados) => {

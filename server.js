@@ -11,6 +11,7 @@ const User = require('./models/User');
 const BatePonto = require('./models/BatePonto');
 const ConfigSorteio = require('./models/ConfigSorteio');
 const LogAdmin = require('./models/LogAdmin');
+const Justificativa = require('./models/Justificativa');
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 dotenv.config(); // Fallback para diretório atual
@@ -224,6 +225,130 @@ function turnoPertenceAoCicloAtual(t) {
 
     return cicloTurno === cicloAtual;
 }
+
+// --- ROTAS DE JUSTIFICATIVAS DE MEMBROS ---
+app.get('/api/membro/justificativas/:nickname', async (req, res) => {
+    try {
+        const { nickname } = req.params;
+        const justificativas = await Justificativa.find({
+            nickname: new RegExp('^' + nickname.trim() + '$', 'i')
+        }).sort({ dataCriacao: -1 }).limit(30).lean();
+
+        res.json({ success: true, justificativas });
+    } catch (e) {
+        console.error("Erro ao listar justificativas do membro:", e);
+        res.status(500).json({ success: false, message: 'Erro ao carregar justificativas.' });
+    }
+});
+
+app.post('/api/membro/justificativa', async (req, res) => {
+    try {
+        if (mongoose.connection.readyState !== 1) {
+            return res.status(503).json({ success: false, message: 'Banco de dados indisponível no momento.' });
+        }
+
+        const { nickname, motivo, mensagem } = req.body;
+        if (!nickname || !motivo || !mensagem) {
+            return res.status(400).json({ success: false, message: 'Preencha o motivo e a descrição da justificativa.' });
+        }
+
+        const membro = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') }, 'cargo').lean();
+        const cargoMembro = membro ? (membro.cargo || 'Privado') : 'Privado';
+
+        const novaJustificativa = new Justificativa({
+            usuario: membro ? membro._id : null,
+            nickname: nickname.trim(),
+            cargo: cargoMembro,
+            motivo: motivo.trim(),
+            mensagem: mensagem.trim(),
+            status: 'pendente',
+            dataCriacao: new Date()
+        });
+
+        await novaJustificativa.save();
+
+        await registarLogAdmin(
+            nickname.trim(),
+            'Justificativa de Ausência Enviada',
+            `Motivo: "${motivo.trim()}". Detalhes: ${mensagem.trim().slice(0, 80)}...`
+        );
+
+        io.emit('atualizar_justificativas');
+        io.emit('atualizar_status_geral_tropa');
+
+        res.json({
+            success: true,
+            message: 'Justificativa enviada ao Comando com sucesso!',
+            justificativa: novaJustificativa
+        });
+    } catch (e) {
+        console.error("Erro ao enviar justificativa:", e);
+        res.status(500).json({ success: false, message: 'Erro ao registar justificativa.' });
+    }
+});
+
+app.get('/api/admin/justificativas', async (req, res) => {
+    try {
+        const justificativas = await Justificativa.find().sort({ dataCriacao: -1 }).limit(100).lean();
+        res.json({ success: true, justificativas });
+    } catch (e) {
+        console.error("Erro ao buscar justificativas para ADM:", e);
+        res.status(500).json({ success: false, message: 'Erro ao carregar justificativas.' });
+    }
+});
+
+app.put('/api/admin/justificativa/:id/status', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { novoStatus, adminNickname, respostaComando } = req.body;
+
+        if (!['pendente', 'aprovada', 'arquivada'].includes(novoStatus)) {
+            return res.status(400).json({ success: false, message: 'Status inválido.' });
+        }
+
+        const justificativa = await Justificativa.findById(id);
+        if (!justificativa) {
+            return res.status(404).json({ success: false, message: 'Justificativa não encontrada.' });
+        }
+
+        justificativa.status = novoStatus;
+        justificativa.analisadoPor = adminNickname || 'Comando';
+        justificativa.dataAnalise = new Date();
+        if (respostaComando !== undefined) {
+            justificativa.respostaComando = respostaComando;
+        }
+
+        await justificativa.save();
+
+        // Envia notificação na caixa de entrada do membro
+        await User.updateOne(
+            { nickname: new RegExp('^' + justificativa.nickname + '$', 'i') },
+            {
+                $push: {
+                    caixaEntrada: {
+                        titulo: `📝 Justificativa ${novoStatus.toUpperCase()}`,
+                        mensagem: `A tua justificativa de ausência ("${justificativa.motivo}") foi marcada como <b>${novoStatus.toUpperCase()}</b> por ${adminNickname || 'Comando'}.${respostaComando ? `<br>Observação: ${respostaComando}` : ''}`,
+                        data: new Date()
+                    }
+                }
+            }
+        );
+
+        await registarLogAdmin(
+            adminNickname || 'Comando',
+            `Justificativa ${novoStatus.toUpperCase()}`,
+            `Justificativa de ${justificativa.nickname} (${justificativa.motivo}) foi definida como ${novoStatus} por ${adminNickname || 'Comando'}.`
+        );
+
+        io.emit('atualizar_justificativas');
+        io.emit('atualizar_status_geral_tropa');
+
+        res.json({ success: true, message: `Justificativa marcada como ${novoStatus} com sucesso!` });
+    } catch (e) {
+        console.error("Erro ao atualizar status da justificativa:", e);
+        res.status(500).json({ success: false, message: 'Erro ao atualizar status da justificativa.' });
+    }
+});
 
 // --- ROTAS DO LINK DO WHATSAPP ---
 app.get('/api/admin/whatsapp-link', async (req, res) => {

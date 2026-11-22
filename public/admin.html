@@ -525,6 +525,10 @@
                 <span class="icon">🎁</span>
                 <span>Sorteios & Roleta</span>
             </button>
+            <button class="drawer-nav-item" data-tab="justificativas" onclick="mudarAba('justificativas')">
+                <span class="icon">📝</span>
+                <span>Justificativas de Membros</span>
+            </button>
             <button class="drawer-nav-item" data-tab="auditoria" onclick="mudarAba('auditoria')">
                 <span class="icon">📋</span>
                 <span>Auditoria & Logs</span>
@@ -850,6 +854,32 @@
     </div>
 
     <!-- ========================================== -->
+    <!-- ABA: JUSTIFICATIVAS DE MEMBROS -->
+    <!-- ========================================== -->
+    <div id="aba-justificativas" class="tab-content">
+        <div class="card" style="border: 1px solid rgba(56, 189, 248, 0.35);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(56, 189, 248, 0.25); padding-bottom: 10px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                <h3 style="border: none; margin: 0; padding: 0;">📝 Justificativas de Ausência da Tropa</h3>
+                <button onclick="carregarJustificativasAdmin()" style="background: rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; color: #38bdf8; padding: 6px 14px; border-radius: 8px; font-size: 12px; cursor: pointer; font-weight: 600;">🔄 Atualizar</button>
+            </div>
+            <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Analise, aprove ou arquive as justificativas de faltas e ausências enviadas pelos operacionais em tempo real.</p>
+
+            <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+                <button class="nav-btn-aba active btn-filtro-justificativa" onclick="filtrarJustificativasStatus('todos', this)">Todas</button>
+                <button class="nav-btn-aba btn-filtro-justificativa" onclick="filtrarJustificativasStatus('pendente', this)">Pendentes ⏳</button>
+                <button class="nav-btn-aba btn-filtro-justificativa" onclick="filtrarJustificativasStatus('aprovada', this)">Aprovadas ✅</button>
+                <button class="nav-btn-aba btn-filtro-justificativa" onclick="filtrarJustificativasStatus('arquivada', this)">Arquivadas 📁</button>
+            </div>
+
+            <input type="text" id="inputPesquisaJustificativas" placeholder="🔍 Pesquisar por nickname ou motivo..." oninput="renderizarJustificativasAdmin()" class="search-input-box" style="margin-bottom: 14px;">
+
+            <div id="containerJustificativasAdmin" style="display: flex; flex-direction: column; gap: 12px;">
+                <p style="color: #94a3b8; font-size: 13px; text-align: center; padding: 20px;">A carregar justificativas...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
     <!-- ABA 4: AUDITORIA E LOGS -->
     <!-- ========================================== -->
     <div id="aba-auditoria" class="tab-content">
@@ -993,6 +1023,7 @@
             'inativos': 'Inativos (+3 dias)',
             'comandos': 'Comandos & Ações',
             'sorteios': 'Sorteios & Roleta',
+            'justificativas': 'Justificativas de Membros',
             'auditoria': 'Auditoria & Logs',
             'radio': 'Rádio Tático'
         };
@@ -1036,6 +1067,8 @@
                 carregarListaCarteirasAdmin();
             } else if (nomeAba === 'inativos') {
                 carregarMembrosInativos();
+            } else if (nomeAba === 'justificativas') {
+                carregarJustificativasAdmin();
             } else if (nomeAba === 'auditoria') {
                 carregarLogsAdmin();
             }
@@ -1062,6 +1095,8 @@
 
         let listaMembrosCache = [];
         let cacheListaCarteiras = [];
+        let cacheJustificativasAdmin = [];
+        let filtroJustificativaAtual = 'todos';
         let usuariosOnlineSocket = [];
         let cacheGlobalLogs = [];
         let membroIdSelecionadoCarteira = null;
@@ -1093,6 +1128,11 @@
             carregarElegiveisUmTurno();
             carregarMembrosInativos();
             carregarListaCarteirasAdmin();
+            carregarJustificativasAdmin();
+        });
+
+        socket.on('atualizar_justificativas', () => {
+            carregarJustificativasAdmin();
         });
 
         socket.on('atualizar_logs_admin', () => { carregarLogsAdmin(); });
@@ -1340,6 +1380,111 @@
                 }
             } catch (e) {
                 mostrarModalCustomizado('Erro', 'Erro de conexão ao salvar link.');
+            }
+        }
+
+        async function carregarJustificativasAdmin() {
+            try {
+                const res = await fetch('/api/admin/justificativas?_=' + Date.now());
+                const data = await res.json();
+                if (data.success && Array.isArray(data.justificativas)) {
+                    cacheJustificativasAdmin = data.justificativas;
+                    renderizarJustificativasAdmin();
+                }
+            } catch (e) {
+                console.error("Erro ao buscar justificativas:", e);
+            }
+        }
+
+        function filtrarJustificativasStatus(status, elBtn) {
+            filtroJustificativaAtual = status;
+            document.querySelectorAll('.btn-filtro-justificativa').forEach(b => b.classList.remove('active'));
+            if (elBtn) elBtn.classList.add('active');
+            renderizarJustificativasAdmin();
+        }
+
+        function renderizarJustificativasAdmin() {
+            const container = document.getElementById('containerJustificativasAdmin');
+            if (!container) return;
+
+            const termo = (document.getElementById('inputPesquisaJustificativas')?.value || '').toLowerCase().trim();
+            container.innerHTML = '';
+
+            const filtradas = cacheJustificativasAdmin.filter(j => {
+                const matchStatus = (filtroJustificativaAtual === 'todos' || j.status === filtroJustificativaAtual);
+                const matchTexto = (j.nickname || '').toLowerCase().includes(termo) ||
+                                   (j.motivo || '').toLowerCase().includes(termo) ||
+                                   (j.mensagem || '').toLowerCase().includes(termo);
+                return matchStatus && matchTexto;
+            });
+
+            if (filtradas.length > 0) {
+                filtradas.forEach(j => {
+                    const dataFormatada = new Date(j.dataCriacao).toLocaleString('pt-BR', {
+                        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+                    });
+
+                    let statusBadge = '<span style="background: rgba(234, 179, 8, 0.25); color: #fde047; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;">PENDENTE ⏳</span>';
+                    if (j.status === 'aprovada') {
+                        statusBadge = '<span style="background: rgba(34, 197, 94, 0.25); color: #86efac; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;">APROVADA ✅</span>';
+                    } else if (j.status === 'arquivada') {
+                        statusBadge = '<span style="background: rgba(148, 163, 184, 0.25); color: #cbd5e1; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;">ARQUIVADA 📁</span>';
+                    }
+
+                    const card = document.createElement('div');
+                    card.style.cssText = "background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 12px; padding: 14px;";
+
+                    card.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                            <div>
+                                <span class="nickname-link" onclick="abrirPerfilAdmin('${j.nickname}')">${j.nickname}</span>
+                                <span style="font-size: 11px; color: #94a3b8; margin-left: 6px;">(${j.cargo || 'Privado'})</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 11px; color: #94a3b8;">${dataFormatada}</span>
+                                ${statusBadge}
+                            </div>
+                        </div>
+
+                        <div style="background: rgba(7, 13, 22, 0.6); padding: 10px 12px; border-radius: 8px; border-left: 3px solid #38bdf8; margin-bottom: 10px;">
+                            <div style="font-size: 12px; font-weight: 700; color: #38bdf8; margin-bottom: 4px;">Motivo: ${j.motivo}</div>
+                            <div style="font-size: 13px; color: #e2e8f0; line-height: 1.5;">${j.mensagem}</div>
+                        </div>
+
+                        ${j.analisadoPor ? `<div style="font-size: 11px; color: #94a3b8; margin-bottom: 10px;">Analisado por: <b style="color: #38bdf8;">${j.analisadoPor}</b> ${j.respostaComando ? `• Obs: "${j.respostaComando}"` : ''}</div>` : ''}
+
+                        <div style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;">
+                            ${j.status !== 'aprovada' ? `<button class="btn-action btn-aprovar" style="padding: 6px 14px; font-size: 11px;" onclick="alterarStatusJustificativaAdmin('${j._id}', 'aprovada', '${j.nickname}')">✅ Aprovar</button>` : ''}
+                            ${j.status !== 'arquivada' ? `<button class="btn-action" style="background: rgba(148, 163, 184, 0.3); border: 1px solid #94a3b8; color: #e2e8f0; padding: 6px 14px; font-size: 11px;" onclick="alterarStatusJustificativaAdmin('${j._id}', 'arquivada', '${j.nickname}')">📁 Arquivar</button>` : ''}
+                            ${j.status !== 'pendente' ? `<button class="btn-action btn-reset" style="padding: 6px 12px; font-size: 11px;" onclick="alterarStatusJustificativaAdmin('${j._id}', 'pendente', '${j.nickname}')">⏳ Reabrir</button>` : ''}
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            } else {
+                container.innerHTML = `<p style="color: #94a3b8; font-size: 13px; text-align: center; padding: 20px;">Nenhuma justificativa encontrada.</p>`;
+            }
+        }
+
+        async function alterarStatusJustificativaAdmin(id, novoStatus, nickname) {
+            try {
+                const res = await fetch(`/api/admin/justificativa/${id}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        novoStatus,
+                        adminNickname: user.nickname
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    carregarJustificativasAdmin();
+                    carregarLogsAdmin();
+                } else {
+                    mostrarModalCustomizado('Erro', data.message || 'Erro ao alterar status.');
+                }
+            } catch (e) {
+                mostrarModalCustomizado('Erro', 'Erro de conexão.');
             }
         }
 
@@ -2337,6 +2482,7 @@
         carregarEfetivo();
         carregarMembrosInativos();
         carregarListaCarteirasAdmin();
+        carregarJustificativasAdmin();
     </script>
 </body>
 </html>
