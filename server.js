@@ -12,7 +12,8 @@ const BatePonto = require('./models/BatePonto');
 const ConfigSorteio = require('./models/ConfigSorteio');
 const LogAdmin = require('./models/LogAdmin');
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '.env') });
+dotenv.config(); // Fallback para diretório atual
 conectarDB();
 
 const publicVapidKey = process.env.VAPID_PUBLIC_KEY || 'BE5CpajXiRi74CjMe6B0ooSqHupNpbsu1otJVlH5t0t5h6tVJmL8PTVGlkSTPWIdAlIwra6WjFsTcy9sBgii8wQ';
@@ -51,6 +52,19 @@ app.get('/', (req, res) => {
 
 app.get('/sw.js', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'sw.js'));
+});
+
+// Endpoint seguro para verificar saúde da conexão com o MongoDB
+app.get('/api/db-status', (req, res) => {
+    const estados = { 0: 'desconectado', 1: 'conectado', 2: 'conectando', 3: 'desconectando' };
+    const estadoAtual = mongoose.connection.readyState;
+    res.json({
+        success: estadoAtual === 1,
+        estado: estados[estadoAtual] || 'desconhecido',
+        codigoEstado: estadoAtual,
+        host: mongoose.connection.host || null,
+        mensagem: estadoAtual === 1 ? 'Conexão ativa com o banco de dados.' : 'Banco de dados não está conectado no momento.'
+    });
 });
 
 async function registarLogAdmin(autor, acao, detalhes) {
