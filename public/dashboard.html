@@ -2,9 +2,13 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Gestão Salazar - Painel do Membro</title>
     <meta name="theme-color" content="#070d16">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Salazar">
+    <link rel="manifest" href="/manifest.json">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         * {
@@ -23,6 +27,9 @@
             background-color: #070d16;
             color: #ffffff;
             padding: 16px;
+            padding-bottom: 84px;
+            overflow-x: hidden;
+            width: 100%;
         }
         .navbar {
             display: flex;
@@ -105,6 +112,7 @@
             }
             body {
                 padding: 10px;
+                padding-bottom: 90px;
             }
             .navbar {
                 padding: 12px 14px;
@@ -119,6 +127,57 @@
             .nav-btn-aba {
                 font-size: 12px;
                 padding: 7px 10px;
+            }
+        }
+
+        /* --- BARRA DE NAVEGAÇÃO INFERIOR FIXA (MOBILE BOTTOM NAV) --- */
+        .bottom-nav {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(7, 13, 22, 0.99));
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border-top: 1px solid rgba(56, 189, 248, 0.3);
+            z-index: 999;
+            padding: 6px 10px calc(env(safe-area-inset-bottom, 0px) + 6px) 10px;
+            box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.8);
+            justify-content: space-around;
+            align-items: center;
+        }
+        .bottom-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 6px 8px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-height: 48px;
+            min-width: 54px;
+            touch-action: manipulation;
+        }
+        .bottom-nav-item span.icon {
+            font-size: 19px;
+            margin-bottom: 2px;
+            line-height: 1;
+        }
+        .bottom-nav-item.active {
+            color: #38bdf8;
+            background: rgba(56, 189, 248, 0.15);
+        }
+
+        @media(max-width: 900px) {
+            .bottom-nav {
+                display: flex;
             }
         }
         .card {
@@ -439,11 +498,13 @@
     <div class="navbar">
         <div class="nav-brand">Gestão Salazar</div>
         <div class="nav-links">
-            <button class="nav-btn-aba active" onclick="mudarAba('turnos', this)">🪖 Turnos</button>
-            <button class="nav-btn-aba" onclick="mudarAba('missoes', this)">📋 Missões</button>
-            <button class="nav-btn-aba" onclick="mudarAba('tropa', this)">👀 Tropa & Rádio</button>
-            <button class="nav-btn-aba" onclick="mudarAba('ranking', this)">🏆 Ranking</button>
-            <button class="nav-btn-aba" onclick="mudarAba('regras-cronograma', this)">📖 Regras & Cronograma</button>
+            <button class="nav-btn-aba active" data-tab="turnos" onclick="mudarAba('turnos', this)">🪖 Turnos</button>
+            <button class="nav-btn-aba" data-tab="carteira" onclick="mudarAba('carteira', this)">💳 Carteira & Sorteio</button>
+            <button class="nav-btn-aba" data-tab="missoes" onclick="mudarAba('missoes', this)">📋 Missões</button>
+            <button class="nav-btn-aba" data-tab="tropa" onclick="mudarAba('tropa', this)">👀 Tropa & Rádio</button>
+            <button class="nav-btn-aba" data-tab="voz" onclick="mudarAba('voz', this)">🎙️ Voz & Rádio</button>
+            <button class="nav-btn-aba" data-tab="ranking" onclick="mudarAba('ranking', this)">🏆 Ranking</button>
+            <button class="nav-btn-aba" data-tab="regras-cronograma" onclick="mudarAba('regras-cronograma', this)">📖 Regras & Cronograma</button>
             <a href="admin.html" id="navAdminLink" style="display: none; background: rgba(3, 105, 161, 0.25); color: #38bdf8; padding: 8px 12px; border-radius: 10px; font-size: 13px; text-decoration: none; font-weight: 600; border: 1px solid rgba(56, 189, 248, 0.4);">Painel ADM</a>
             <button class="nav-btn-aba" style="background: rgba(51, 65, 85, 0.85);" onclick="abrirHistorico()">📜 Histórico</button>
             <button class="nav-btn-aba" style="background: rgba(147, 51, 234, 0.85);" onclick="abrirPerfilModal()">👤 Perfil</button>
@@ -453,78 +514,84 @@
         </div>
     </div>
 
-
+    <!-- ========================================== -->
+    <!-- CATEGORIA 1: TURNOS & BATE-PONTO -->
+    <!-- ========================================== -->
     <div id="aba-turnos" class="tab-content active">
-        <div class="grid-container">
-            <div>
-                <div class="card" style="border: 2px solid #10b981;">
-                    <h3>💳 Carteira Digital Salazar</h3>
-                    <div class="wallet-box">
-                        <div>
-                            <span style="font-size: 11px; color: #a7f3d0; display: block; font-weight: 600;">SALDO DISPONÍVEL</span>
-                            <span class="wallet-amount" id="saldoCarteiraTotal">R$ 0</span>
-                        </div>
-                        <div style="text-align: right;">
-                            <span style="font-size: 11px; color: #e2e8f0; display: block;">Ganho Hoje: <b id="ganhoHojeCarteira" style="color: #34d399;">+R$ 0</b></span>
-                            <span style="font-size: 11px; color: #34d399; display: block;">Estado: <b id="statusMetaPlantao" style="color: #38bdf8;">Ativo</b></span>
-                        </div>
-                    </div>
-                    <p style="font-size: 12px; color: #cbd5e1; line-height: 1.5;" id="textoDescricaoCarteira">
-                        • Cada missão diária concluída com comprovante (print) gera o valor configurado na tua carteira digital.
-                    </p>
+        <div style="max-width: 650px; margin: 0 auto;">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(56, 189, 248, 0.2); padding-bottom: 10px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                    <h3 style="border: none; margin: 0; padding: 0;">🪖 Módulo Bate-Ponto & Turnos</h3>
+                    <div id="statusNotificacoesTurno" style="font-size: 12px;"></div>
                 </div>
 
-                <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(56, 189, 248, 0.2); padding-bottom: 10px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
-                        <h3 style="border: none; margin: 0; padding: 0;">🪖 Módulo Bate-Ponto & Turnos</h3>
-                        <div id="statusNotificacoesTurno" style="font-size: 12px;"></div>
+                <!-- Bloco de Notificações do Turno -->
+                <div id="boxNotificacaoTurno" style="display: none; margin-bottom: 14px; padding: 12px 14px; border-radius: 12px; font-size: 12px; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 220px;">
+                        <span id="textoNotificacaoTurno" style="color: #e2e8f0; line-height: 1.5; display: block;"></span>
                     </div>
+                    <button id="btnPermitirNotificacaoTurno" onclick="tratarCliqueNotificacoes()" style="background: rgba(34, 197, 94, 0.25); border: 1px solid #22c55e; color: #34d399; font-size: 12px; font-weight: 700; padding: 8px 14px; border-radius: 8px; cursor: pointer; transition: all 0.2s;">🔔 Ativar / Verificar Notificações</button>
+                </div>
 
-                    <!-- Bloco de Notificações do Turno -->
-                    <div id="boxNotificacaoTurno" style="display: none; margin-bottom: 14px; padding: 12px 14px; border-radius: 12px; font-size: 12px; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
-                        <div style="flex: 1; min-width: 220px;">
-                            <span id="textoNotificacaoTurno" style="color: #e2e8f0; line-height: 1.5; display: block;"></span>
-                        </div>
-                        <button id="btnPermitirNotificacaoTurno" onclick="tratarCliqueNotificacoes()" style="background: rgba(34, 197, 94, 0.25); border: 1px solid #22c55e; color: #34d399; font-size: 12px; font-weight: 700; padding: 8px 14px; border-radius: 8px; cursor: pointer; transition: all 0.2s;">🔔 Ativar / Verificar Notificações</button>
+                <p id="etapaAtual" style="color: #e2e8f0; font-size: 13px;">Etapa: A carregar horário regulamentar...</p>
+
+                <div class="timer-display" id="timerDisplay">00:00:00</div>
+                <p id="avisoTempoMinimo" style="text-align: center; font-size: 12px; color: #eab308; margin-top: 10px;">⏱️ Tempo mínimo para computar horas: <b>30 minutos</b>.</p>
+
+                <div style="margin-top: 18px;">
+                    <label style="font-size: 13px; color: #e2e8f0; font-weight: 500;">Anexar Print do Jogo (Obrigatório no Check-in ou Saída)</label>
+                    <input type="file" id="fotoComprovante" accept="image/*" style="width: 100%; padding: 10px; margin-top: 6px; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 13px;" onchange="converterFotoLocal(this)">
+                    <div id="statusAnexo" style="font-size: 12px; color: #22c55e; margin-top: 6px;"></div>
+                </div>
+
+                <button class="btn-action" id="btnCheckin" onclick="fazerCheckin()">Iniciar Turno (Check-in)</button>
+                <button class="btn-action" id="btnPausar" style="background: linear-gradient(135deg, #eab308, #ca8a04); color: #000; display: none;" onclick="alternarPausa()">Pausar Turno</button>
+                <button class="btn-action" id="btnCheckout" style="background: linear-gradient(135deg, #16a34a, #15803d);" onclick="fazerCheckout()">Finalizar Turno (Check-out)</button>
+            </div>
+
+            <!-- EXAME OFICIAL EXÉRCITO BRASILEIRO -->
+            <div class="card" id="cardModuloProvas" style="border: 2px dashed #38bdf8; display: none;">
+                <h3>🎓 Exame Oficial Exército Brasileiro</h3>
+                <p id="infoStatusProva" style="color: #e2e8f0; font-size: 13px; margin-bottom: 14px;">A verificar progresso...</p>
+                <button class="btn-action" id="btnIniciarProva" style="background: linear-gradient(135deg, #16a34a, #15803d); display: none; margin-top: 0;" onclick="abrirModalProva()">📝 Realizar Prova para <span id="spanCargoAlvo"></span></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- CATEGORIA 2: CARTEIRA DIGITAL, SORTEIO & NOTIFICAÇÕES -->
+    <!-- ========================================== -->
+    <div id="aba-carteira" class="tab-content">
+        <div style="max-width: 650px; margin: 0 auto;">
+            <div class="card" style="border: 2px solid #10b981;">
+                <h3>💳 Carteira Digital Salazar</h3>
+                <div class="wallet-box">
+                    <div>
+                        <span style="font-size: 11px; color: #a7f3d0; display: block; font-weight: 600;">SALDO DISPONÍVEL</span>
+                        <span class="wallet-amount" id="saldoCarteiraTotal">R$ 0</span>
                     </div>
-
-                    <p id="etapaAtual" style="color: #e2e8f0; font-size: 13px;">Etapa: A carregar horário regulamentar...</p>
-
-                    <div class="timer-display" id="timerDisplay">00:00:00</div>
-                    <p id="avisoTempoMinimo" style="text-align: center; font-size: 12px; color: #eab308; margin-top: 10px;">⏱️ Tempo mínimo para computar horas: <b>30 minutos</b>.</p>
-
-                    <div style="margin-top: 18px;">
-                        <label style="font-size: 13px; color: #e2e8f0; font-weight: 500;">Anexar Print do Jogo (Obrigatório no Check-in ou Saída)</label>
-                        <input type="file" id="fotoComprovante" accept="image/*" style="width: 100%; padding: 10px; margin-top: 6px; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 13px;" onchange="converterFotoLocal(this)">
-                        <div id="statusAnexo" style="font-size: 12px; color: #22c55e; margin-top: 6px;"></div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 11px; color: #e2e8f0; display: block;">Ganho Hoje: <b id="ganhoHojeCarteira" style="color: #34d399;">+R$ 0</b></span>
+                        <span style="font-size: 11px; color: #34d399; display: block;">Estado: <b id="statusMetaPlantao" style="color: #38bdf8;">Ativo</b></span>
                     </div>
+                </div>
+                <p style="font-size: 12px; color: #cbd5e1; line-height: 1.5;" id="textoDescricaoCarteira">
+                    • Cada missão diária concluída com comprovante (print) gera o valor configurado na tua carteira digital.
+                </p>
+            </div>
 
-                    <button class="btn-action" id="btnCheckin" onclick="fazerCheckin()">Iniciar Turno (Check-in)</button>
-                    <button class="btn-action" id="btnPausar" style="background: linear-gradient(135deg, #eab308, #ca8a04); color: #000; display: none;" onclick="alternarPausa()">Pausar Turno</button>
-                    <button class="btn-action" id="btnCheckout" style="background: linear-gradient(135deg, #16a34a, #15803d);" onclick="fazerCheckout()">Finalizar Turno (Check-out)</button>
+            <div class="card">
+                <h3>🎁 Status do Sorteio Diário</h3>
+                <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Para participar hoje, cumpre pelo menos 2h acumuladas no dia atual (17h–02h).</p>
+                <div id="statusSorteio" style="background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); padding: 14px; border-radius: 10px; text-align: center; font-weight: bold; color: #eab308; font-size: 14px;">
+                    Elegível ao atingir 2h de plantão HOJE.
                 </div>
             </div>
 
-            <div>
-                <div class="card" id="cardModuloProvas" style="border: 2px dashed #38bdf8; display: none;">
-                    <h3>🎓 Exame Oficial Exército Brasileiro</h3>
-                    <p id="infoStatusProva" style="color: #e2e8f0; font-size: 13px; margin-bottom: 14px;">A verificar progresso...</p>
-                    <button class="btn-action" id="btnIniciarProva" style="background: linear-gradient(135deg, #16a34a, #15803d); display: none; margin-top: 0;" onclick="abrirModalProva()">📝 Realizar Prova para <span id="spanCargoAlvo"></span></button>
-                </div>
-
-                <div class="card">
-                    <h3>🎁 Status do Sorteio Diário</h3>
-                    <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Para participar hoje, cumpre pelo menos 2h acumuladas no dia atual (17h–02h).</p>
-                    <div id="statusSorteio" style="background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); padding: 14px; border-radius: 10px; text-align: center; font-weight: bold; color: #eab308; font-size: 14px;">
-                        Elegível ao atingir 2h de plantão HOJE.
-                    </div>
-                </div>
-
-                <div class="card">
-                    <h3>📥 Caixa de Entrada & Notificações</h3>
-                    <div id="caixaEntradaContainer" style="max-height: 180px; overflow-y: auto; -webkit-overflow-scrolling: touch; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; padding: 12px; font-size: 13px; color: #e2e8f0;">
-                        A carregar notificações...
-                    </div>
+            <div class="card">
+                <h3>📥 Caixa de Entrada & Notificações</h3>
+                <div id="caixaEntradaContainer" style="max-height: 220px; overflow-y: auto; -webkit-overflow-scrolling: touch; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; padding: 12px; font-size: 13px; color: #e2e8f0;">
+                    A carregar notificações...
                 </div>
             </div>
         </div>
@@ -544,6 +611,9 @@
         </div>
     </div>
 
+    <!-- ========================================== -->
+    <!-- CATEGORIA 3: TROPA & RÁDIO TÁTICO -->
+    <!-- ========================================== -->
     <div id="aba-tropa" class="tab-content">
         <div class="grid-container">
             <div class="card">
@@ -552,7 +622,7 @@
                     <button onclick="atualizarFiscalizacaoServidor()" style="background: rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; color: #38bdf8; padding: 5px 12px; border-radius: 8px; font-size: 11px; cursor: pointer; font-weight: 600;">🔄 Atualizar</button>
                 </div>
                 <input type="text" id="inputPesquisaFiscalizacao" class="search-input-box" placeholder="🔍 Pesquisar operacional em plantão..." oninput="filtrarFiscalizacaoPlantao()">
-                <div id="listaFiscalizacaoPlantao" style="max-height: 280px; overflow-y: auto; -webkit-overflow-scrolling: touch; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; padding: 12px; font-size: 13px;">
+                <div id="listaFiscalizacaoPlantao" style="max-height: 320px; overflow-y: auto; -webkit-overflow-scrolling: touch; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; padding: 12px; font-size: 13px;">
                     <span style="color: #94a3b8;">A carregar efetivo em plantão...</span>
                 </div>
             </div>
@@ -576,26 +646,31 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="card" style="margin-top: 20px; border: 2px solid #5865f2; background: linear-gradient(145deg, rgba(88, 101, 242, 0.08), rgba(15, 23, 42, 0.9));">
-            <h3 style="color: #5865f2; border-color: rgba(88, 101, 242, 0.3);">🎙️ Central de Voz & Hierarquia da Tropa (Estilo Discord)</h3>
+    <!-- ========================================== -->
+    <!-- CATEGORIA 4: CENTRAL DE VOZ (CALL) -->
+    <!-- ========================================== -->
+    <div id="aba-voz" class="tab-content">
+        <div class="card" style="max-width: 800px; margin: 0 auto; border: 2px solid #5865f2; background: linear-gradient(145deg, rgba(88, 101, 242, 0.08), rgba(15, 23, 42, 0.9));">
+            <h3 style="color: #5865f2; border-color: rgba(88, 101, 242, 0.3);">🎙️ Central de Voz da Tropa (Estilo Discord)</h3>
 
             <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 15px;">
                 <div style="flex: 1; min-width: 260px; background: rgba(7, 13, 22, 0.8); padding: 16px; border-radius: 12px; border: 1px solid rgba(88, 101, 242, 0.3);">
-                    <h4 style="color: #949ba4; font-size: 12px; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 1px;">Canais de Voz Ativos</h4>
+                    <h4 style="color: #949ba4; font-size: 12px; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 1px;">Canal de Rádio / Voz</h4>
                     <div style="font-weight: bold; color: #23a55a; margin-bottom: 8px; font-size: 14px;">🔊 Sala de Reunião Geral</div>
                     <div id="painel-voz-status" style="font-size: 12px; color: #949ba4; margin-bottom: 14px;">Estado: Desconectado do Voz</div>
 
                     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button onclick="entrarCanalVoz('sala_geral_salazar', user.nickname, user.cargo)" style="background: #23a55a; color: white; border: none; padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: bold;">Entrar no Voz</button>
+                        <button onclick="entrarCanalVoz('sala_geral_salazar', user.nickname, user.cargo)" style="background: #23a55a; color: white; border: none; padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: bold; flex: 1;">Entrar no Voz</button>
                         <button id="btn-mute-audio" onclick="alternarMuteMicrofone()" style="background: #5865f2; color: white; border: none; padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: bold;">Mutar 🎙️</button>
                         <button onclick="sairCanalVoz()" style="background: #da373c; color: white; border: none; padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: bold; width: 100%; margin-top: 4px;">Sair da Sala</button>
                     </div>
                 </div>
 
-                <div style="flex: 2; min-width: 300px; background: rgba(7, 13, 22, 0.8); padding: 16px; border-radius: 12px; border: 1px solid rgba(88, 101, 242, 0.3);">
-                    <h4 style="color: #949ba4; font-size: 12px; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 1px;">Operacionais no Canal de Voz</h4>
-                    <div id="avatares-falando-grid" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                <div style="flex: 2; min-width: 280px; background: rgba(7, 13, 22, 0.8); padding: 16px; border-radius: 12px; border: 1px solid rgba(88, 101, 242, 0.3);">
+                    <h4 style="color: #949ba4; font-size: 12px; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 1px;">Operacionais no Canal</h4>
+                    <div id="avatares-falando-grid" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; min-height: 80px;">
                         <span style="color: #949ba4; font-size: 13px;">Nenhum operacional conectado no voz no momento.</span>
                     </div>
                 </div>
@@ -982,6 +1057,30 @@
         </div>
     </div>
 
+    <!-- BARRA DE NAVEGAÇÃO INFERIOR FIXA NO MOBILE (BOTTOM NAV) -->
+    <nav class="bottom-nav">
+        <button class="bottom-nav-item active" data-tab="turnos" onclick="mudarAba('turnos')">
+            <span class="icon">🪖</span>
+            <span>Turnos</span>
+        </button>
+        <button class="bottom-nav-item" data-tab="carteira" onclick="mudarAba('carteira')">
+            <span class="icon">💳</span>
+            <span>Carteira</span>
+        </button>
+        <button class="bottom-nav-item" data-tab="missoes" onclick="mudarAba('missoes')">
+            <span class="icon">📋</span>
+            <span>Missões</span>
+        </button>
+        <button class="bottom-nav-item" data-tab="tropa" onclick="mudarAba('tropa')">
+            <span class="icon">👀</span>
+            <span>Tropa</span>
+        </button>
+        <button class="bottom-nav-item" data-tab="ranking" onclick="mudarAba('ranking')">
+            <span class="icon">🏆</span>
+            <span>Ranking</span>
+        </button>
+    </nav>
+
     <script src="/voz.js"></script>
 
     <script>
@@ -996,14 +1095,24 @@
 
         function mudarAba(nomeAba, elementoBtn) {
             document.querySelectorAll('.tab-content').forEach(aba => aba.classList.remove('active'));
-            document.querySelectorAll('.navbar .nav-btn-aba').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.navbar .nav-btn-aba').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === nomeAba || btn === elementoBtn);
+            });
+            document.querySelectorAll('.bottom-nav-item').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === nomeAba);
+            });
 
             const alvo = document.getElementById('aba-' + nomeAba);
             if (alvo) alvo.classList.add('active');
-            if (elementoBtn) elementoBtn.classList.add('active');
 
             if (nomeAba === 'ranking') carregarRanking();
             if (nomeAba === 'tropa') atualizarFiscalizacaoServidor();
+            if (nomeAba === 'voz' && typeof consultarParticipantesVoz === 'function') {
+                consultarParticipantesVoz('sala_geral_salazar');
+            }
+            if (nomeAba === 'carteira' || nomeAba === 'missoes') {
+                sincronizarCarteiraEMissoes();
+            }
         }
 
         function alternarSubSecaoRegras(subNome, elBtn) {
@@ -1911,7 +2020,9 @@
                     if (data.aprovado) {
                         user.cargo = cargoDestinoAtual;
                         localStorage.setItem('user', JSON.stringify(user));
-                        window.location.reload();
+                        atualizarBadgeUsuarioUI();
+                        verificarProgressoProvas();
+                        sincronizarCarteiraEMissoes();
                     }
                 });
             } catch (e) {
@@ -1984,6 +2095,8 @@
             carregarCaixaEntrada();
             atualizarFiscalizacaoServidor();
             carregarPremiacaoTropaUI();
+            carregarRanking();
+            verificarProgressoProvas();
             if (typeof consultarParticipantesVoz === 'function') {
                 consultarParticipantesVoz('sala_geral_salazar');
             }
@@ -2469,9 +2582,21 @@
                 const data = await res.json();
                 if (data.success) {
                     limparPrintTurnoLocal();
-                    mostrarModalCustomizado('Turno Registado!', `Turno de <b>${duracaoTxt}</b> validado e registado no sistema Salazar!`, 'alerta', () => {
-                        window.location.reload();
-                    });
+                    estadoTurno = 'parado';
+                    timestampInicioServer = null;
+                    segundosAcumuladosBase = 0;
+                    document.getElementById('timerDisplay').innerText = '00:00:00';
+                    document.getElementById('btnCheckin').disabled = false;
+                    document.getElementById('btnPausar').style.display = 'none';
+                    document.getElementById('btnCheckout').disabled = false;
+                    processandoCheckout = false;
+                    atualizarEtapaTurnoUI();
+                    sincronizarCarteiraEMissoes();
+                    atualizarFiscalizacaoServidor();
+                    verificarProgressoProvas();
+                    carregarRanking();
+
+                    mostrarModalCustomizado('Turno Registado!', `Turno de <b>${duracaoTxt}</b> validado e registado no sistema Salazar!`);
                 } else {
                     processandoCheckout = false;
                     if (btnCheckoutEl) {
