@@ -2635,6 +2635,28 @@
             }, 45);
         });
 
+        socket.on('vencedor_sorteio_notificacao', (dados) => {
+            if (!dados || !dados.nickname) return;
+            const souEu = dados.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim();
+
+            if (souEu) {
+                const tituloNotif = '🏆 PARABÉNS! VOCÊ VENCEU O SORTEIO!';
+                const msgNotif = `Você foi premiado no ${dados.modalidade || 'Sorteio Oficial'} com: ${dados.premio || 'Premiação Oficial'}`;
+
+                // Dispara notificação nativa no navegador/sistema
+                dispararNotificacaoNativa(tituloNotif, {
+                    body: msgNotif,
+                    tag: 'sorteio_vencedor_' + Date.now(),
+                    url: '/dashboard.html'
+                });
+
+                // Alerta e sincronização imediata na tela
+                mostrarModalCustomizado(tituloNotif, `🎉 Parabéns, operacional! Foste o vencedor do sorteio e ganhaste: <b>${escapeHTML(dados.premio)}</b>! O prêmio foi registado na tua conta.`);
+                carregarCaixaEntrada();
+                sincronizarCarteiraEMissoes();
+            }
+        });
+
         function carregarHistoricoChatLocal() {
             const chatBox = document.getElementById('chatBox');
             const msgs = JSON.parse(localStorage.getItem('chat_historico_salazar')) || [];

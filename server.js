@@ -2184,19 +2184,50 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
 
     const participantesNomes = elegiveis.map(e => e.nickname);
 
-    await User.updateOne(
-        { _id: vencedor._id },
-        {
-            $push: {
-                historicoSorteios: { premio: premioSorteado, data: new Date() },
-                caixaEntrada: {
-                    titulo: '🏆 Vencedor da Roleta Oficial!',
-                    mensagem: `Parabéns! Foste sorteado na roleta ao vivo e ganhaste: <b>${premioSorteado}</b>!`,
-                    data: new Date()
-                }
+    // Se o prêmio for monetário (ex: R$ 50.000), credita na carteira digital do ganhador
+    const matchValorPremio = String(premioSorteado).replace(/\./g, '').match(/R?\$?\s*(\d+)/i);
+    let valorMonetarioAdicionado = 0;
+    if (matchValorPremio && matchValorPremio[1]) {
+        valorMonetarioAdicionado = parseInt(matchValorPremio[1], 10) || 0;
+    }
+
+    const updateGanhador = {
+        $push: {
+            historicoSorteios: { premio: premioSorteado, data: new Date() },
+            caixaEntrada: {
+                titulo: '🏆 Vencedor da Roleta Oficial!',
+                mensagem: `Parabéns! Foste sorteado na roleta oficial de 2h e ganhaste: <b>${premioSorteado}</b>!`,
+                data: new Date()
             }
         }
-    );
+    };
+
+    if (valorMonetarioAdicionado > 0) {
+        updateGanhador.$inc = { carteiraSaldo: valorMonetarioAdicionado };
+    }
+
+    await User.updateOne({ _id: vencedor._id }, updateGanhador);
+
+    // Dispara Web Push limpo e exclusivo para o vencedor se possuir subscription ativa
+    try {
+        const ganhadorComPush = await User.findById(vencedor._id, 'pushSubscription').lean();
+        if (ganhadorComPush && ganhadorComPush.pushSubscription && ganhadorComPush.pushSubscription.endpoint) {
+            const pushPayload = JSON.stringify({
+                id: 'sorteio_vencedor_' + Date.now(),
+                tag: 'sorteio_vencedor',
+                title: '🏆 PARABÉNS! VOCÊ FOI SORTEADO!',
+                body: `Você venceu a roleta oficial e ganhou: ${premioSorteado}!`,
+                url: '/dashboard.html'
+            });
+            webpush.sendNotification(ganhadorComPush.pushSubscription, pushPayload).catch(async (err) => {
+                if (err.statusCode === 410 || err.statusCode === 404) {
+                    await User.updateOne({ _id: vencedor._id }, { $unset: { pushSubscription: 1 } });
+                }
+            });
+        }
+    } catch (ePush) {
+        console.warn("Aviso ao enviar push ao ganhador:", ePush.message);
+    }
 
     io.emit('girar_roleta_ao_vivo', {
         participantes: participantesNomes,
@@ -2205,6 +2236,13 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
         indiceVencedor: indiceVencedor,
         premio: premioSorteado
     });
+
+    io.emit('vencedor_sorteio_notificacao', {
+        nickname: vencedor.nickname,
+        premio: premioSorteado,
+        modalidade: 'Roleta Oficial (2h+)'
+    });
+    io.emit('atualizar_status_geral_tropa');
 
     await registarLogAdmin(adminNickname || 'Comando', 'Giro da Roleta Oficial', `Vencedor: ${vencedor.nickname} | Prêmio: ${premioSorteado} (Realizado por ${adminNickname || 'Comando'})`);
 
@@ -2275,19 +2313,57 @@ app.post('/api/admin/sorteio/realizar-um-turno', async (req, res) => {
         { upsert: true }
     );
 
-    await User.updateOne(
-        { _id: vencedor._id },
-        {
-            $push: {
-                historicoSorteios: { premio: premioSorteado, data: new Date() },
-                caixaEntrada: {
-                    titulo: '🏆 Vencedor da Roleta (1 Turno Hoje)!',
-                    mensagem: `Parabéns! Foste sorteado na roleta diária de 1 turno e ganhaste: <b>${premioSorteado}</b>!`,
-                    data: new Date()
-                }
+    // Se o prêmio for monetário, credita na carteira digital do ganhador
+    const matchValorPremio1T = String(premioSorteado).replace(/\./g, '').match(/R?\$?\s*(\d+)/i);
+    let valorMonetario1T = 0;
+    if (matchValorPremio1T && matchValorPremio1T[1]) {
+        valorMonetario1T = parseInt(matchValorPremio1T[1], 10) || 0;
+    }
+
+    const updateGanhador1T = {
+        $push: {
+            historicoSorteios: { premio: premioSorteado, data: new Date() },
+            caixaEntrada: {
+                titulo: '🏆 Vencedor da Roleta (1 Turno Hoje)!',
+                mensagem: `Parabéns! Foste sorteado na roleta diária de 1 turno e ganhaste: <b>${premioSorteado}</b>!`,
+                data: new Date()
             }
         }
-    );
+    };
+
+    if (valorMonetario1T > 0) {
+        updateGanhador1T.$inc = { carteiraSaldo: valorMonetario1T };
+    }
+
+    await User.updateOne({ _id: vencedor._id }, updateGanhador1T);
+
+    // Envia Web Push para o vencedor se ativo
+    try {
+        const ganhadorComPush = await User.findById(vencedor._id, 'pushSubscription').lean();
+        if (ganhadorComPush && ganhadorComPush.pushSubscription && ganhadorComPush.pushSubscription.endpoint) {
+            const pushPayload = JSON.stringify({
+                id: 'sorteio_1turno_' + Date.now(),
+                tag: 'sorteio_vencedor',
+                title: '🏆 PARABÉNS! VOCÊ FOI SORTEADO!',
+                body: `Você venceu o sorteio diário de 1 turno e ganhou: ${premioSorteado}!`,
+                url: '/dashboard.html'
+            });
+            webpush.sendNotification(ganhadorComPush.pushSubscription, pushPayload).catch(async (err) => {
+                if (err.statusCode === 410 || err.statusCode === 404) {
+                    await User.updateOne({ _id: vencedor._id }, { $unset: { pushSubscription: 1 } });
+                }
+            });
+        }
+    } catch (ePush) {
+        console.warn("Aviso ao enviar push ao ganhador de 1 turno:", ePush.message);
+    }
+
+    io.emit('vencedor_sorteio_notificacao', {
+        nickname: vencedor.nickname,
+        premio: premioSorteado,
+        modalidade: 'Sorteio de 1 Turno'
+    });
+    io.emit('atualizar_status_geral_tropa');
 
     await registarLogAdmin(adminNickname || 'Comando', 'Giro Roleta 1 Turno Hoje', `Vencedor: ${vencedor.nickname} | Prêmio: ${premioSorteado} (Realizado por ${adminNickname || 'Comando'})`);
 

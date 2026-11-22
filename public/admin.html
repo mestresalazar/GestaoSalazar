@@ -2228,6 +2228,7 @@
                                 mensagem: `🎯 Roleta de 1 turno! ${g.nickname} ganhou: ${g.premio}!`
                             });
                             carregarElegiveisUmTurno();
+                            carregarListaCarteirasAdmin();
                             mostrarModalCustomizado('Sucesso', `Vencedor: <b>${g.nickname}</b> (${g.premio}).`);
                         } else {
                             mostrarModalCustomizado('Aviso', data.message);
@@ -2284,6 +2285,7 @@
                                 mensagem: `🎰 Roleta oficial! ${g.nickname} ganhou: ${g.premio}!`
                             });
                             carregarElegiveisSorteio();
+                            carregarListaCarteirasAdmin();
                             mostrarModalCustomizado('Sucesso', `Vencedor: <b>${g.nickname}</b> (${g.premio}).`);
                         } else {
                             mostrarModalCustomizado('Aviso', data.message);
