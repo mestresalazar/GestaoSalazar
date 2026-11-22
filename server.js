@@ -56,6 +56,86 @@ app.get('/manifest.json', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'manifest.json'));
 });
 
+// Ícones dinâmicos do PWA com margem segura centralizada (Maskable Safe-Zone) e padrão tático escuro
+function gerarSvgIconeSalazar(tamanho = 512) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${tamanho}" height="${tamanho}">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="50%" stop-color="#070d16"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#0369a1"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047"/>
+      <stop offset="100%" stop-color="#ca8a04"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#38bdf8" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" fill="url(#bgGrad)"/>
+  <rect x="16" y="16" width="480" height="480" rx="48" fill="none" stroke="rgba(56, 189, 248, 0.25)" stroke-width="4"/>
+  <!-- Margem segura centralizada (Maskable Safe Zone: 80% do canvas = 410px centralizados) -->
+  <g transform="translate(256, 256)" filter="url(#glow)">
+    <!-- Escudo Tático -->
+    <path d="M 0,-150 L 130,-90 L 130,30 C 130,120 70,175 0,205 C -70,175 -130,120 -130,30 L -130,-90 Z" fill="url(#shieldGrad)" stroke="#38bdf8" stroke-width="8"/>
+    <!-- Detalhe Interno do Escudo -->
+    <path d="M 0,-130 L 110,-80 L 110,25 C 110,105 60,155 0,182 C -60,155 -110,105 -110,25 L -110,-80 Z" fill="#070d16" opacity="0.85"/>
+    <!-- Emblema Militar "S" -->
+    <text x="0" y="45" font-family="'Inter', -apple-system, sans-serif" font-size="140" font-weight="900" fill="url(#goldGrad)" text-anchor="middle" letter-spacing="-2">S</text>
+    <!-- Estrelas de Patente -->
+    <polygon points="0,-105 8,-90 25,-90 12,-78 17,-62 0,-72 -17,-62 -12,-78 -25,-90 -8,-90" fill="#fde047"/>
+  </g>
+</svg>`;
+}
+
+app.get(['/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png', '/apple-touch-icon.png'], (req, res) => {
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(gerarSvgIconeSalazar(512));
+});
+
+// Rota para Download do APK Android (com fallback amigável caso ainda não haja APK compilado na pasta)
+app.get(['/downloads/salazar.apk', '/api/app/download-apk'], (req, res) => {
+    const caminhoApk = path.join(__dirname, 'public', 'downloads', 'salazar.apk');
+    const fs = require('fs');
+    if (fs.existsSync(caminhoApk)) {
+        res.download(caminhoApk, 'Salazar_Operacional.apk');
+    } else {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(`
+            <!DOCTYPE html>
+            <html lang="pt-BR">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Download APK - Gestão Salazar</title>
+                <style>
+                    body { background: #070d16; color: #fff; font-family: sans-serif; text-align: center; padding: 40px 20px; }
+                    .card { background: #0f172a; border: 1px solid #38bdf8; border-radius: 16px; padding: 30px; max-width: 480px; margin: 0 auto; }
+                    h2 { color: #38bdf8; margin-bottom: 12px; }
+                    p { color: #cbd5e1; font-size: 14px; line-height: 1.6; }
+                    .btn { display: inline-block; background: #0284c7; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 10px; font-weight: bold; margin-top: 20px; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <h2>🤖 APK Oficial Salazar (Android)</h2>
+                    <p>O pacote de instalação direta <b>.APK</b> para Android está em fase de distribuição interna.</p>
+                    <p>Você pode instalar o aplicativo agora mesmo em menos de 5 segundos diretamente pelo Chrome: toque no menu (3 pontinhos) e selecione <b>"Instalar aplicativo"</b>!</p>
+                    <a href="/dashboard.html" class="btn">Voltar ao Painel</a>
+                </div>
+            </body>
+            </html>
+        `);
+    }
+});
+
 app.get('/sw.js', (req, res) => {
     res.setHeader('Content-Type', 'application/javascript');
     res.sendFile(path.join(__dirname, 'public', 'sw.js'));
@@ -2150,12 +2230,19 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
 async function obterConfigSorteio() {
     let config = await ConfigSorteio.collection.findOne({ chave: 'sorteio_ativo' });
     if (!config) {
+        const novoConfig = {
+            chave: 'sorteio_ativo',
+            ganhadoresCiclo: [],
+            dataUltimoReset: null,
+            dataUltimoResetUmTurno: null,
+            cicloReset: obterDataCicloBrasil()
+        };
         await ConfigSorteio.collection.updateOne(
             { chave: 'sorteio_ativo' },
-            { $set: { chave: 'sorteio_ativo', ganhadoresCiclo: [], dataUltimoReset: null } },
+            { $set: novoConfig },
             { upsert: true }
         );
-        return { chave: 'sorteio_ativo', ganhadoresCiclo: [], dataUltimoReset: null };
+        return novoConfig;
     }
     return config;
 }
@@ -2173,7 +2260,13 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
   try {
     const config = await obterConfigSorteio();
     const ganhadoresCiclo = config.ganhadoresCiclo || [];
-    const dataCorte = config.dataUltimoReset ? new Date(config.dataUltimoReset).getTime() : null;
+    const cicloAtual = obterDataCicloBrasil();
+
+    // Se o corte foi feito no mesmo ciclo operacional, respeita o timestamp do reset persistido
+    let dataCorte = null;
+    if (config.dataUltimoReset && config.cicloReset === cicloAtual) {
+        dataCorte = new Date(config.dataUltimoReset).getTime();
+    }
 
     const membros = await User.find(
         { 'historicoTurnos.0': { $exists: true } },
@@ -2188,7 +2281,8 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
       const turnos = m.historicoTurnos || [];
       for (let i = 0; i < turnos.length; i++) {
           const t = turnos[i];
-          if (dataCorte && new Date(t.data).getTime() <= dataCorte) continue;
+          const tempoTurno = new Date(t.data).getTime();
+          if (dataCorte && tempoTurno <= dataCorte) continue;
           if (turnoEstaNoHorarioPermitido(t) && turnoPertenceAoCicloAtual(t)) {
               totalSegundos += converterDuracaoParaSegundos(t.duracao);
           }
@@ -2206,21 +2300,83 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
 async function executarResetCiclo(req, res) {
     try {
         const { adminNickname } = req.body || {};
+        const agora = new Date();
+        const cicloAtual = obterDataCicloBrasil();
+
         await ConfigSorteio.collection.updateOne(
             { chave: 'sorteio_ativo' },
-            { $set: { chave: 'sorteio_ativo', ganhadoresCiclo: [], dataUltimoReset: new Date() } },
+            {
+                $set: {
+                    chave: 'sorteio_ativo',
+                    dataUltimoReset: agora,
+                    cicloReset: cicloAtual
+                }
+            },
             { upsert: true }
         );
+
         io.emit('atualizar_status_geral_tropa');
-        await registarLogAdmin(adminNickname || 'Comando', 'Reset de Elegíveis', `Lista de elegíveis zerada por ${adminNickname || 'Comando'}.`);
-        res.json({ success: true, message: 'Elegíveis resetados com sucesso! A lista foi limpa.' });
+        await registarLogAdmin(adminNickname || 'Comando', 'Reset de Elegíveis (2h+)', `Lista de elegíveis resetada com persistência por ${adminNickname || 'Comando'}.`);
+        res.json({ success: true, message: 'Elegíveis de 2h+ resetados com sucesso no banco de dados!' });
     } catch (e) {
-        res.status(500).json({ success: false, message: 'Erro ao resetar elegíveis.' });
+        res.status(500).json({ success: false, message: 'Erro ao resetar elegíveis: ' + e.message });
     }
 }
 
-app.post('/api/admin/sorteio/resetar-ciclo', executarResetCiclo);
+app.post('/api/admin/sorteio/resetar-ciclo', async (req, res) => {
+    try {
+        const { adminNickname } = req.body || {};
+        const agora = new Date();
+        const cicloAtual = obterDataCicloBrasil();
+
+        await ConfigSorteio.collection.updateOne(
+            { chave: 'sorteio_ativo' },
+            {
+                $set: {
+                    chave: 'sorteio_ativo',
+                    ganhadoresCiclo: [],
+                    dataUltimoReset: agora,
+                    dataUltimoResetUmTurno: agora,
+                    cicloReset: cicloAtual
+                }
+            },
+            { upsert: true }
+        );
+
+        io.emit('atualizar_status_geral_tropa');
+        await registarLogAdmin(adminNickname || 'Comando', 'Reset Geral de Sorteio', `Ciclo e ganhadores zerados por ${adminNickname || 'Comando'}.`);
+        res.json({ success: true, message: 'Ciclo completo de sorteio resetado com sucesso!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao resetar ciclo: ' + e.message });
+    }
+});
+
 app.post('/api/admin/sorteio/resetar-elegiveis', executarResetCiclo);
+
+app.post('/api/admin/sorteio/resetar-elegiveis-um-turno', async (req, res) => {
+    try {
+        const { adminNickname } = req.body || {};
+        const agora = new Date();
+        const cicloAtual = obterDataCicloBrasil();
+
+        await ConfigSorteio.collection.updateOne(
+            { chave: 'sorteio_ativo' },
+            {
+                $set: {
+                    dataUltimoResetUmTurno: agora,
+                    cicloResetUmTurno: cicloAtual
+                }
+            },
+            { upsert: true }
+        );
+
+        io.emit('atualizar_status_geral_tropa');
+        await registarLogAdmin(adminNickname || 'Comando', 'Reset de Elegíveis (1 Turno)', `Lista de elegíveis de 1 turno resetada no banco por ${adminNickname || 'Comando'}.`);
+        res.json({ success: true, message: 'Elegíveis de 1 turno resetados com sucesso no banco de dados!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao resetar elegíveis de 1 turno: ' + e.message });
+    }
+});
 
 app.post('/api/admin/sorteio/realizar', async (req, res) => {
   try {
@@ -2345,6 +2501,12 @@ app.get('/api/admin/sorteio/elegiveis-um-turno', async (req, res) => {
   try {
     const config = await obterConfigSorteio();
     const ganhadoresCiclo = config.ganhadoresCiclo || [];
+    const cicloAtual = obterDataCicloBrasil();
+
+    let dataCorte = null;
+    if (config.dataUltimoResetUmTurno && config.cicloResetUmTurno === cicloAtual) {
+        dataCorte = new Date(config.dataUltimoResetUmTurno).getTime();
+    }
 
     const membros = await User.find(
         { 'historicoTurnos.0': { $exists: true } },
@@ -2355,7 +2517,11 @@ app.get('/api/admin/sorteio/elegiveis-um-turno', async (req, res) => {
       const nicknameLower = m.nickname.toLowerCase().trim();
       if (ganhadoresCiclo.includes(nicknameLower)) return false;
 
-      return (m.historicoTurnos || []).some(t => turnoPertenceAoCicloAtual(t));
+      return (m.historicoTurnos || []).some(t => {
+          const tempoTurno = new Date(t.data).getTime();
+          if (dataCorte && tempoTurno <= dataCorte) return false;
+          return turnoPertenceAoCicloAtual(t);
+      });
     });
 
     res.json({ success: true, elegiveis: elegiveis.map(m => ({ id: m._id, nickname: m.nickname, cargo: m.cargo || 'Privado' })) });

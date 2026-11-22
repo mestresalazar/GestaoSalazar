@@ -9,7 +9,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Salazar ADM">
-    <link rel="apple-touch-icon" href="/background.jpg">
+    <link rel="icon" type="image/svg+xml" href="/icons/icon-192.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
     <link rel="manifest" href="/manifest.json">
     <!-- BLOQUEIO DE SEGURANÇA IMEDIATO -->
     <script>
@@ -2155,24 +2156,19 @@
                 const res = await fetch('/api/admin/sorteio/elegiveis?_=' + new Date().getTime());
                 const data = await res.json();
                 const container = document.getElementById('listaElegiveisSorteio');
+                if (!container) return;
                 container.innerHTML = '';
-                const ignorados = JSON.parse(localStorage.getItem('elegiveisLimposManual') || '[]');
 
-                if (data.success && data.elegiveis.length > 0) {
-                    const elegiveisFiltrados = data.elegiveis.filter(m => !ignorados.includes(m.nickname.toLowerCase()));
-                    if (elegiveisFiltrados.length > 0) {
-                        elegiveisFiltrados.forEach(m => {
-                            const div = document.createElement('div');
-                            div.className = 'item-elegivel-sorteio';
-                            div.dataset.nickname = m.nickname.toLowerCase();
-                            div.style.padding = '4px 0';
-                            div.style.borderBottom = '1px solid rgba(56, 189, 248, 0.1)';
-                            div.innerHTML = `• <b>${m.nickname}</b> (${m.cargo}) — <i style="color: #38bdf8;">Elegível (2h+ HOJE)</i>`;
-                            container.appendChild(div);
-                        });
-                    } else {
-                        container.innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível com 2h+ hoje.</span>`;
-                    }
+                if (data.success && Array.isArray(data.elegiveis) && data.elegiveis.length > 0) {
+                    data.elegiveis.forEach(m => {
+                        const div = document.createElement('div');
+                        div.className = 'item-elegivel-sorteio';
+                        div.dataset.nickname = m.nickname.toLowerCase();
+                        div.style.padding = '5px 0';
+                        div.style.borderBottom = '1px solid rgba(56, 189, 248, 0.1)';
+                        div.innerHTML = `• <b>${m.nickname}</b> (${m.cargo}) — <i style="color: #38bdf8;">Elegível (2h+ HOJE)</i>`;
+                        container.appendChild(div);
+                    });
                 } else {
                     container.innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível com 2h+ hoje.</span>`;
                 }
@@ -2187,25 +2183,19 @@
                 const container = document.getElementById('listaElegiveisUmTurno');
                 if (!container) return;
                 container.innerHTML = '';
-                const ignoradosUmTurno = JSON.parse(localStorage.getItem('elegiveisUmTurnoLimposManual') || '[]');
 
-                if (data.success && data.elegiveis.length > 0) {
-                    const filtradosUmTurno = data.elegiveis.filter(m => !ignoradosUmTurno.includes(m.nickname.toLowerCase()));
-                    if (filtradosUmTurno.length > 0) {
-                        filtradosUmTurno.forEach(m => {
-                            const div = document.createElement('div');
-                            div.className = 'item-elegivel-um-turno';
-                            div.dataset.nickname = m.nickname.toLowerCase();
-                            div.style.padding = '4px 0';
-                            div.style.borderBottom = '1px solid rgba(56, 189, 248, 0.1)';
-                            div.innerHTML = `• <b>${m.nickname}</b> (${m.cargo}) — <i style="color: #a855f7;">Fez 1+ turno HOJE</i>`;
-                            container.appendChild(div);
-                        });
-                    } else {
-                        container.innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível para 1 turno hoje.</span>`;
-                    }
+                if (data.success && Array.isArray(data.elegiveis) && data.elegiveis.length > 0) {
+                    data.elegiveis.forEach(m => {
+                        const div = document.createElement('div');
+                        div.className = 'item-elegivel-um-turno';
+                        div.dataset.nickname = m.nickname.toLowerCase();
+                        div.style.padding = '5px 0';
+                        div.style.borderBottom = '1px solid rgba(56, 189, 248, 0.1)';
+                        div.innerHTML = `• <b>${m.nickname}</b> (${m.cargo}) — <i style="color: #a855f7;">Fez 1+ turno HOJE</i>`;
+                        container.appendChild(div);
+                    });
                 } else {
-                    container.innerHTML = `<span style="color: #94a3b8;">Nenhum turno registado hoje ainda.</span>`;
+                    container.innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível para 1 turno hoje.</span>`;
                 }
             } catch (e) {}
         }
@@ -2247,23 +2237,27 @@
             );
         }
 
-        function limparElegiveisUmTurno() {
+        async function limparElegiveisUmTurno() {
             mostrarModalCustomizado(
                 'Limpar Elegíveis (1 Turno)',
-                'Deseja limpar todos os operacionais elegíveis de 1 turno atuais da lista?',
+                'Deseja resetar a lista de operacionais elegíveis de 1 turno atuais? Eles só voltarão a ser elegíveis se registrarem novo plantão hoje.',
                 'confirmacao',
-                () => {
-                    const itensAtuais = document.querySelectorAll('.item-elegivel-um-turno');
-                    const ignorados = JSON.parse(localStorage.getItem('elegiveisUmTurnoLimposManual') || '[]');
-                    itensAtuais.forEach(el => {
-                        if (el.dataset.nickname && !ignorados.includes(el.dataset.nickname)) {
-                            ignorados.push(el.dataset.nickname);
+                async () => {
+                    try {
+                        const res = await fetch('/api/admin/sorteio/resetar-elegiveis-um-turno', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ adminNickname: user.nickname })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            carregarElegiveisUmTurno();
+                            document.getElementById('resultadoSorteio').innerHTML = '';
+                            mostrarModalCustomizado('Sucesso', data.message || 'Elegíveis de 1 turno resetados no banco!');
                         }
-                    });
-                    localStorage.setItem('elegiveisUmTurnoLimposManual', JSON.stringify(ignorados));
-                    document.getElementById('listaElegiveisUmTurno').innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível.</span>`;
-                    document.getElementById('resultadoSorteio').innerHTML = '';
-                    mostrarModalCustomizado('Sucesso', 'Elegíveis de 1 turno limpos!');
+                    } catch (e) {
+                        mostrarModalCustomizado('Erro', 'Falha de conexão ao resetar.');
+                    }
                 }
             );
         }
@@ -2332,28 +2326,25 @@
 
         async function limparElegiveis() {
             mostrarModalCustomizado(
-                'Limpar Elegíveis',
-                'Deseja limpar todos os operacionais elegíveis atuais da lista?',
+                'Limpar Elegíveis (2h+)',
+                'Deseja resetar a lista de elegíveis de 2h+ atuais? Eles só voltarão a ser elegíveis se cumprirem novas 2h de plantão hoje.',
                 'confirmacao',
                 async () => {
                     try {
-                        const itensAtuais = document.querySelectorAll('.item-elegivel-sorteio');
-                        const ignorados = JSON.parse(localStorage.getItem('elegiveisLimposManual') || '[]');
-                        itensAtuais.forEach(el => {
-                            if (el.dataset.nickname && !ignorados.includes(el.dataset.nickname)) {
-                                ignorados.push(el.dataset.nickname);
-                            }
-                        });
-                        localStorage.setItem('elegiveisLimposManual', JSON.stringify(ignorados));
-                        await fetch('/api/admin/sorteio/resetar-elegiveis', {
+                        const res = await fetch('/api/admin/sorteio/resetar-elegiveis', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ adminNickname: user.nickname })
                         });
-                        document.getElementById('listaElegiveisSorteio').innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível.</span>`;
-                        document.getElementById('resultadoSorteio').innerHTML = '';
-                        mostrarModalCustomizado('Sucesso', 'Elegíveis limpos!');
-                    } catch (e) {}
+                        const data = await res.json();
+                        if (data.success) {
+                            carregarElegiveisSorteio();
+                            document.getElementById('resultadoSorteio').innerHTML = '';
+                            mostrarModalCustomizado('Sucesso', data.message || 'Elegíveis de 2h+ resetados no banco com sucesso!');
+                        }
+                    } catch (e) {
+                        mostrarModalCustomizado('Erro', 'Falha de conexão ao resetar elegíveis.');
+                    }
                 }
             );
         }
