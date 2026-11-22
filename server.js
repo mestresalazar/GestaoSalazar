@@ -246,6 +246,12 @@ app.get('/icons/icon-192.png', (req, res) => {
     res.send(gerarPngIconeBuffer(192));
 });
 
+app.get(['/icons/salazar-shield.svg', '/icons/salazar-logo.svg', '/icons/salazar-s.svg'], (req, res) => {
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(gerarSvgIconeSalazar(512));
+});
+
 app.get(['/icons/icon-512.png', '/icons/apple-touch-icon.png', '/apple-touch-icon.png'], (req, res) => {
     const fs = require('fs');
     const localFile = path.join(__dirname, 'public', 'icons', 'icon-512.png');
