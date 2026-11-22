@@ -2060,19 +2060,30 @@
                             <button class="btn-action btn-demitir" onclick="resetarTurnosMembro('${membroIdAtualModal}')">🗑️ Resetar TODOS os Turnos</button>
                         </div>
                         <div style="background: rgba(7, 13, 22, 0.7); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2);">
-                            <h4 style="color: #38bdf8; margin-bottom: 8px;">🛡️ Turnos Registados (${data.historicoTurnos.length})</h4>
+                            <h4 style="color: #38bdf8; margin-bottom: 8px;">🛡️ Turnos e Verificações de 1h (${data.historicoTurnos.length})</h4>
                             ${data.historicoTurnos.length > 0 ? data.historicoTurnos.slice().reverse().map((t) => `
-                                <div style="background: rgba(30, 41, 59, 0.6); padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(56, 189, 248, 0.25); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                                    <div>
-                                        <p style="margin-bottom: 3px;">• Duração: <b style="color: #38bdf8;">${t.duracao}</b></p>
-                                        <p style="font-size: 11px; color: #94a3b8;">Data: ${new Date(t.data).toLocaleString()}</p>
+                                <div style="background: rgba(30, 41, 59, 0.6); padding: 12px; border-radius: 10px; margin-bottom: 12px; border: 1px solid rgba(56, 189, 248, 0.25);">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                                        <div>
+                                            <span style="font-size: 13px; font-weight: 700; color: #38bdf8;">• Duração: ${t.duracao}</span>
+                                            <span style="font-size: 11px; color: #94a3b8; margin-left: 8px;">Data: ${new Date(t.data).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
+                                        </div>
+                                        <button class="btn-action btn-demitir" style="padding: 5px 10px; font-size: 11px;" onclick="excluirTurnoEspecifico('${id}', '${t._id}', '${nickname}')">🗑️ Apagar</button>
+                                    </div>
+                                    <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; margin-top: 6px;">
                                         ${t.fotoComprovante && t.fotoComprovante.startsWith('data:image') ? `
-                                            <div style="margin-top: 6px;">
-                                                <img src="${t.fotoComprovante}" style="max-width: 120px; max-height: 80px; border-radius: 6px; border: 1px solid #38bdf8; cursor: pointer;" onclick="window.open('${t.fotoComprovante}')">
+                                            <div style="text-align: center;">
+                                                <span style="font-size: 10px; color: #94a3b8; display: block;">Print Turno</span>
+                                                <img src="${t.fotoComprovante}" style="max-width: 110px; max-height: 75px; border-radius: 6px; border: 1px solid #38bdf8; cursor: pointer;" onclick="window.open('${t.fotoComprovante}')">
                                             </div>
                                         ` : ''}
+                                        ${Array.isArray(t.comprovantesVerificacao) && t.comprovantesVerificacao.length > 0 ? t.comprovantesVerificacao.map(v => `
+                                            <div style="text-align: center;">
+                                                <span style="font-size: 10px; color: #fde047; display: block;">Verificação ${v.horaNumero || 1}h</span>
+                                                <img src="${v.fotoComprovante}" style="max-width: 110px; max-height: 75px; border-radius: 6px; border: 1px solid #eab308; cursor: pointer;" onclick="window.open('${v.fotoComprovante}')">
+                                            </div>
+                                        `).join('') : ''}
                                     </div>
-                                    <button class="btn-action btn-demitir" style="padding: 6px 10px; font-size: 11px;" onclick="excluirTurnoEspecifico('${id}', '${t._id}', '${nickname}')">🗑️ Apagar Este Turno</button>
                                 </div>
                             `).join('') : '<p style="color: #94a3b8;">Nenhum turno registado.</p>'}
                         </div>

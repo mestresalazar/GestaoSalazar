@@ -388,11 +388,11 @@ function converterSegundosParaDuracao(segundosTotais) {
   return `${horas}:${minutos}:${segundos}`;
 }
 
-// Helper oficial para o fuso horário regulamentar da organização: America/Recife (UTC-3)
-function obterComponentesRecife(dateObj = new Date()) {
+// Helper oficial para o fuso horário regulamentar de Brasília (America/Sao_Paulo / UTC-3)
+function obterComponentesBrasilia(dateObj = new Date()) {
     const d = new Date(dateObj);
     const formatador = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'America/Recife',
+        timeZone: 'America/Sao_Paulo',
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
@@ -414,25 +414,28 @@ function obterComponentesRecife(dateObj = new Date()) {
     };
 }
 
+const obterComponentesRecife = obterComponentesBrasilia;
+
 function obterDataEmBrasil(timestamp = Date.now()) {
-    return new Date(Number(timestamp) - (3 * 3600 * 1000));
+    const comp = obterComponentesBrasilia(new Date(timestamp));
+    return new Date(Date.UTC(comp.ano, comp.mes - 1, comp.dia, comp.hora, comp.minuto, comp.segundo));
 }
 
-function horaRecifeEstaNaJanelaTurno(dateObj = new Date()) {
-    const comp = obterComponentesRecife(dateObj);
+function horaBrasiliaEstaNaJanelaTurno(dateObj = new Date()) {
+    const comp = obterComponentesBrasilia(dateObj);
     const hora = comp.hora;
     const minuto = comp.minuto;
-    // Janela regulamentar: 17:00:00 até 02:00:00 (atravessando a meia-noite em America/Recife)
+    // Janela oficial de Brasília (America/Sao_Paulo): 17:00:00 até 02:00:00
     if (hora >= 17 && hora <= 23) return true;
     if (hora >= 0 && hora < 2) return true;
     if (hora === 2 && minuto === 0 && comp.segundo === 0) return true;
     return false;
 }
 
-const horaBrasiliaEstaNaJanelaTurno = horaRecifeEstaNaJanelaTurno;
+const horaRecifeEstaNaJanelaTurno = horaBrasiliaEstaNaJanelaTurno;
 
 function obterEtapaHorarioBrasilia(dateObj = new Date()) {
-    const comp = obterComponentesRecife(dateObj);
+    const comp = obterComponentesBrasilia(dateObj);
     const hora = comp.hora;
     const minuto = comp.minuto;
     // Etapa 1: 17h às 20h
@@ -445,41 +448,40 @@ function obterEtapaHorarioBrasilia(dateObj = new Date()) {
 }
 
 function obterDataCicloBrasil(timestamp = Date.now()) {
-    const comp = obterComponentesRecife(new Date(timestamp));
+    const comp = obterComponentesBrasilia(new Date(timestamp));
     const d = new Date(Date.UTC(comp.ano, comp.mes - 1, comp.dia, 12, 0, 0, 0));
-    // Ciclo diário de plantão vai das 17h até às 02h
+    // Ciclo diário oficial de plantão vai das 17h às 02h de Brasília
     if (comp.hora < 2 || (comp.hora === 2 && comp.minuto === 0 && comp.segundo === 0)) {
         d.setUTCDate(d.getUTCDate() - 1);
     }
     return d.toISOString().split('T')[0];
 }
 
-// Retorna o timestamp exato do encerramento regulamentar (02:00:00 America/Recife = 05:00:00 UTC)
-function obterTimestampLimite02hRecife(inicioMs) {
-    const comp = obterComponentesRecife(new Date(inicioMs));
+// Retorna o timestamp exato do encerramento regulamentar (02:00:00 America/Sao_Paulo = 05:00:00 UTC)
+function obterTimestampLimite02hBrasilia(inicioMs) {
+    const comp = obterComponentesBrasilia(new Date(inicioMs));
     let ano = comp.ano;
     let mes = comp.mes;
     let dia = comp.dia;
 
-    // Se o turno começou entre 17:00 e 23:59, as 02:00 ocorrem no dia seguinte
     if (comp.hora >= 17) {
         return new Date(Date.UTC(ano, mes - 1, dia + 1, 5, 0, 0, 0)).getTime();
     } else if (comp.hora < 2) {
-        // Se começou entre 00:00 e 01:59, as 02:00 ocorrem no mesmo dia
         return new Date(Date.UTC(ano, mes - 1, dia, 5, 0, 0, 0)).getTime();
     } else {
-        // Fora do horário (>= 02:00), o limite de 02:00 do ciclo anterior já expirou
         return new Date(Date.UTC(ano, mes - 1, dia, 5, 0, 0, 0)).getTime();
     }
 }
+
+const obterTimestampLimite02hRecife = obterTimestampLimite02hBrasilia;
 
 function calcularSegundosValidosNoHorario(inicioTimestamp, fimTimestamp = Date.now()) {
     const inicioMs = new Date(inicioTimestamp).getTime();
     const fimMs = new Date(fimTimestamp).getTime();
     if (isNaN(inicioMs) || isNaN(fimMs) || fimMs <= inicioMs) return 0;
 
-    const limite02hMs = obterTimestampLimite02hRecife(inicioMs);
-    // Trava estrita: nenhum segundo após as 02:00:00 de America/Recife é contabilizado
+    const limite02hMs = obterTimestampLimite02hBrasilia(inicioMs);
+    // Trava estrita: nenhum segundo após as 02:00:00 do fuso de Brasília é contabilizado
     const fimValidoMs = Math.min(fimMs, limite02hMs);
 
     if (fimValidoMs <= inicioMs) return 0;
@@ -671,38 +673,41 @@ app.post('/api/admin/whatsapp-link', async (req, res) => {
     }
 });
 
-// --- ENCERRAMENTO AUTOMÁTICO DE TURNOS ÀS 02:05 (FUSO AMERICA/RECIFE) ---
+// --- ENCERRAMENTO AUTOMÁTICO DE TURNOS ÀS 02:05 (FUSO OFICIAL AMERICA/SAO_PAULO) ---
 async function verificarFechamentoAutomaticoTurnos() {
     try {
         if (mongoose.connection.readyState !== 1) return;
-        const comp = obterComponentesRecife(new Date());
+        const comp = obterComponentesBrasilia(new Date());
 
-        // Dispara rigorosamente na faixa das 02:05 em America/Recife
+        // Dispara rigorosamente na faixa das 02:05 no Horário de Brasília
         if (comp.hora === 2 && comp.minuto >= 5 && comp.minuto <= 7) {
             const membrosEmPlantao = await User.find(
                 { $or: [{ emPlantao: true }, { estadoTurno: { $in: ['ativo', 'pausado'] } }] },
-                'nickname cargo estadoTurno segundosAcumulados inicioPlantao fotoComprovanteAtiva'
+                'nickname cargo estadoTurno segundosAcumulados inicioPlantao fotoComprovanteAtiva comprovantesTurnoAtivo'
             );
 
             for (const membro of membrosEmPlantao) {
                 let segundosTotais = Number(membro.segundosAcumulados || 0);
                 if (membro.estadoTurno === 'ativo' && membro.inicioPlantao) {
-                    // Contabiliza apenas os segundos até as 02:00:00 exatas (sem computar após 02:00)
+                    // Contabiliza apenas os segundos até as 02:00:00 exatas de Brasília
                     const decorridoValido = calcularSegundosValidosNoHorario(membro.inicioPlantao, Date.now());
                     if (decorridoValido > 0) segundosTotais += decorridoValido;
                 }
 
                 const refInicio = membro.inicioPlantao ? new Date(membro.inicioPlantao).getTime() : (Date.now() - (60 * 60 * 1000));
-                const limite02hMs = obterTimestampLimite02hRecife(refInicio);
+                const limite02hMs = obterTimestampLimite02hBrasilia(refInicio);
                 const dataCiclo = obterDataCicloBrasil(limite02hMs - 1000);
 
                 if (segundosTotais >= 5) {
                     const duracaoFormatada = converterSegundosParaDuracao(segundosTotais);
                     const comprovanteFinal = membro.fotoComprovanteAtiva || 'Fechamento Automático (Limite 02:00)';
+                    const comprovantesLista = Array.isArray(membro.comprovantesTurnoAtivo) ? membro.comprovantesTurnoAtivo : [];
+
                     const novoTurno = {
                         data: new Date(limite02hMs),
                         duracao: duracaoFormatada,
-                        fotoComprovante: comprovanteFinal
+                        fotoComprovante: comprovanteFinal,
+                        comprovantesVerificacao: comprovantesLista
                     };
 
                     await User.updateOne(
@@ -712,7 +717,7 @@ async function verificarFechamentoAutomaticoTurnos() {
                                 historicoTurnos: novoTurno,
                                 caixaEntrada: {
                                     titulo: '⏱️ Turno Finalizado Automaticamente',
-                                    mensagem: `O teu plantão foi encerrado e consolidado automaticamente pelo sistema às 02:05 (limite regulamentar 02:00 America/Recife). Duração computada: <b>${duracaoFormatada}</b>.`,
+                                    mensagem: `O teu plantão foi encerrado e consolidado automaticamente pelo sistema às 02:05 (limite regulamentar 02:00 horário de Brasília). Duração computada: <b>${duracaoFormatada}</b>.`,
                                     data: new Date()
                                 }
                             },
@@ -721,7 +726,8 @@ async function verificarFechamentoAutomaticoTurnos() {
                                 estadoTurno: 'parado',
                                 inicioPlantao: null,
                                 segundosAcumulados: 0,
-                                fotoComprovanteAtiva: ''
+                                fotoComprovanteAtiva: '',
+                                comprovantesTurnoAtivo: []
                             }
                         }
                     );
@@ -1277,16 +1283,16 @@ app.put('/api/membro/status-plantao', async (req, res) => {
         const estadoTurnoDestino = estadoTurno || (emPlantao ? 'ativo' : 'parado');
         const ehNovoTurno = (membroAtual.estadoTurno === 'parado' || !membroAtual.estadoTurno) && estadoTurnoDestino === 'ativo';
 
-        // Ao INICIAR um novo plantão (vindo de parado), valida estritamente a janela regulamentar America/Recife (17:00 às 02:00)
+        // Ao INICIAR um novo plantão (vindo de parado), valida estritamente a janela regulamentar de Brasília (17:00 às 02:00)
         if (ehNovoTurno) {
-            const comp = obterComponentesRecife(new Date());
+            const comp = obterComponentesBrasilia(new Date());
             const hora = comp.hora;
             const dentroDoHorario = (hora >= 17 && hora <= 23) || (hora >= 0 && hora < 2);
 
             if (!dentroDoHorario) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Horário bloqueado! Plantões só podem ser iniciados no horário regulamentar: das 17:00 até às 02:00 (fuso America/Recife).'
+                    message: 'Horário bloqueado! Plantões só podem ser iniciados no horário regulamentar: das 17:00 até às 02:00 (horário oficial de Brasília / America/Sao_Paulo).'
                 });
             }
         }
@@ -1428,15 +1434,61 @@ app.put('/api/membro/status-plantao', async (req, res) => {
     }
 });
 
+// --- REGISTO DE PRINT DE VERIFICAÇÃO DE 1 HORA (60 MINUTOS) ---
+app.post('/api/membro/turno/verificacao-hora', async (req, res) => {
+    try {
+        const { nickname, fotoComprovante, horaNumero, segundosDecorridos } = req.body;
+        if (!nickname || !fotoComprovante) {
+            return res.status(400).json({ success: false, message: 'Nickname e comprovante são obrigatórios.' });
+        }
+
+        const membro = await User.findOne(
+            { nickname: new RegExp('^' + String(nickname).trim() + '$', 'i') },
+            '_id nickname estadoTurno'
+        );
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        const novoRegistroVerificacao = {
+            data: new Date(),
+            horaNumero: parseInt(horaNumero, 10) || 1,
+            segundosDecorridos: parseInt(segundosDecorridos, 10) || 3600,
+            fotoComprovante: fotoComprovante
+        };
+
+        await User.updateOne(
+            { _id: membro._id },
+            {
+                $push: { comprovantesTurnoAtivo: novoRegistroVerificacao },
+                $set: { fotoComprovanteAtiva: fotoComprovante }
+            }
+        );
+
+        await registarLogAdmin(
+            membro.nickname,
+            'Verificação de Turno (1h)',
+            `Comprovante de presença da ${novoRegistroVerificacao.horaNumero}ª hora de turno anexado com sucesso.`
+        );
+
+        res.json({
+            success: true,
+            message: `Verificação de presença da ${novoRegistroVerificacao.horaNumero}ª hora validada com sucesso!`,
+            verificacao: novoRegistroVerificacao
+        });
+    } catch (e) {
+        console.error("Erro ao registrar verificação de hora:", e);
+        res.status(500).json({ success: false, message: 'Erro ao registrar verificação de presença.' });
+    }
+});
+
 // --- ROTA DE CHECK-OUT E REGISTO DE TURNO (INTEGRADA COM BATEPONTO) ---
 app.post('/api/membro/turno', async (req, res) => {
     try {
-        const { nickname, duracao, segundosTotais, fotoComprovante } = req.body;
+        const { nickname, duracao, segundosTotais, fotoComprovante, comprovantesVerificacao } = req.body;
         if (!nickname) return res.status(400).json({ success: false, message: 'Nickname não fornecido.' });
 
         const membroDoc = await User.findOne(
             { nickname: new RegExp('^' + String(nickname).trim() + '$', 'i') },
-            '_id nickname cargo estadoTurno inicioPlantao segundosAcumulados fotoComprovanteAtiva'
+            '_id nickname cargo estadoTurno inicioPlantao segundosAcumulados fotoComprovanteAtiva comprovantesTurnoAtivo'
         );
         if (!membroDoc) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
@@ -1467,10 +1519,15 @@ app.post('/api/membro/turno', async (req, res) => {
             ? fotoComprovante
             : (membroDoc.fotoComprovanteAtiva || 'Comprovante Padrão / Validado');
 
+        const listaComprovantes = Array.isArray(comprovantesVerificacao) && comprovantesVerificacao.length > 0
+            ? comprovantesVerificacao
+            : (Array.isArray(membroDoc.comprovantesTurnoAtivo) ? membroDoc.comprovantesTurnoAtivo : []);
+
         const novoTurno = {
             data: new Date(),
             duracao: duracaoFormatada,
-            fotoComprovante: comprovanteFinal
+            fotoComprovante: comprovanteFinal,
+            comprovantesVerificacao: listaComprovantes
         };
 
         // 1. Atualiza no User (historicoTurnos e zera estado)
@@ -1483,7 +1540,8 @@ app.post('/api/membro/turno', async (req, res) => {
                     estadoTurno: 'parado',
                     inicioPlantao: null,
                     segundosAcumulados: 0,
-                    fotoComprovanteAtiva: ''
+                    fotoComprovanteAtiva: '',
+                    comprovantesTurnoAtivo: []
                 }
             }
         );

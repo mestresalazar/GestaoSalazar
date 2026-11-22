@@ -900,7 +900,7 @@
     <div id="aba-turnos" class="tab-content active">
         <div style="max-width: 650px; margin: 0 auto;">
             <div class="card">
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(56, 189, 248, 0.2); padding-bottom: 10px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(239, 68, 68, 0.2); padding-bottom: 10px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
                     <h3 style="border: none; margin: 0; padding: 0;">🪖 Módulo Bate-Ponto & Turnos</h3>
                     <div id="statusNotificacoesTurno" style="font-size: 12px;"></div>
                 </div>
@@ -913,10 +913,20 @@
                     <button id="btnPermitirNotificacaoTurno" onclick="tratarCliqueNotificacoes()" style="background: rgba(34, 197, 94, 0.25); border: 1px solid #22c55e; color: #34d399; font-size: 12px; font-weight: 700; padding: 8px 14px; border-radius: 8px; cursor: pointer; transition: all 0.2s;">🔔 Ativar / Verificar Notificações</button>
                 </div>
 
-                <p id="etapaAtual" style="color: #e2e8f0; font-size: 13px;">Etapa: A carregar horário regulamentar...</p>
+                <p id="etapaAtual" style="color: #e2e8f0; font-size: 13px;">Etapa: A carregar horário regulamentar (Brasília)...</p>
 
                 <div class="timer-display" id="timerDisplay">00:00:00</div>
-                <p id="avisoTempoMinimo" style="text-align: center; font-size: 12px; color: #eab308; margin-top: 10px;">⏱️ Tempo mínimo para computar horas: <b>30 minutos</b>.</p>
+                <p id="avisoTempoMinimo" style="text-align: center; font-size: 12px; color: #eab308; margin-top: 10px;">⏱️ Horário Oficial de Brasília (17h–02h). Verificação com print a cada <b>1 hora</b>.</p>
+
+                <!-- ALERTA / FORMULÁRIO DE VERIFICAÇÃO DE 1 HORA (60 MINUTOS) -->
+                <div id="boxVerificacaoHora" style="display: none; margin-top: 14px; padding: 14px; background: rgba(234, 179, 8, 0.12); border: 1px solid rgba(234, 179, 8, 0.4); border-radius: 12px;">
+                    <b id="tituloVerificacaoHora" style="color: #fde047; font-size: 13px; display: block; margin-bottom: 6px;">📸 Verificação de Presença (1h de Turno)</b>
+                    <p style="font-size: 12px; color: #cbd5e1; line-height: 1.4; margin-bottom: 10px;">Você completou mais 1 hora de plantão. Anexe o print da sua tela no jogo para registrar a verificação de presença.</p>
+                    <input type="file" id="fotoVerificacaoHora" accept="image/*" style="width: 100%; padding: 8px; background: rgba(7, 13, 22, 0.85); border: 1px solid rgba(234, 179, 8, 0.4); border-radius: 8px; color: white; font-size: 12px;" onchange="converterFotoVerificacaoHora(this)">
+                    <button id="btnEnviarVerificacaoHora" onclick="enviarPrintVerificacaoHora()" class="btn-action" style="margin-top: 10px; padding: 9px; font-size: 12px; background: linear-gradient(135deg, #eab308, #ca8a04); color: #000; font-weight: 700;">
+                        ✅ Confirmar Print da Hora
+                    </button>
+                </div>
 
                 <div style="margin-top: 18px;">
                     <label style="font-size: 13px; color: #e2e8f0; font-weight: 500;">Anexar Print do Jogo (Obrigatório no Check-in ou Saída)</label>
@@ -2261,14 +2271,39 @@
             }
         }
 
-        // Horário America/Recife (UTC-3) consistente
+        // Padronização oficial no fuso de Brasília (America/Sao_Paulo / UTC-3) independente do dispositivo
+        function obterComponentesBrasilia(dateObj = new Date()) {
+            const d = new Date(dateObj);
+            const formatador = new Intl.DateTimeFormat('en-US', {
+                timeZone: 'America/Sao_Paulo',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+            const partes = formatador.formatToParts(d);
+            const mapa = {};
+            for (const p of partes) mapa[p.type] = p.value;
+            return {
+                ano: parseInt(mapa.year, 10),
+                mes: parseInt(mapa.month, 10),
+                dia: parseInt(mapa.day, 10),
+                hora: parseInt(mapa.hour === '24' ? '0' : mapa.hour, 10),
+                minuto: parseInt(mapa.minute, 10),
+                segundo: parseInt(mapa.second, 10)
+            };
+        }
+
         function obterDataCicloOperacional() {
-            const agoraRecife = new Date(Date.now() - (3 * 3600 * 1000));
-            const hora = agoraRecife.getUTCHours();
-            if (hora < 2) {
-                agoraRecife.setUTCDate(agoraRecife.getUTCDate() - 1);
+            const comp = obterComponentesBrasilia(new Date());
+            const d = new Date(Date.UTC(comp.ano, comp.mes - 1, comp.dia, 12, 0, 0, 0));
+            if (comp.hora < 2 || (comp.hora === 2 && comp.minuto === 0 && comp.segundo === 0)) {
+                d.setUTCDate(d.getUTCDate() - 1);
             }
-            return agoraRecife.toISOString().split('T')[0];
+            return d.toISOString().split('T')[0];
         }
 
         function comprimirImagemBase64(file, callback) {
@@ -3246,9 +3281,8 @@
         const TEMPO_MINIMO_SEGUNDOS = 30 * 60;
 
         function obterInfoEtapaHorarioBrasilia() {
-            const agoraBrasil = new Date(Date.now() - (3 * 3600 * 1000));
-            const hora = agoraBrasil.getUTCHours();
-            const dentroDaJanela = (hora >= 17 && hora <= 23) || (hora >= 0 && hora < 2);
+            const comp = obterComponentesBrasilia(new Date());
+            const hora = comp.hora;
 
             if (hora >= 17 && hora < 20) return { etapa: 1, nome: 'Etapa 1 (17h - 20h)', permitido: true };
             if (hora >= 20 && hora < 23) return { etapa: 2, nome: 'Etapa 2 (20h - 23h)', permitido: true };
@@ -3307,20 +3341,84 @@
             if (statusAnexoEl) statusAnexoEl.innerText = '';
         }
 
+        let horasVerificadasLocal = new Set();
+        let fotoVerificacaoHoraBase64 = '';
+
+        function converterFotoVerificacaoHora(input) {
+            if (input.files && input.files[0]) {
+                comprimirImagemBase64(input.files[0], function(base64) {
+                    fotoVerificacaoHoraBase64 = base64;
+                });
+            }
+        }
+
+        async function enviarPrintVerificacaoHora() {
+            if (!fotoVerificacaoHoraBase64) {
+                mostrarModalCustomizado('Atenção', 'Anexe o print do jogo para confirmar a verificação da hora.');
+                return;
+            }
+
+            const total = calcularSegundosTotais();
+            const horaAtual = Math.floor(total / 3600);
+
+            try {
+                const res = await fetch('/api/membro/turno/verificacao-hora', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nickname: user.nickname,
+                        fotoComprovante: fotoVerificacaoHoraBase64,
+                        horaNumero: horaAtual,
+                        segundosDecorridos: total
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    horasVerificadasLocal.add(horaAtual);
+                    document.getElementById('boxVerificacaoHora').style.display = 'none';
+                    fotoVerificacaoHoraBase64 = '';
+                    mostrarModalCustomizado('Verificação Confirmada', `Print de presença da ${horaAtual}ª hora registado no sistema com sucesso!`);
+                }
+            } catch (e) {
+                mostrarModalCustomizado('Erro', 'Erro ao enviar comprovante de verificação.');
+            }
+        }
+
+        function verificarDisparoVerificacaoHora(totalSegundos) {
+            if (estadoTurno !== 'ativo') {
+                const box = document.getElementById('boxVerificacaoHora');
+                if (box) box.style.display = 'none';
+                return;
+            }
+
+            // Cada 60 minutos (3600 segundos) de turno exige comprovante
+            const horaAtual = Math.floor(totalSegundos / 3600);
+            if (horaAtual >= 1 && !horasVerificadasLocal.has(horaAtual)) {
+                const box = document.getElementById('boxVerificacaoHora');
+                if (box && box.style.display === 'none') {
+                    box.style.display = 'block';
+                    document.getElementById('tituloVerificacaoHora').innerText = `📸 Verificação de Presença (${horaAtual}ª Hora de Turno)`;
+                    dispararNotificacaoNativa(`🚨 Verificação de Presença (${horaAtual}h)`, {
+                        body: 'Envie o print do jogo para registrar a sua presença nesta hora de plantão.',
+                        tag: `verificacao_${horaAtual}h`
+                    });
+                }
+            }
+        }
+
         function calcularSegundosTotais() {
             if (estadoTurno === 'ativo' && timestampInicioServer) {
-                // Teto estrito às 02:00:00 (America/Recife = UTC-3)
-                const inicioRecife = new Date(timestampInicioServer - (3 * 3600 * 1000));
-                const ano = inicioRecife.getUTCFullYear();
-                const mes = inicioRecife.getUTCMonth();
-                const dia = inicioRecife.getUTCDate();
-                const diaLimite = inicioRecife.getUTCHours() >= 17 ? dia + 1 : dia;
-                const limite02hMs = Date.UTC(ano, mes, diaLimite, 5, 0, 0, 0); // 05:00 UTC = 02:00 Recife
+                // Teto estrito às 02:00:00 no fuso de Brasília (America/Sao_Paulo / UTC-3)
+                const comp = obterComponentesBrasilia(new Date(timestampInicioServer));
+                const diaLimite = comp.hora >= 17 ? comp.dia + 1 : comp.dia;
+                const limite02hMs = Date.UTC(comp.ano, comp.mes - 1, diaLimite, 5, 0, 0, 0); // 05:00 UTC = 02:00 Brasília
 
                 const agora = Date.now();
                 const fimEfetivo = Math.min(agora, limite02hMs);
                 const decorrido = Math.floor((fimEfetivo - timestampInicioServer) / 1000);
-                return segundosAcumuladosBase + (decorrido > 0 ? decorrido : 0);
+                const total = segundosAcumuladosBase + (decorrido > 0 ? decorrido : 0);
+                verificarDisparoVerificacaoHora(total);
+                return total;
             }
             return segundosAcumuladosBase;
         }
