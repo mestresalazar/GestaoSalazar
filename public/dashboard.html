@@ -1346,19 +1346,23 @@
                     </button>
                 </div>
 
-                <!-- OPÇÃO 2 (INFERIOR): ANDROID APK E INSTALAÇÃO DIRETA -->
+                <!-- OPÇÃO 2 (INFERIOR): ANDROID / PC - INSTALAÇÃO DIRETA NA TELA INICIAL & APK -->
                 <div style="background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 14px; padding: 15px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <b style="color: #34d399; font-size: 14px;">🤖 Opção 2: Baixar Aplicativo (.APK)</b>
-                        <span style="background: rgba(34, 197, 94, 0.25); color: #86efac; font-size: 10px; padding: 2px 8px; border-radius: 6px; font-weight: 800;">EXCLUSIVO ANDROID</span>
+                        <b style="color: #34d399; font-size: 14px;">🤖 Opção 2: Android / Computador</b>
+                        <span style="background: rgba(34, 197, 94, 0.25); color: #86efac; font-size: 10px; padding: 2px 8px; border-radius: 6px; font-weight: 800;">INSTALAÇÃO DIRETA</span>
                     </div>
                     <p style="font-size: 12px; color: #cbd5e1; line-height: 1.5; margin-bottom: 12px;">
-                        Download direto do arquivo <b>.APK</b> para telemóveis Android e atalho automático na tela inicial.<br>
-                        <span style="font-size: 11px; color: #94a3b8;">⚠️ <i>Nota: Arquivos .APK são exclusivos para dispositivos Android e não funcionam em iPhones (iOS).</i></span>
+                        Adicione o aplicativo diretamente na sua tela inicial com 1 clique ou baixe o pacote <b>.APK</b> (exclusivo para Android).
                     </p>
-                    <button onclick="baixarApkEInstalar(event)" class="btn-action" style="margin: 0; padding: 12px; font-size: 13px; display: block; width: 100%; text-align: center; background: linear-gradient(135deg, #16a34a, #15803d); font-weight: 700;">
-                        📥 Baixar Aplicativo (.APK)
-                    </button>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <button id="btnInstalarAppAndroid" onclick="baixarApkEInstalar(event)" class="btn-action" style="margin: 0; padding: 12px; font-size: 13px; display: block; width: 100%; text-align: center; background: linear-gradient(135deg, #16a34a, #15803d); font-weight: 700;">
+                            ⚡ Instalar na Tela Inicial / Baixar
+                        </button>
+                        <button onclick="mostrarInstrucaoTresPontinhos()" class="btn-action" style="margin: 0; padding: 9px; font-size: 12px; background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(56, 189, 248, 0.3); color: #94a3b8;">
+                            ℹ️ Instrução dos 3 Pontinhos (Passo a Passo)
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1556,16 +1560,46 @@
             );
         }
 
+        function mostrarInstrucaoTresPontinhos() {
+            mostrarModalCustomizado(
+                '📲 Instalação Manual (3 Pontinhos)',
+                '<div style="text-align: left; font-size: 13px; color: #e2e8f0; line-height: 1.6;">' +
+                'Caso o seu navegador não tenha exibido o botão automático de instalação:<br><br>' +
+                '<b>1.</b> No canto superior direito do Google Chrome, toque no menu de <b>3 pontinhos</b> (<b>⋮</b>).<br>' +
+                '<b>2.</b> Toque na opção <b>"Instalar aplicativo"</b> (ou <i>"Adicionar à tela inicial"</i>).<br>' +
+                '<b>3.</b> Confirme tocando em <b>"Instalar"</b>.<br><br>' +
+                '<span style="color: #34d399; font-weight: 700;">O atalho será fixado com o ícone tático oficial e abrirá em modo aplicativo nativo.</span>' +
+                '</div>',
+                'alerta'
+            );
+        }
+
         async function baixarApkEInstalar(event) {
             if (event) event.preventDefault();
 
+            // 1. Tenta acionar diretamente o prompt nativo de instalação na tela inicial (PWA)
+            if (deferredPromptInstalacao) {
+                try {
+                    deferredPromptInstalacao.prompt();
+                    const choiceResult = await deferredPromptInstalacao.userChoice;
+                    if (choiceResult && choiceResult.outcome === 'accepted') {
+                        fecharModalInstalarApp();
+                        mostrarModalCustomizado('Aplicativo Instalado!', 'O aplicativo foi adicionado com sucesso à sua tela inicial!');
+                        deferredPromptInstalacao = null;
+                        return;
+                    }
+                    deferredPromptInstalacao = null;
+                } catch (ePrompt) {
+                    console.warn("Aviso no prompt de instalação nativa:", ePrompt);
+                }
+            }
+
+            // 2. Se houver pacote APK real (> 100 KB) publicado no servidor, dispara o download
             try {
-                // 1. Verifica se há arquivo APK real e válido no servidor
                 const res = await fetch('/api/app/status-apk?_=' + Date.now());
                 const data = await res.json();
 
                 if (data.success && data.disponivel) {
-                    // Download do APK real válido
                     const linkDownload = document.createElement('a');
                     linkDownload.href = '/app.apk';
                     linkDownload.download = 'Salazar_Operacional.apk';
@@ -1573,47 +1607,15 @@
                     linkDownload.click();
                     linkDownload.remove();
 
-                    if (deferredPromptInstalacao) {
-                        try {
-                            deferredPromptInstalacao.prompt();
-                            deferredPromptInstalacao = null;
-                        } catch (e) {}
-                    }
-
                     fecharModalInstalarApp();
                     mostrarModalCustomizado('Download Iniciado', 'O download do pacote <b>.APK oficial</b> foi iniciado com sucesso no seu dispositivo!');
                     return;
                 }
             } catch (e) {}
 
-            // 2. Se não houver arquivo .apk real (> 100 KB), NÃO baixa arquivo corrompido de 0,03 KB
-            // Dispara imediatamente a instalação nativa do aplicativo na tela inicial do Android
-            if (deferredPromptInstalacao) {
-                try {
-                    deferredPromptInstalacao.prompt();
-                    const choiceResult = await deferredPromptInstalacao.userChoice;
-                    if (choiceResult && choiceResult.outcome === 'accepted') {
-                        fecharModalInstalarApp();
-                        mostrarModalCustomizado('Aplicativo Instalado!', 'O aplicativo foi adicionado à sua tela inicial com sucesso!');
-                    }
-                    deferredPromptInstalacao = null;
-                    return;
-                } catch (ePrompt) {}
-            }
-
-            // Fallback de orientação visual no Chrome sem erro de pacote corrompido
+            // 3. Caso o prompt já tenha sido usado ou o navegador não o suporte diretamente, exibe instrução com fechamento claro
             fecharModalInstalarApp();
-            mostrarModalCustomizado(
-                '📲 Instalar Aplicativo no Android',
-                '<div style="text-align: left; font-size: 13px; color: #e2e8f0; line-height: 1.6;">' +
-                'Para instalar o aplicativo oficial na sua tela inicial sem baixar pacotes corrompidos:<br><br>' +
-                '<b>1.</b> No topo direito do Google Chrome, toque nos <b>3 pontinhos</b> (⋮).<br>' +
-                '<b>2.</b> Selecione a opção <b>"Instalar aplicativo"</b> (ou <i>"Adicionar à tela inicial"</i>).<br>' +
-                '<b>3.</b> Toque em <b>"Instalar"</b>.<br><br>' +
-                '<span style="color: #38bdf8; font-weight: 700;">O aplicativo funcionará em tela cheia com ícone tático de alta definição e notificações ativas!</span>' +
-                '</div>',
-                'alerta'
-            );
+            mostrarInstrucaoTresPontinhos();
         }
 
         function alternarSideDrawer(abrir) {
