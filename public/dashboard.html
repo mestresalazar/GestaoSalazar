@@ -818,7 +818,7 @@
                     <div style="background: linear-gradient(145deg, rgba(234, 179, 8, 0.15), rgba(15, 23, 42, 0.9)); border: 2px solid #eab308; border-radius: 12px; padding: 20px;">
                         <span style="font-size: 30px;">🥇</span>
                         <h4 style="color: #fde047; font-size: 16px; margin: 6px 0;">1º Lugar</h4>
-                        <div style="font-size: 24px; font-weight: 800; color: #34d399; margin: 8px 0;">R$ 25.000</div>
+                        <div id="valorPremio1" style="font-size: 24px; font-weight: 800; color: #34d399; margin: 8px 0;">R$ 25.000</div>
                         <p style="font-size: 11px; color: #94a3b8;">Maior tempo homologado</p>
                     </div>
 
@@ -826,7 +826,7 @@
                     <div style="background: linear-gradient(145deg, rgba(148, 163, 184, 0.15), rgba(15, 23, 42, 0.9)); border: 2px solid #94a3b8; border-radius: 12px; padding: 20px;">
                         <span style="font-size: 30px;">🥈</span>
                         <h4 style="color: #e2e8f0; font-size: 16px; margin: 6px 0;">2º Lugar</h4>
-                        <div style="font-size: 24px; font-weight: 800; color: #34d399; margin: 8px 0;">R$ 15.000</div>
+                        <div id="valorPremio2" style="font-size: 24px; font-weight: 800; color: #34d399; margin: 8px 0;">R$ 15.000</div>
                         <p style="font-size: 11px; color: #94a3b8;">Segundo maior tempo homologado</p>
                     </div>
 
@@ -834,7 +834,7 @@
                     <div style="background: linear-gradient(145deg, rgba(180, 83, 9, 0.15), rgba(15, 23, 42, 0.9)); border: 2px solid #b45309; border-radius: 12px; padding: 20px;">
                         <span style="font-size: 30px;">🥉</span>
                         <h4 style="color: #fdba74; font-size: 16px; margin: 6px 0;">3º Lugar</h4>
-                        <div style="font-size: 24px; font-weight: 800; color: #34d399; margin: 8px 0;">R$ 10.000</div>
+                        <div id="valorPremio3" style="font-size: 24px; font-weight: 800; color: #34d399; margin: 8px 0;">R$ 10.000</div>
                         <p style="font-size: 11px; color: #94a3b8;">Terceiro maior tempo homologado</p>
                     </div>
                 </div>
@@ -1627,7 +1627,39 @@
             sincronizarCarteiraEMissoes();
             carregarCaixaEntrada();
             atualizarFiscalizacaoServidor();
+            carregarPremiacaoTropaUI();
         });
+
+        socket.on('atualizar_premiacao_tropa', (dados) => {
+            if (dados) renderizarValoresPremiacaoUI(dados);
+        });
+
+        function renderizarValoresPremiacaoUI(premios) {
+            const v1 = Number(premios.primeiro !== undefined ? premios.primeiro : 25000);
+            const v2 = Number(premios.segundo !== undefined ? premios.segundo : 15000);
+            const v3 = Number(premios.terceiro !== undefined ? premios.terceiro : 10000);
+
+            const el1 = document.getElementById('valorPremio1');
+            const el2 = document.getElementById('valorPremio2');
+            const el3 = document.getElementById('valorPremio3');
+
+            if (el1) el1.innerText = v1.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+            if (el2) el2.innerText = v2.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+            if (el3) el3.innerText = v3.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+        }
+
+        async function carregarPremiacaoTropaUI() {
+            try {
+                const res = await fetch('/api/admin/config/premiacao-tropa');
+                const data = await res.json();
+                if (data.success) {
+                    renderizarValoresPremiacaoUI(data);
+                }
+            } catch (e) {
+                renderizarValoresPremiacaoUI({ primeiro: 25000, segundo: 15000, terceiro: 10000 });
+            }
+        }
+        carregarPremiacaoTropaUI();
 
         socket.on('atualizar_estado_turno_usuario', (dados) => {
             if (dados && dados.nickname && dados.nickname.toLowerCase() === user.nickname.toLowerCase()) {

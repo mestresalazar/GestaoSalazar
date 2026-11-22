@@ -452,6 +452,27 @@
                     </div>
                 </div>
 
+                <!-- CONFIGURAR VALORES DE PREMIAÇÃO DA TROPA (1º, 2º E 3º LUGAR) -->
+                <div class="card" style="border: 2px dashed #eab308; background: linear-gradient(145deg, rgba(234, 179, 8, 0.05), rgba(15, 23, 42, 0.85));">
+                    <h3 style="color: #fde047; border-color: rgba(234, 179, 8, 0.3);">🏆 Premiação da Tropa (17h às 02h)</h3>
+                    <p style="color: #e2e8f0; margin-bottom: 12px; font-size: 13px;">Configure os valores pagos aos três primeiros colocados no horário regulamentar:</p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 12px;">
+                        <div>
+                            <label style="font-size: 11px; color: #fde047; font-weight: bold; display: block; margin-bottom: 4px;">🥇 1º Lugar (R$)</label>
+                            <input type="number" id="inputPremioPrimeiro" placeholder="25000" class="search-input-box" style="margin-bottom: 0;">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; color: #cbd5e1; font-weight: bold; display: block; margin-bottom: 4px;">🥈 2º Lugar (R$)</label>
+                            <input type="number" id="inputPremioSegundo" placeholder="15000" class="search-input-box" style="margin-bottom: 0;">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; color: #fdba74; font-weight: bold; display: block; margin-bottom: 4px;">🥉 3º Lugar (R$)</label>
+                            <input type="number" id="inputPremioTerceiro" placeholder="10000" class="search-input-box" style="margin-bottom: 0;">
+                        </div>
+                    </div>
+                    <button class="btn-action" style="background: linear-gradient(135deg, #eab308, #ca8a04); color: #000; width: 100%; padding: 11px; font-weight: bold; border-radius: 10px;" onclick="salvarPremiacaoAdmin()">💾 Salvar Premiação</button>
+                </div>
+
                 <!-- DISPARAR ALARME -->
                 <div class="card" style="border: 2px dashed #ef4444; background: rgba(239, 68, 68, 0.05);">
                     <h3 style="color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">🚨 Alarme Geral de Ação</h3>
@@ -786,6 +807,7 @@
             } catch (e) {}
         }
         carregarValorMissaoAdmin();
+        carregarPremiacaoAdmin();
 
         async function carregarListaCarteirasAdmin() {
             try {
@@ -841,6 +863,56 @@
                 });
             } else {
                 tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #94a3b8; padding: 15px;">Nenhum registo encontrado.</td></tr>`;
+            }
+        }
+
+        async function carregarPremiacaoAdmin() {
+            try {
+                const res = await fetch('/api/admin/config/premiacao-tropa');
+                const data = await res.json();
+                if (data.success) {
+                    const el1 = document.getElementById('inputPremioPrimeiro');
+                    const el2 = document.getElementById('inputPremioSegundo');
+                    const el3 = document.getElementById('inputPremioTerceiro');
+                    if (el1) el1.value = data.primeiro !== undefined ? data.primeiro : 25000;
+                    if (el2) el2.value = data.segundo !== undefined ? data.segundo : 15000;
+                    if (el3) el3.value = data.terceiro !== undefined ? data.terceiro : 10000;
+                }
+            } catch (e) {
+                console.error("Erro ao carregar valores de premiação:", e);
+            }
+        }
+
+        async function salvarPremiacaoAdmin() {
+            const primeiro = document.getElementById('inputPremioPrimeiro')?.value;
+            const segundo = document.getElementById('inputPremioSegundo')?.value;
+            const terceiro = document.getElementById('inputPremioTerceiro')?.value;
+
+            if (primeiro === '' || segundo === '' || terceiro === '') {
+                mostrarModalCustomizado('Atenção', 'Preencha todos os três valores de premiação.');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/admin/config/premiacao-tropa', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        adminNickname: user.nickname,
+                        primeiro,
+                        segundo,
+                        terceiro
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    mostrarModalCustomizado('Sucesso', data.message || 'Premiação da tropa salva com sucesso!');
+                    carregarLogsAdmin();
+                } else {
+                    mostrarModalCustomizado('Erro', data.message || 'Erro ao salvar premiação.');
+                }
+            } catch (e) {
+                mostrarModalCustomizado('Erro', 'Erro de conexão ao salvar premiação.');
             }
         }
 

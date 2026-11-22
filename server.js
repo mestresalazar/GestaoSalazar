@@ -1119,6 +1119,74 @@ app.put('/api/admin/membro/carteira/resetar/:id', async (req, res) => {
     }
 });
 
+// --- ROTAS DE CONFIGURAÇÃO DE PREMIAÇÃO DA TROPA (1º, 2º E 3º LUGAR) ---
+app.get('/api/admin/config/premiacao-tropa', async (req, res) => {
+    try {
+        const config = await ConfigSorteio.collection.findOne({ chave: 'premiacao_tropa' });
+        res.json({
+            success: true,
+            primeiro: config && typeof config.primeiro === 'number' ? config.primeiro : 25000,
+            segundo: config && typeof config.segundo === 'number' ? config.segundo : 15000,
+            terceiro: config && typeof config.terceiro === 'number' ? config.terceiro : 10000
+        });
+    } catch (e) {
+        console.error("Erro ao carregar configuração de premiação da tropa:", e);
+        res.json({ success: true, primeiro: 25000, segundo: 15000, terceiro: 10000 });
+    }
+});
+
+app.post('/api/admin/config/premiacao-tropa', async (req, res) => {
+    try {
+        const { adminNickname, primeiro, segundo, terceiro } = req.body;
+
+        const val1 = Math.max(0, parseInt(primeiro, 10) || 0);
+        const val2 = Math.max(0, parseInt(segundo, 10) || 0);
+        const val3 = Math.max(0, parseInt(terceiro, 10) || 0);
+
+        if (adminNickname) {
+            const adminUser = await User.findOne({ nickname: new RegExp('^' + adminNickname + '$', 'i') }, 'role cargo').lean();
+            const cargoAdmin = adminUser ? (adminUser.cargo || '') : '';
+            const ehAdminValido = adminUser && (adminUser.role === 'admin' || cargoAdmin === 'General' || cargoAdmin === 'Coronel All');
+            if (!ehAdminValido) {
+                return res.status(403).json({ success: false, message: 'Acesso negado. Apenas o Comando Superior pode alterar as premiações.' });
+            }
+        }
+
+        await ConfigSorteio.collection.updateOne(
+            { chave: 'premiacao_tropa' },
+            {
+                $set: {
+                    chave: 'premiacao_tropa',
+                    primeiro: val1,
+                    segundo: val2,
+                    terceiro: val3,
+                    atualizadoPor: adminNickname || 'Comando',
+                    data: new Date()
+                }
+            },
+            { upsert: true }
+        );
+
+        await registarLogAdmin(
+            adminNickname || 'Comando',
+            'Configurou Premiação da Tropa',
+            `Novas premiações: 1º R$ ${val1.toLocaleString('pt-BR')} | 2º R$ ${val2.toLocaleString('pt-BR')} | 3º R$ ${val3.toLocaleString('pt-BR')}`
+        );
+
+        io.emit('atualizar_premiacao_tropa', { primeiro: val1, segundo: val2, terceiro: val3 });
+        io.emit('atualizar_status_geral_tropa');
+
+        res.json({
+            success: true,
+            message: 'Premiações da tropa atualizadas com sucesso!',
+            premios: { primeiro: val1, segundo: val2, terceiro: val3 }
+        });
+    } catch (e) {
+        console.error("Erro ao salvar premiação da tropa:", e);
+        res.status(500).json({ success: false, message: 'Erro ao salvar premiações da tropa.' });
+    }
+});
+
 app.get('/api/admin/config/missao-valor', async (req, res) => {
     try {
         const config = await ConfigSorteio.collection.findOne({ chave: 'valor_missao_diaria' });
