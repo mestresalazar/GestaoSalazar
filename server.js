@@ -307,7 +307,7 @@ async function verificarFechamentoAutomaticoTurnos() {
                                 dataRegistro: new Date()
                             }
                         },
-                        { upsert: true, new: true }
+                        { upsert: true, returnDocument: 'after' }
                     );
 
                     io.emit('atualizar_estado_turno_usuario', { nickname: membro.nickname.toLowerCase() });
@@ -746,7 +746,7 @@ app.put('/api/membro/status-plantao', async (req, res) => {
                             segundosTotais: 0
                         }
                     },
-                    { upsert: true, new: true }
+                    { upsert: true, returnDocument: 'after' }
                 );
             } catch (errBatePonto) {
                 console.error("Aviso ao persistir check-in no BatePonto:", errBatePonto.message);
@@ -853,7 +853,7 @@ app.post('/api/membro/turno', async (req, res) => {
                         dataRegistro: new Date()
                     }
                 },
-                { upsert: true, new: true }
+                { upsert: true, returnDocument: 'after' }
             );
         } catch (errBatePonto) {
             console.error("Aviso ao persistir no BatePonto:", errBatePonto.message);
