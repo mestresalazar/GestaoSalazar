@@ -927,7 +927,7 @@
             const el = document.getElementById('statusSorteio');
             if (!el) return;
             const metaSegundos = 2 * 3600;
-            const totalAtual = segundosHojeCiclo + (estadoTurno === 'ativo' ? calcularSegundosTotais() : 0);
+            const totalAtual = segundosHojeCiclo + ((estadoTurno === 'ativo' || estadoTurno === 'pausado') ? calcularSegundosTotais() : 0);
             if (totalAtual >= metaSegundos) {
                 el.style.color = '#34d399';
                 el.style.borderColor = 'rgba(16, 185, 129, 0.5)';
@@ -1291,6 +1291,7 @@
         socket.on('atualizar_status_geral_tropa', () => {
             sincronizarCarteiraEMissoes();
             carregarCaixaEntrada();
+            atualizarFiscalizacaoServidor();
         });
 
         socket.on('atualizar_estado_turno_usuario', (dados) => {

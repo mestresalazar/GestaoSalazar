@@ -11,7 +11,7 @@ const BatePontoSchema = new mongoose.Schema({
   },
   status: { 
     type: String, 
-    enum: ['presente', 'justificado', 'faltou'], 
+    enum: ['presente', 'justificado', 'faltou', 'pausado'], 
     default: 'presente' 
   },
   duracao: { type: String, default: '00:00:00' },

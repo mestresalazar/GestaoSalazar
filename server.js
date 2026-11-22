@@ -689,6 +689,19 @@ app.put('/api/membro/status-plantao', async (req, res) => {
             estadoTurno: estadoTurnoDestino
         };
 
+        // Consolida os segundos acumulados reais considerando o tempo corrido no servidor e/ou enviado pelo cliente
+        let segundosConsolidados = Number(membroAtual.segundosAcumulados || 0);
+        if (membroAtual.estadoTurno === 'ativo' && membroAtual.inicioPlantao) {
+            const diffBanco = Math.floor((Date.now() - new Date(membroAtual.inicioPlantao).getTime()) / 1000);
+            if (diffBanco > 0) segundosConsolidados += diffBanco;
+        }
+        if (segundosAcumulados !== undefined) {
+            const parsed = Math.max(0, parseInt(segundosAcumulados, 10) || 0);
+            if (parsed > segundosConsolidados || membroAtual.estadoTurno !== 'ativo') {
+                segundosConsolidados = Math.max(segundosConsolidados, parsed);
+            }
+        }
+
         if (estadoTurnoDestino === 'parado') {
             updateData.emPlantao = false;
             updateData.inicioPlantao = null;
@@ -696,10 +709,8 @@ app.put('/api/membro/status-plantao', async (req, res) => {
             updateData.fotoComprovanteAtiva = '';
         } else if (estadoTurnoDestino === 'pausado') {
             updateData.emPlantao = true;
-            updateData.inicioPlantao = null; // Interrompe o relógio contínuo, mantendo segundos acumulados intactos
-            if (segundosAcumulados !== undefined) {
-                updateData.segundosAcumulados = Math.max(0, parseInt(segundosAcumulados, 10) || 0);
-            }
+            updateData.inicioPlantao = null; // Interrompe o relógio contínuo, preservando segundos acumulados
+            updateData.segundosAcumulados = segundosConsolidados;
             if (fotoComprovanteAtiva !== undefined) {
                 updateData.fotoComprovanteAtiva = fotoComprovanteAtiva;
             }
@@ -711,9 +722,8 @@ app.put('/api/membro/status-plantao', async (req, res) => {
                 updateData.inicioPlantao = new Date();
             }
 
-            if (segundosAcumulados !== undefined) {
-                updateData.segundosAcumulados = Math.max(0, parseInt(segundosAcumulados, 10) || 0);
-            }
+            // Preserva e consolida os segundos acumulados pré-existentes ao retomar da pausa
+            updateData.segundosAcumulados = segundosConsolidados;
 
             if (fotoComprovanteAtiva !== undefined) {
                 updateData.fotoComprovanteAtiva = fotoComprovanteAtiva;
@@ -750,6 +760,51 @@ app.put('/api/membro/status-plantao', async (req, res) => {
                 );
             } catch (errBatePonto) {
                 console.error("Aviso ao persistir check-in no BatePonto:", errBatePonto.message);
+            }
+        } else if (estadoTurnoDestino === 'pausado') {
+            // Ao pausar, consolida o tempo acumulado no registro correspondente do BatePonto
+            try {
+                const etapaDeterminada = obterEtapaHorarioBrasilia() || 1;
+                const dataCiclo = obterDataCicloBrasil();
+                const duracaoConsolidada = converterSegundosParaDuracao(segundosConsolidados);
+                await BatePonto.findOneAndUpdate(
+                    { usuario: membroAtual._id, data: dataCiclo, etapa: etapaDeterminada },
+                    {
+                        $set: {
+                            nickname: membroAtual.nickname,
+                            status: 'presente',
+                            duracao: duracaoConsolidada,
+                            segundosTotais: segundosConsolidados,
+                            fotoComprovante: updateData.fotoComprovanteAtiva || membroAtual.fotoComprovanteAtiva || '',
+                            emAndamento: false,
+                            dataRegistro: new Date()
+                        }
+                    },
+                    { upsert: true, returnDocument: 'after' }
+                );
+            } catch (errBatePonto) {
+                console.error("Aviso ao consolidar pausa no BatePonto:", errBatePonto.message);
+            }
+        } else if (membroAtual.estadoTurno === 'pausado' && estadoTurnoDestino === 'ativo') {
+            // Ao retomar, marca o ponto como em andamento novamente
+            try {
+                const etapaDeterminada = obterEtapaHorarioBrasilia() || 1;
+                const dataCiclo = obterDataCicloBrasil();
+                await BatePonto.findOneAndUpdate(
+                    { usuario: membroAtual._id, data: dataCiclo, etapa: etapaDeterminada },
+                    {
+                        $set: {
+                            nickname: membroAtual.nickname,
+                            status: 'presente',
+                            fotoComprovante: updateData.fotoComprovanteAtiva || membroAtual.fotoComprovanteAtiva || '',
+                            emAndamento: true,
+                            dataRegistro: new Date()
+                        }
+                    },
+                    { upsert: true, returnDocument: 'after' }
+                );
+            } catch (errBatePonto) {
+                console.error("Aviso ao atualizar retomada no BatePonto:", errBatePonto.message);
             }
         }
 
