@@ -6,7 +6,7 @@
     <title>Gestão Salazar - Acesso Operacional</title>
     <!-- SUPORTE PWA PARA ANDROID -->
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#0b131e">
+    <meta name="theme-color" content="#07090f">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         * {
@@ -17,58 +17,80 @@
             letter-spacing: -0.01em;
         }
         body {
-            background-image: linear-gradient(rgba(7, 13, 22, 0.75), rgba(7, 13, 22, 0.85)), url('/background.jpg');
+            background-image: linear-gradient(rgba(7, 9, 15, 0.82), rgba(7, 9, 15, 0.94)), url('/background.jpg');
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
-            background-color: #070d16;
+            background-color: #07090f;
             color: #ffffff;
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
             padding: 16px;
         }
         .login-card {
-            background: linear-gradient(145deg, rgba(15, 23, 42, 0.92), rgba(7, 13, 22, 0.98));
-            backdrop-filter: blur(16px);
-            padding: 32px;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.75);
+            background: linear-gradient(145deg, rgba(15, 20, 31, 0.94), rgba(7, 9, 15, 0.98));
+            backdrop-filter: blur(18px);
+            padding: 28px 24px;
+            border-radius: 20px;
+            box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.85), 0 0 20px rgba(239, 68, 68, 0.15);
             width: 100%;
-            max-width: 400px;
-            border: 1px solid rgba(56, 189, 248, 0.3);
+            max-width: 410px;
+            border: 1px solid rgba(239, 68, 68, 0.35);
             text-align: center;
+            position: relative;
+            z-index: 10;
+        }
+        .tactical-gif-frame {
+            width: 110px;
+            height: 110px;
+            margin: 0 auto 14px auto;
+            border-radius: 18px;
+            overflow: hidden;
+            border: 2px solid #ef4444;
+            box-shadow: 0 0 24px rgba(239, 68, 68, 0.4), inset 0 0 12px rgba(0,0,0,0.8);
+            background: #07090f;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .tactical-gif-frame img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
         .login-card h2 {
-            color: #38bdf8;
+            color: #ef4444;
             margin-bottom: 6px;
             font-size: 22px;
             font-weight: 800;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+            letter-spacing: -0.02em;
         }
         .login-card p {
             color: #94a3b8;
             font-size: 13px;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
         .form-group {
-            margin-bottom: 16px;
+            margin-bottom: 15px;
             text-align: left;
         }
         .form-group label {
             display: block;
-            font-size: 12px;
-            color: #38bdf8;
+            font-size: 11px;
+            color: #ef4444;
             margin-bottom: 6px;
             font-weight: 700;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         .form-group input {
             width: 100%;
             padding: 12px 14px;
-            background: rgba(15, 23, 42, 0.85);
-            border: 1px solid rgba(56, 189, 248, 0.3);
+            background: rgba(15, 20, 31, 0.85);
+            border: 1px solid rgba(239, 68, 68, 0.3);
             border-radius: 10px;
             color: white;
             font-size: 14px;
@@ -76,38 +98,38 @@
             transition: all 0.2s;
         }
         .form-group input:focus {
-            border-color: #38bdf8;
-            box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+            border-color: #ef4444;
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
         }
         .btn-submit {
             width: 100%;
             padding: 13px;
-            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
             border: none;
             border-radius: 12px;
             color: white;
             font-size: 14px;
-            font-weight: 700;
+            font-weight: 800;
             cursor: pointer;
             margin-top: 10px;
             transition: all 0.25s ease;
-            box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35);
+            box-shadow: 0 6px 18px rgba(239, 68, 68, 0.35);
         }
         .btn-submit:hover {
-            background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
             transform: translateY(-2px);
         }
         .toggle-link {
             margin-top: 18px;
             display: block;
             font-size: 13px;
-            color: #38bdf8;
+            color: #ef4444;
             cursor: pointer;
             text-decoration: underline;
             font-weight: 600;
         }
         .toggle-link:hover {
-            color: #7dd3fc;
+            color: #f87171;
         }
         #errorMsg {
             color: #f87171;
@@ -119,7 +141,21 @@
 </head>
 <body>
 
+    <!-- SPLASH SCREEN TÁTICA COM O GIF DA GLOCK -->
+    <div id="splashScreen" style="position: fixed; inset: 0; background: #07090f; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 99999; transition: opacity 0.4s ease, visibility 0.4s ease;">
+        <div style="width: 140px; height: 140px; border-radius: 24px; overflow: hidden; border: 2px solid #ef4444; box-shadow: 0 0 30px rgba(239, 68, 68, 0.5); background: #07090f; margin-bottom: 20px; display: flex; align-items: center; justify-content: center;">
+            <img src="/mac-glock.gif" alt="Salazar Glock" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='/icons/icon-192.png'">
+        </div>
+        <h2 style="color: #ef4444; font-size: 20px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;">Gestão Salazar</h2>
+        <p style="color: #94a3b8; font-size: 11px; margin-top: 6px; letter-spacing: 1.5px; font-weight: 600;">CARREGANDO SISTEMA TÁTICO...</p>
+    </div>
+
     <div class="login-card">
+        <!-- MOLDURA TÁTICA DO GIF DA GLOCK -->
+        <div class="tactical-gif-frame">
+            <img src="/mac-glock.gif" alt="Salazar Glock" onerror="this.src='/icons/icon-192.png'">
+        </div>
+
         <h2 id="cardTitle">Gestão Salazar</h2>
         <p id="cardSubtitle">Autenticação do Efetivo Operacional</p>
 
@@ -151,6 +187,17 @@
     </div>
 
     <script>
+        // Oculta a splash screen com fade suave assim que carregar
+        window.addEventListener('load', () => {
+            const splash = document.getElementById('splashScreen');
+            if (splash) {
+                setTimeout(() => {
+                    splash.style.opacity = '0';
+                    splash.style.visibility = 'hidden';
+                }, 350);
+            }
+        });
+
         let isRegisterMode = false;
 
         function alternarModo() {

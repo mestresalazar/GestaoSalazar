@@ -94,6 +94,35 @@ function gerarSvgIconeSalazar(tamanho = 512) {
 </svg>`;
 }
 
+// Rota segura para servir o GIF da Glock com suporte a espaços e caracteres especiais
+app.get(['/mac-glock.gif', '/assets/mac-glock.gif', '/glock.gif'], (req, res) => {
+    const fs = require('fs');
+    const possibleDirs = [
+        path.join(__dirname, 'public'),
+        path.join(__dirname, 'public', 'assets'),
+        path.join(__dirname, 'assets'),
+        __dirname
+    ];
+    for (const dir of possibleDirs) {
+        if (fs.existsSync(dir)) {
+            const files = fs.readdirSync(dir);
+            const found = files.find(f => f.toLowerCase().includes('mac') && f.toLowerCase().includes('glock') && f.toLowerCase().endsWith('.gif'));
+            if (found) {
+                res.setHeader('Content-Type', 'image/gif');
+                res.setHeader('Cache-Control', 'public, max-age=86400');
+                return res.sendFile(path.join(dir, found));
+            }
+        }
+    }
+    // Fallback caso o arquivo ainda não tenha sido colocado na pasta
+    const fallbackIcon = path.join(__dirname, 'public', 'icons', 'icon-192.png');
+    if (fs.existsSync(fallbackIcon)) {
+        res.setHeader('Content-Type', 'image/png');
+        return res.sendFile(fallbackIcon);
+    }
+    res.status(404).send('GIF não encontrado');
+});
+
 app.get(['/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png', '/apple-touch-icon.png'], (req, res) => {
     res.setHeader('Content-Type', 'image/svg+xml');
     res.setHeader('Cache-Control', 'public, max-age=86400');

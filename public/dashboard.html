@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Gestão Salazar - Painel do Membro</title>
-    <meta name="theme-color" content="#070d16">
+    <meta name="theme-color" content="#07090f">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -23,11 +23,11 @@
             -webkit-tap-highlight-color: transparent;
         }
         body {
-            background-image: linear-gradient(rgba(7, 13, 22, 0.88), rgba(7, 13, 22, 0.96)), url('/background.jpg');
+            background-image: linear-gradient(rgba(7, 9, 15, 0.90), rgba(7, 9, 15, 0.97)), url('/background.jpg');
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
-            background-color: #070d16;
+            background-color: #07090f;
             color: #ffffff;
             padding: 10px 12px calc(88px + env(safe-area-inset-bottom, 16px)) 12px;
             overflow-x: hidden;
@@ -35,19 +35,19 @@
             min-height: 100vh;
         }
 
-        /* --- APP HEADER COMPACTO & ELEGANTE --- */
+        /* --- APP HEADER COMPACTO & TÁTICO --- */
         .app-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(7, 13, 22, 0.98));
+            background: linear-gradient(145deg, rgba(15, 20, 31, 0.96), rgba(7, 9, 15, 0.98));
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             padding: calc(env(safe-area-inset-top, 0px) + 8px) 14px 10px 14px;
             border-radius: 16px;
             margin-bottom: 16px;
-            border: 1px solid rgba(56, 189, 248, 0.28);
-            box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(239, 68, 68, 0.32);
+            box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.75), 0 0 15px rgba(239, 68, 68, 0.12);
             position: sticky;
             top: 6px;
             z-index: 900;
@@ -58,9 +58,9 @@
             gap: 12px;
         }
         .btn-side-menu-trigger {
-            background: rgba(56, 189, 248, 0.15);
-            border: 1px solid rgba(56, 189, 248, 0.35);
-            color: #38bdf8;
+            background: rgba(239, 68, 68, 0.16);
+            border: 1px solid rgba(239, 68, 68, 0.38);
+            color: #ef4444;
             font-size: 20px;
             width: 42px;
             height: 42px;
@@ -72,7 +72,7 @@
             transition: all 0.2s ease;
         }
         .btn-side-menu-trigger:hover, .btn-side-menu-trigger:active {
-            background: rgba(56, 189, 248, 0.3);
+            background: rgba(239, 68, 68, 0.28);
             transform: scale(0.97);
         }
         .app-header-title-box {
@@ -82,9 +82,10 @@
         .app-header-brand {
             font-size: 16px;
             font-weight: 800;
-            color: #38bdf8;
+            color: #ef4444;
             letter-spacing: -0.02em;
             line-height: 1.2;
+            text-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
         }
         .app-header-category {
             font-size: 11px;
@@ -99,8 +100,8 @@
             gap: 8px;
         }
         .app-header-user-btn {
-            background: rgba(15, 23, 42, 0.85);
-            border: 1px solid rgba(56, 189, 248, 0.25);
+            background: rgba(15, 20, 31, 0.85);
+            border: 1px solid rgba(239, 68, 68, 0.3);
             color: #e2e8f0;
             padding: 6px 12px;
             border-radius: 10px;
@@ -135,25 +136,25 @@
             bottom: 0;
             width: 290px;
             max-width: 82vw;
-            background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99));
-            border-right: 1px solid rgba(56, 189, 248, 0.3);
+            background: linear-gradient(180deg, rgba(15, 20, 31, 0.98), rgba(7, 9, 15, 0.99));
+            border-right: 1px solid rgba(239, 68, 68, 0.35);
             z-index: 2100;
             transform: translateX(-100%);
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             flex-direction: column;
-            box-shadow: 10px 0 30px rgba(0, 0, 0, 0.8);
+            box-shadow: 10px 0 30px rgba(0, 0, 0, 0.85);
         }
         .side-drawer.open {
             transform: translateX(0);
         }
         .drawer-header {
             padding: 20px 18px;
-            border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+            border-bottom: 1px solid rgba(239, 68, 68, 0.25);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background: rgba(15, 23, 42, 0.6);
+            background: rgba(15, 20, 31, 0.6);
         }
         .drawer-user-info {
             display: flex;
@@ -164,7 +165,7 @@
             width: 44px;
             height: 44px;
             border-radius: 50%;
-            border: 2px solid #38bdf8;
+            border: 2px solid #ef4444;
             background: rgba(30, 41, 59, 0.9);
             display: flex;
             align-items: center;
@@ -179,7 +180,7 @@
         }
         .drawer-user-rank {
             font-size: 11px;
-            color: #38bdf8;
+            color: #ef4444;
             font-weight: 600;
         }
         .drawer-close-btn {
@@ -217,9 +218,9 @@
             text-decoration: none;
         }
         .drawer-nav-item:hover, .drawer-nav-item.active {
-            background: rgba(56, 189, 248, 0.15);
-            color: #38bdf8;
-            border-color: rgba(56, 189, 248, 0.35);
+            background: rgba(239, 68, 68, 0.16);
+            color: #ef4444;
+            border-color: rgba(239, 68, 68, 0.4);
         }
         .drawer-nav-item span.icon {
             font-size: 18px;
@@ -348,13 +349,13 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: linear-gradient(180deg, rgba(15, 23, 42, 0.97), rgba(7, 13, 22, 0.99));
+            background: linear-gradient(180deg, rgba(15, 20, 31, 0.98), rgba(7, 9, 15, 0.99));
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border-top: 1px solid rgba(56, 189, 248, 0.28);
+            border-top: 1px solid rgba(239, 68, 68, 0.32);
             z-index: 1000;
             padding: 6px 10px calc(env(safe-area-inset-bottom, 12px) + 6px) 10px;
-            box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.85);
+            box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.85), 0 0 16px rgba(239, 68, 68, 0.1);
             display: flex;
             justify-content: space-around;
             align-items: center;
@@ -384,25 +385,25 @@
             line-height: 1;
         }
         .bottom-nav-item.active {
-            color: #38bdf8;
-            background: rgba(56, 189, 248, 0.14);
-            box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.16);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.25);
         }
         .card {
-            background: linear-gradient(145deg, rgba(15, 23, 42, 0.85), rgba(7, 13, 22, 0.95)) !important;
+            background: linear-gradient(145deg, rgba(15, 20, 31, 0.88), rgba(7, 9, 15, 0.96)) !important;
             backdrop-filter: blur(16px) !important;
             -webkit-backdrop-filter: blur(16px) !important;
             padding: 22px;
             border-radius: 16px !important;
-            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.7) !important;
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.75) !important;
             margin-bottom: 20px;
-            border: 1px solid rgba(56, 189, 248, 0.22) !important;
+            border: 1px solid rgba(239, 68, 68, 0.25) !important;
         }
         .card h3 {
-            color: #38bdf8;
+            color: #ef4444;
             margin-bottom: 14px;
             font-size: 17px;
-            border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+            border-bottom: 1px solid rgba(239, 68, 68, 0.2);
             padding-bottom: 10px;
             text-shadow: 0 2px 4px rgba(0,0,0,0.8);
             font-weight: 700;
@@ -427,7 +428,7 @@
         .btn-action {
             width: 100%;
             padding: 13px;
-            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
             border: none;
             border-radius: 12px !important;
             color: white;
@@ -436,10 +437,10 @@
             cursor: pointer;
             margin-top: 15px;
             transition: all 0.25s ease;
-            box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35);
+            box-shadow: 0 6px 16px rgba(239, 68, 68, 0.35);
         }
         .btn-action:hover:not(:disabled) {
-            background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
             transform: translateY(-2px);
         }
         .btn-action:disabled {
@@ -478,15 +479,15 @@
         .timer-display {
             font-size: 32px;
             font-weight: 800;
-            color: #38bdf8;
+            color: #ef4444;
             text-align: center;
-            background: rgba(15, 23, 42, 0.75);
-            border: 1px solid rgba(56, 189, 248, 0.3);
+            background: rgba(15, 20, 31, 0.85);
+            border: 1px solid rgba(239, 68, 68, 0.35);
             padding: 18px;
             border-radius: 12px;
             margin-top: 15px;
             letter-spacing: 3px;
-            text-shadow: 0 2px 8px rgba(56, 189, 248, 0.4);
+            text-shadow: 0 2px 10px rgba(239, 68, 68, 0.5);
             box-shadow: inset 0 2px 10px rgba(0,0,0,0.6);
         }
         .wallet-box {
@@ -702,6 +703,15 @@
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
+
+    <!-- SPLASH SCREEN TÁTICA COM O GIF DA GLOCK -->
+    <div id="splashScreenDashboard" style="position: fixed; inset: 0; background: #07090f; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 99999; transition: opacity 0.4s ease, visibility 0.4s ease;">
+        <div style="width: 130px; height: 130px; border-radius: 24px; overflow: hidden; border: 2px solid #ef4444; box-shadow: 0 0 30px rgba(239, 68, 68, 0.5); background: #07090f; margin-bottom: 18px; display: flex; align-items: center; justify-content: center;">
+            <img src="/mac-glock.gif" alt="Salazar Glock" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='/icons/icon-192.png'">
+        </div>
+        <h2 style="color: #ef4444; font-size: 19px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;">Gestão Salazar</h2>
+        <p style="color: #94a3b8; font-size: 11px; margin-top: 6px; letter-spacing: 1.5px; font-weight: 600;">SINCRONIZANDO PAINEL OPERACIONAL...</p>
+    </div>
 
     <!-- TOP APP BAR COMPACTO (ESTILO APLICATIVO) -->
     <header class="app-header">
@@ -1508,6 +1518,17 @@
     <script src="/voz.js"></script>
 
     <script>
+        // Transição suave de splash screen
+        window.addEventListener('load', () => {
+            const splash = document.getElementById('splashScreenDashboard');
+            if (splash) {
+                setTimeout(() => {
+                    splash.style.opacity = '0';
+                    splash.style.visibility = 'hidden';
+                }, 300);
+            }
+        });
+
         function escapeHTML(str) {
             return String(str ?? '')
                 .replace(/&/g, '&')
