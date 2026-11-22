@@ -510,6 +510,7 @@
                     </div>
 
                     <button class="btn-action" style="background-color: #dc2626; color: white; font-size: 14px; padding: 12px; width: 100%; font-weight: bold; border-radius: 10px;" onclick="dispararAlertaAcao()">🚨 DISPARAR ALERTA PARA A TROPA</button>
+                    <button class="btn-action" style="background: rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; color: #38bdf8; font-size: 12px; padding: 8px 14px; width: 100%; font-weight: 600; border-radius: 8px; margin-top: 8px;" onclick="testarAlertaExclusivoAdmin()">🧪 Testar Alerta no Meu Dispositivo (Apenas ADM)</button>
                 </div>
             </div>
 
@@ -1104,6 +1105,51 @@
             } catch (e) {
                 const tbody = document.getElementById('tabelaInativos');
                 if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ef4444; padding: 15px;">Erro ao carregar inativos.</td></tr>`;
+            }
+        }
+
+        async function testarAlertaExclusivoAdmin() {
+            if (!('Notification' in window)) {
+                mostrarModalCustomizado('Não Suportado', 'O seu navegador não suporta notificações de sistema.');
+                return;
+            }
+
+            if (Notification.permission !== 'granted') {
+                const perm = await Notification.requestPermission();
+                if (perm !== 'granted') {
+                    mostrarModalCustomizado('Aviso', 'Permissão de notificação necessária para testar o alerta.');
+                    return;
+                }
+            }
+
+            try {
+                let reg = null;
+                if ('serviceWorker' in navigator) {
+                    reg = await navigator.serviceWorker.getRegistration();
+                    if (!reg) reg = await navigator.serviceWorker.register('/sw.js');
+                    await navigator.serviceWorker.ready;
+                }
+
+                const titulo = '🚨 TESTE DE ALERTA - Gestão Salazar (ADM)';
+                const opcoes = {
+                    body: 'Notificação e alerta funcionando perfeitamente no seu dispositivo de comando.',
+                    icon: '/background.jpg',
+                    badge: '/background.jpg',
+                    vibrate: [200, 100, 200, 100, 400],
+                    tag: 'teste-admin-' + Date.now(),
+                    renotify: true,
+                    requireInteraction: false
+                };
+
+                if (reg && reg.showNotification) {
+                    await reg.showNotification(titulo, opcoes);
+                } else {
+                    new Notification(titulo, opcoes);
+                }
+
+                mostrarModalCustomizado('Teste Concluído', 'Notificação de teste exibida com sucesso na barra do seu sistema.');
+            } catch (e) {
+                mostrarModalCustomizado('Erro', 'Não foi possível disparar a notificação de teste: ' + e.message);
             }
         }
 

@@ -22,15 +22,16 @@ self.addEventListener('push', function(event) {
         }
     }
 
+    const tagAlerta = data.tag || data.id || 'salazar-alerta';
     const options = {
         body: data.body,
         icon: '/background.jpg',
         badge: '/background.jpg',
         vibrate: [200, 100, 200, 100, 400],
-        tag: 'salazar-alerta-' + Date.now(),
-        renotify: true,
+        tag: tagAlerta,
+        renotify: false,
         requireInteraction: true,
-        data: { url: data.url || '/dashboard.html' }
+        data: { url: data.url || '/dashboard.html', alertaId: tagAlerta }
     };
 
     event.waitUntil(

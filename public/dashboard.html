@@ -453,12 +453,11 @@
         </div>
     </div>
 
-    <div id="bannerPush" class="card" style="border: 2px solid #22c55e; background: rgba(34, 197, 94, 0.08); display: none; text-align: center; margin-bottom: 20px;">
-        <h3 style="color: #22c55e; border: none; margin-bottom: 8px;">🔔 Alertas e Notificações no Navegador / Sistema</h3>
-        <p id="textoBannerPush" style="color: #e2e8f0; font-size: 13px; margin-bottom: 16px;">Para receber os alarmes de AÇÃO e avisos da tropa na barra de notificações do seu celular ou computador, ative as notificações abaixo.</p>
+    <div id="bannerPush" class="card" style="border: 2px solid #eab308; background: rgba(234, 179, 8, 0.08); display: none; text-align: center; margin-bottom: 20px;">
+        <h3 style="color: #eab308; border: none; margin-bottom: 8px;">🔔 Notificações da Tropa</h3>
+        <p id="textoBannerPush" style="color: #e2e8f0; font-size: 13px; margin-bottom: 16px;">Para receber convocações e alarmes de AÇÃO no seu dispositivo, autorize as notificações.</p>
         <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-            <button id="btnAtivarPush" class="btn-action" style="background-color: rgba(34, 197, 94, 0.9); width: auto; display: inline-block; padding: 10px 25px; margin-top: 0;" onclick="ativarNotificacoesPush()">✅ Ativar Notificações</button>
-            <button id="btnTestarPush" class="btn-action" style="background-color: rgba(56, 189, 248, 0.8); color: #000; width: auto; display: none; padding: 10px 20px; margin-top: 0;" onclick="testarNotificacaoLocal()">🧪 Testar Alerta</button>
+            <button id="btnAtivarPush" class="btn-action" style="background-color: rgba(34, 197, 94, 0.9); width: auto; display: inline-block; padding: 10px 25px; margin-top: 0;" onclick="ativarNotificacoesPush(true)">🔔 Permitir Notificações</button>
         </div>
     </div>
 
@@ -1514,14 +1513,25 @@
             }
         }
 
+        const ultimosAlertasProcessados = new Set();
+
         async function dispararNotificacaoNativa(titulo, opcoes = {}) {
+            const tagAlerta = opcoes.tag || opcoes.id || 'salazar-alerta';
+
+            // Evita duplicação local imediata se o mesmo alerta já foi processado nos últimos 15 segundos
+            if (ultimosAlertasProcessados.has(tagAlerta)) {
+                return;
+            }
+            ultimosAlertasProcessados.add(tagAlerta);
+            setTimeout(() => ultimosAlertasProcessados.delete(tagAlerta), 15000);
+
             const opcoesPadrao = {
                 body: opcoes.body || 'Alerta emitido pelo Comando Salazar!',
                 icon: opcoes.icon || '/background.jpg',
                 badge: opcoes.badge || '/background.jpg',
                 vibrate: [200, 100, 200, 100, 400],
-                tag: 'salazar-aviso-' + Date.now(),
-                renotify: true,
+                tag: tagAlerta,
+                renotify: false,
                 requireInteraction: true,
                 data: { url: opcoes.url || '/dashboard.html' }
             };
@@ -1547,7 +1557,6 @@
         async function verificarEstadoPush() {
             const banner = document.getElementById('bannerPush');
             const btnAtivar = document.getElementById('btnAtivarPush');
-            const btnTestar = document.getElementById('btnTestarPush');
             const texto = document.getElementById('textoBannerPush');
             if (!banner) return;
 
@@ -1559,25 +1568,46 @@
             if (Notification.permission === 'denied') {
                 banner.style.display = 'block';
                 banner.style.borderColor = '#ef4444';
-                if (texto) texto.innerHTML = '⚠️ As notificações estão <b>bloqueadas</b> no seu navegador. Para receber alertas de ação, acerte as permissões do site ao lado da barra de endereço e altere para <b>Permitir</b>.';
+                if (texto) texto.innerHTML = '⚠️ As notificações estão <b>bloqueadas</b> no seu navegador. Para receber alertas de ação da tropa, acesse as permissões ao lado do endereço do site e escolha <b>Permitir</b>.';
                 if (btnAtivar) btnAtivar.style.display = 'none';
-                if (btnTestar) btnTestar.style.display = 'none';
             } else if (Notification.permission === 'granted') {
-                banner.style.display = 'block';
-                banner.style.borderColor = '#22c55e';
-                if (texto) texto.innerHTML = '✅ As notificações estão <b>ativas</b> neste dispositivo. Você receberá os alarmes de AÇÃO mesmo com a página em segundo plano.';
-                if (btnAtivar) btnAtivar.style.display = 'none';
-                if (btnTestar) btnTestar.style.display = 'inline-block';
+                banner.style.display = 'none';
                 garantirSubscricaoPushSilenciosa();
             } else {
+                // Estado 'default': solicita proativamente a permissão
                 banner.style.display = 'block';
                 banner.style.borderColor = '#eab308';
                 if (btnAtivar) {
                     btnAtivar.style.display = 'inline-block';
-                    btnAtivar.innerText = '✅ Ativar Notificações Push';
+                    btnAtivar.innerText = '🔔 Permitir Notificações';
                 }
-                if (btnTestar) btnTestar.style.display = 'none';
+                solicitarPermissaoAutomatica();
             }
+        }
+
+        function solicitarPermissaoAutomatica() {
+            if (!('Notification' in window) || Notification.permission !== 'default') return;
+
+            // Tenta abrir o prompt diretamente
+            try {
+                const prom = Notification.requestPermission();
+                if (prom && typeof prom.then === 'function') {
+                    prom.then(perm => {
+                        if (perm === 'granted') {
+                            verificarEstadoPush();
+                        }
+                    }).catch(() => {});
+                }
+            } catch (e) {}
+
+            // Caso o navegador bloqueie solicitação sem gesto do usuário, solicita no primeiro clique/toque
+            const solicitarNoPrimeiroGesto = () => {
+                if (Notification.permission === 'default') {
+                    ativarNotificacoesPush(false);
+                }
+            };
+            window.addEventListener('click', solicitarNoPrimeiroGesto, { once: true });
+            window.addEventListener('touchstart', solicitarNoPrimeiroGesto, { once: true });
         }
         verificarEstadoPush();
 
@@ -1611,9 +1641,9 @@
             }
         }
 
-        async function ativarNotificacoesPush() {
+        async function ativarNotificacoesPush(comFeedbackVisual = false) {
             if (!('Notification' in window)) {
-                mostrarModalCustomizado('Não Suportado', 'Este navegador não suporta notificações de sistema.');
+                if (comFeedbackVisual) mostrarModalCustomizado('Não Suportado', 'Este navegador não suporta notificações de sistema.');
                 return;
             }
 
@@ -1623,29 +1653,18 @@
                     await obterRegistroServiceWorker();
                     await garantirSubscricaoPushSilenciosa();
                     verificarEstadoPush();
-                    dispararNotificacaoNativa('✅ Notificações Ativadas!', {
-                        body: 'Você agora receberá todos os alarmes de ação e avisos da tropa.'
-                    });
-                    mostrarModalCustomizado('Sucesso', 'Notificações ativadas com sucesso neste dispositivo!');
+                    if (comFeedbackVisual) {
+                        mostrarModalCustomizado('Sucesso', 'Notificações ativadas com sucesso neste dispositivo!');
+                    }
                 } else if (perm === 'denied') {
                     verificarEstadoPush();
-                    mostrarModalCustomizado('Bloqueado', 'Você bloqueou as notificações. Ative manualmente nas configurações do navegador para receber os alarmes.');
+                    if (comFeedbackVisual) {
+                        mostrarModalCustomizado('Bloqueado', 'Você bloqueou as notificações. Para receber os alarmes, autorize nas permissões do navegador.');
+                    }
                 }
             } catch (e) {
-                console.error("Erro ao ativar notificações:", e);
-                mostrarModalCustomizado('Erro', 'Não foi possível ativar as notificações.');
+                console.error("Erro ao solicitar permissão de notificações:", e);
             }
-        }
-
-        async function testarNotificacaoLocal() {
-            if (Notification.permission !== 'granted') {
-                ativarNotificacoesPush();
-                return;
-            }
-            dispararNotificacaoNativa('🚨 TESTE DE ALARME - Gestão Salazar', {
-                body: 'Alerta de teste funcionando perfeitamente no seu dispositivo!'
-            });
-            mostrarModalCustomizado('Alerta Enviado', 'Notificação de teste enviada para o seu dispositivo.');
         }
 
         let cargoDestinoAtual = '';
@@ -1885,11 +1904,16 @@
         });
 
         socket.on('tocar_alarme_acao', (dados) => {
+            const tagId = (dados && (dados.tag || dados.id)) ? (dados.tag || dados.id) : ('alerta_' + Date.now());
             const titulo = (dados && dados.titulo) ? `🚨 AÇÃO: ${dados.titulo}` : '🚨 ALERTA GERAL DE AÇÃO!';
             const desc = (dados && dados.descricao) ? dados.descricao : 'Nova convocação urgente do Comando! Apresente-se imediatamente.';
 
-            // Dispara notificação nativa na barra/pop-up do sistema operacional/navegador
-            dispararNotificacaoNativa(titulo, { body: desc, url: '/dashboard.html' });
+            // Dispara notificação nativa com tag estável (evita som/pop-up repetido com push)
+            dispararNotificacaoNativa(titulo, {
+                body: desc,
+                url: '/dashboard.html',
+                tag: tagId
+            });
 
             // Alerta visual imediato no modal do painel
             mostrarModalCustomizado(titulo, escapeHTML(desc), 'alerta');

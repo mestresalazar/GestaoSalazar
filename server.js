@@ -728,8 +728,11 @@ app.post('/api/admin/disparar-acao', async (req, res) => {
             }
         }
 
+        const alertaId = 'acao_' + Date.now();
         const membrosComPush = await User.find({ pushSubscription: { $exists: true, $ne: null } }, '_id pushSubscription').lean();
         const payload = JSON.stringify({
+            id: alertaId,
+            tag: alertaId,
             title: `🚨 AÇÃO: ${tituloFinal}`,
             body: descricaoFinal,
             url: '/dashboard.html'
@@ -757,7 +760,12 @@ app.post('/api/admin/disparar-acao', async (req, res) => {
         };
         await User.updateMany({}, { $push: { caixaEntrada: notifGeral } });
 
-        io.emit('tocar_alarme_acao', { titulo: tituloFinal, descricao: descricaoFinal });
+        io.emit('tocar_alarme_acao', {
+            id: alertaId,
+            tag: alertaId,
+            titulo: tituloFinal,
+            descricao: descricaoFinal
+        });
         io.emit('atualizar_status_geral_tropa');
 
         await registarLogAdmin(adminNickname || 'Comando', 'Alarme Geral Disparado', `Ação: ${tituloFinal}`);
