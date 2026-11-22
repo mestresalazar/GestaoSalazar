@@ -4,9 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestão Salazar - Acesso Operacional</title>
-    <!-- SUPORTE PWA PARA ANDROID -->
+    <!-- SUPORTE PWA PARA ANDROID E IOS -->
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#07090f">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Gestão Salazar">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="icon" type="image/png" href="/icons/icon-192.png">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         * {
@@ -212,6 +218,13 @@
                 }, 350);
             }
         });
+
+        // Registro automático do Service Worker com escopo raiz / para conformidade PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+            });
+        }
 
         let isRegisterMode = false;
 

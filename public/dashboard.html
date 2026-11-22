@@ -2362,12 +2362,19 @@
             return outputArray;
         }
 
+        // Registro automático do Service Worker com escopo raiz / para conformidade PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+            });
+        }
+
         async function obterRegistroServiceWorker() {
             if (!('serviceWorker' in navigator)) return null;
             try {
                 let reg = await navigator.serviceWorker.getRegistration();
                 if (!reg) {
-                    reg = await navigator.serviceWorker.register('/sw.js');
+                    reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
                 }
                 await navigator.serviceWorker.ready;
                 return reg;

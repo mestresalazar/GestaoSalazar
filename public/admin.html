@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Salazar ADM">
-    <link rel="icon" type="image/svg+xml" href="/icons/icon-192.png">
+    <link rel="icon" type="image/png" href="/icons/icon-192.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
     <link rel="manifest" href="/manifest.json">
     <!-- BLOQUEIO DE SEGURANÇA IMEDIATO -->
@@ -1051,6 +1051,13 @@
             } else if (nomeAba === 'auditoria') {
                 carregarLogsAdmin();
             }
+        }
+
+        // Registro automático do Service Worker com escopo raiz / para conformidade PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+            });
         }
 
         const userStr = localStorage.getItem('user');

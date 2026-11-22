@@ -12,6 +12,9 @@ self.addEventListener('fetch', (event) => {
     if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/socket.io/')) {
         return;
     }
+    event.respondWith(
+        fetch(event.request).catch(() => caches.match(event.request))
+    );
 });
 
 self.addEventListener('push', function(event) {

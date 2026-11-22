@@ -141,10 +141,121 @@ app.get(['/mac-glock.gif', '/assets/mac-glock.gif', '/glock.gif'], (req, res) =>
     res.status(404).send('GIF não encontrado');
 });
 
-app.get(['/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png', '/apple-touch-icon.png'], (req, res) => {
-    res.setHeader('Content-Type', 'image/svg+xml');
+// Gerador procedural de PNG binário autêntico para validação do PWABuilder e ícones de app nativos
+const zlib = require('zlib');
+
+function crc32Buffer(buf) {
+    let table = crc32Buffer.table;
+    if (!table) {
+        table = new Int32Array(256);
+        for (let i = 0; i < 256; i++) {
+            let c = i;
+            for (let j = 0; j < 8; j++) {
+                c = (c & 1) ? (-306674912 ^ (c >>> 1)) : (c >>> 1);
+            }
+            table[i] = c;
+        }
+        crc32Buffer.table = table;
+    }
+    let crc = -1;
+    for (let i = 0; i < buf.length; i++) {
+        crc = (crc >>> 8) ^ table[(crc ^ buf[i]) & 0xff];
+    }
+    return (crc ^ -1) >>> 0;
+}
+
+function criarChunkPng(type, data) {
+    const typeBuf = Buffer.from(type, 'ascii');
+    const len = data.length;
+    const chunk = Buffer.alloc(8 + len + 4);
+    chunk.writeUInt32BE(len, 0);
+    typeBuf.copy(chunk, 4);
+    data.copy(chunk, 8);
+    const crcTarget = Buffer.concat([typeBuf, data]);
+    const crcVal = crc32Buffer(crcTarget);
+    chunk.writeUInt32BE(crcVal, 8 + len);
+    return chunk;
+}
+
+const cachePngIcons = {};
+
+function gerarPngIconeBuffer(tamanho = 192) {
+    if (cachePngIcons[tamanho]) return cachePngIcons[tamanho];
+
+    const width = tamanho;
+    const height = tamanho;
+    const rawData = Buffer.alloc(height * (1 + width * 4));
+    let offset = 0;
+
+    for (let y = 0; y < height; y++) {
+        rawData[offset++] = 0; // Filter type None
+        for (let x = 0; x < width; x++) {
+            const distCentroX = Math.abs(x - width / 2);
+            const distCentroY = Math.abs(y - height / 2);
+            const borda = Math.floor(width * 0.08);
+
+            const naBorda = (x >= borda && x <= width - borda && (y === borda || y === height - borda)) ||
+                            (y >= borda && y <= height - borda && (x === borda || x === width - borda));
+
+            const raioEscudo = width * 0.32;
+            const dentroEscudo = (distCentroX < raioEscudo && distCentroY < raioEscudo);
+
+            if (naBorda) {
+                // Vermelho tático #ef4444
+                rawData[offset++] = 239; rawData[offset++] = 68; rawData[offset++] = 68; rawData[offset++] = 255;
+            } else if (dentroEscudo) {
+                // Núcleo tático #dc2626
+                rawData[offset++] = 220; rawData[offset++] = 38; rawData[offset++] = 38; rawData[offset++] = 255;
+            } else {
+                // Fundo escuro #07090f
+                rawData[offset++] = 7; rawData[offset++] = 9; rawData[offset++] = 15; rawData[offset++] = 255;
+            }
+        }
+    }
+
+    const idatData = zlib.deflateSync(rawData);
+    const sig = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+    const ihdrBuf = Buffer.alloc(13);
+    ihdrBuf.writeUInt32BE(width, 0);
+    ihdrBuf.writeUInt32BE(height, 4);
+    ihdrBuf[8] = 8; // 8 bits per channel
+    ihdrBuf[9] = 6; // RGBA
+    ihdrBuf[10] = 0; // Deflate
+    ihdrBuf[11] = 0; // Default filter
+    ihdrBuf[12] = 0; // Non-interlaced
+
+    const ihdrChunk = criarChunkPng('IHDR', ihdrBuf);
+    const idatChunk = criarChunkPng('IDAT', idatData);
+    const iendChunk = criarChunkPng('IEND', Buffer.alloc(0));
+
+    const finalBuffer = Buffer.concat([sig, ihdrChunk, idatChunk, iendChunk]);
+    cachePngIcons[tamanho] = finalBuffer;
+    return finalBuffer;
+}
+
+app.get('/icons/icon-192.png', (req, res) => {
+    const fs = require('fs');
+    const localFile = path.join(__dirname, 'public', 'icons', 'icon-192.png');
+    if (fs.existsSync(localFile) && fs.statSync(localFile).size > 100) {
+        res.setHeader('Content-Type', 'image/png');
+        return res.sendFile(localFile);
+    }
+    res.setHeader('Content-Type', 'image/png');
     res.setHeader('Cache-Control', 'public, max-age=86400');
-    res.send(gerarSvgIconeSalazar(512));
+    res.send(gerarPngIconeBuffer(192));
+});
+
+app.get(['/icons/icon-512.png', '/icons/apple-touch-icon.png', '/apple-touch-icon.png'], (req, res) => {
+    const fs = require('fs');
+    const localFile = path.join(__dirname, 'public', 'icons', 'icon-512.png');
+    if (fs.existsSync(localFile) && fs.statSync(localFile).size > 100) {
+        res.setHeader('Content-Type', 'image/png');
+        return res.sendFile(localFile);
+    }
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(gerarPngIconeBuffer(512));
 });
 
 // Helper para localizar arquivo APK real e válido (maior que 100 KB)

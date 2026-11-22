@@ -1,5 +1,5 @@
 {
-  "name": "Gestão Salazar - Sistema Operacional",
+  "name": "Gestão Salazar",
   "short_name": "Salazar",
   "description": "Painel Operacional e Gestão de Plantões da Tropa Salazar",
   "start_url": "/dashboard.html",
@@ -7,8 +7,9 @@
   "id": "/dashboard.html",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#070d16",
-  "theme_color": "#070d16",
+  "background_color": "#07090f",
+  "theme_color": "#07090f",
+  "categories": ["productivity", "utilities", "business"],
   "icons": [
     {
       "src": "/icons/icon-192.png",
