@@ -443,6 +443,7 @@
             <button class="nav-btn-aba" onclick="mudarAba('missoes', this)">📋 Missões</button>
             <button class="nav-btn-aba" onclick="mudarAba('tropa', this)">👀 Tropa & Rádio</button>
             <button class="nav-btn-aba" onclick="mudarAba('ranking', this)">🏆 Ranking</button>
+            <button class="nav-btn-aba" onclick="mudarAba('regras-cronograma', this)">📖 Regras & Cronograma</button>
             <a href="admin.html" id="navAdminLink" style="display: none; background: rgba(3, 105, 161, 0.25); color: #38bdf8; padding: 8px 12px; border-radius: 10px; font-size: 13px; text-decoration: none; font-weight: 600; border: 1px solid rgba(56, 189, 248, 0.4);">Painel ADM</a>
             <button class="nav-btn-aba" style="background: rgba(51, 65, 85, 0.85);" onclick="abrirHistorico()">📜 Histórico</button>
             <button class="nav-btn-aba" style="background: rgba(147, 51, 234, 0.85);" onclick="abrirPerfilModal()">👤 Perfil</button>
@@ -595,6 +596,263 @@
         </div>
     </div>
 
+    <div id="aba-regras-cronograma" class="tab-content">
+        <!-- NAVEGAÇÃO INTERNA ENTRE SEÇÕES DE REGRAS -->
+        <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap;">
+            <button class="nav-btn-aba active" id="btnSubSecaoRegras" onclick="alternarSubSecaoRegras('regras', this)">⚖️ Regras & Punições</button>
+            <button class="nav-btn-aba" id="btnSubSecaoCronograma" onclick="alternarSubSecaoRegras('cronograma', this)">📅 Cronograma Semanal</button>
+            <button class="nav-btn-aba" id="btnSubSecaoPremiacao" onclick="alternarSubSecaoRegras('premiacao', this)">🏆 Classificação & Prêmios</button>
+        </div>
+
+        <!-- SEÇÃO 1: REGRAS E PUNIÇÕES -->
+        <div id="subsecao-regras" class="subsecao-regras-bloco">
+            <div class="grid-container" style="margin-bottom: 20px;">
+                <div class="card" style="border: 1px solid rgba(56, 189, 248, 0.4);">
+                    <h3 style="color: #38bdf8;">🛡️ O Que é Pacificação?</h3>
+                    <p style="font-size: 13px; color: #e2e8f0; line-height: 1.6;">
+                        Ação estratégica destinada a <b>controlar, estabilizar ou reduzir conflitos</b> em uma área previamente dominada por outra facção, priorizando negociação, disciplina tática e organização territorial.
+                    </p>
+                </div>
+                <div class="card" style="border: 1px solid rgba(34, 197, 94, 0.4);">
+                    <h3 style="color: #34d399;">🎯 Objetivos da Pacificação</h3>
+                    <ul style="font-size: 13px; color: #e2e8f0; line-height: 1.6; padding-left: 18px;">
+                        <li>Restabelecer a ordem em áreas de conflito agudo;</li>
+                        <li>Reduzir confrontos excessivos e desnecessários;</li>
+                        <li>Assumir o controle territorial de forma organizada;</li>
+                        <li>Garantir domínio estratégico sem gerar caos ou descontrole.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card" style="border: 1px solid rgba(239, 68, 68, 0.5); background: linear-gradient(145deg, rgba(239, 68, 68, 0.08), rgba(15, 23, 42, 0.95));">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(239, 68, 68, 0.3); padding-bottom: 10px; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                    <h3 style="color: #f87171; border: none; margin: 0; padding: 0;">⚠️ Diretrizes Obrigatórias de Autorização</h3>
+                    <span style="background: rgba(239, 68, 68, 0.25); color: #fca5a5; border: 1px solid #ef4444; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 800;">PUNIÇÃO: Banimento 5 dias (INA - 4.21)</span>
+                </div>
+                <p style="font-size: 13px; color: #e2e8f0; line-height: 1.6;">
+                    É <b>estritamente obrigatória</b> a autorização prévia do <b>Administrador Líder</b> ou do <b>Suporte em Atendimento</b>, solicitada com a devida antecedência. Devem ser informados expressamente:
+                </p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top: 10px;">
+                    <div style="background: rgba(7, 13, 22, 0.6); padding: 8px 12px; border-radius: 8px; border-left: 3px solid #f87171; font-size: 12px;">📌 Facção Solicitante</div>
+                    <div style="background: rgba(7, 13, 22, 0.6); padding: 8px 12px; border-radius: 8px; border-left: 3px solid #f87171; font-size: 12px;">📍 Local Exato da Operação</div>
+                    <div style="background: rgba(7, 13, 22, 0.6); padding: 8px 12px; border-radius: 8px; border-left: 3px solid #f87171; font-size: 12px;">👥 Qtd. de Membros Envolvidos</div>
+                    <div style="background: rgba(7, 13, 22, 0.6); padding: 8px 12px; border-radius: 8px; border-left: 3px solid #f87171; font-size: 12px;">⏰ Horário Previsto da Ação</div>
+                </div>
+            </div>
+
+            <div class="card" style="border: 1px solid rgba(234, 179, 8, 0.35);">
+                <h3 style="color: #eab308;">📜 Regras Operacionais e RP</h3>
+                <ul style="font-size: 13px; color: #e2e8f0; line-height: 1.7; padding-left: 18px;">
+                    <li>Ações sem autorização oficial podem ser <b>canceladas imediatamente</b> pela moderação.</li>
+                    <li>Todos os envolvidos sem aprovação ficam sujeitos às punições correspondentes da ação.</li>
+                    <li>Exige <b>RP prévio comprovado</b>, com história coerente, contexto estratégico e evidências claras.</li>
+                    <li>Não exige número paritário de invasores e defensores (apenas é exigido que o <b>líder da facção rival esteja online</b>).</li>
+                    <li><b>Invasões de facção ao Exército Brasileiro (EB):</b> permitidas exclusivamente entre <b>17h e 00h</b>, desde que previamente agendadas.</li>
+                    <li><b>Pacificações:</b> exigem agendamento formal com no mínimo <b>24 horas de antecedência</b> (com data, horário e organizações envolvidas).</li>
+                </ul>
+            </div>
+
+            <div class="card" style="border: 1px solid rgba(239, 68, 68, 0.4);">
+                <h3 style="color: #f87171;">🚫 Proibições Estritas & Tabela de Punições</h3>
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 10px; border-left: 4px solid #ef4444; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <span style="font-size: 13px; color: #e2e8f0;">Proibido famílias invadirem as instalações do <b>Exército Brasileiro</b>.</span>
+                        <span style="background: rgba(239,68,68,0.2); color:#fca5a5; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;">PROIBIÇÃO ABSOLUTA</span>
+                    </div>
+
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 10px; border-left: 4px solid #ef4444; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <span style="font-size: 13px; color: #e2e8f0;">Renascer no spawn após início da invasão, vir da rua ou sofrer crash e sair da área do spawn.</span>
+                        <span style="background: rgba(239,68,68,0.25); color:#fca5a5; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;">60m Cadeia (AAP - 4.17)</span>
+                    </div>
+
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 10px; border-left: 4px solid #f59e0b; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <span style="font-size: 13px; color: #e2e8f0;">Aliados ajudarem direta ou indiretamente em invasões ou pacificação.</span>
+                        <span style="background: rgba(245,158,11,0.25); color:#fde68a; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;">1/3 Aviso para a Facção</span>
+                    </div>
+
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 10px; border-left: 4px solid #ef4444; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <span style="font-size: 13px; color: #e2e8f0;">Permanecer nos arredores da organização durante a invasão (apoio externo/antijogo).</span>
+                        <span style="background: rgba(239,68,68,0.25); color:#fca5a5; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;">60m Cadeia (AAP - 4.17)</span>
+                    </div>
+
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 10px; border-left: 4px solid #ef4444; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <span style="font-size: 13px; color: #e2e8f0;">Uso de <b>teaser e cassetete</b> em invasão ou pacificação (somente armamento letal autorizado).</span>
+                        <span style="background: rgba(239,68,68,0.25); color:#fca5a5; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;">60m Cadeia (FAIL - 4.22)</span>
+                    </div>
+
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 10px; border-left: 4px solid #38bdf8;">
+                        <p style="font-size: 13px; color: #e2e8f0; margin-bottom: 6px;"><b>Regra de Inatividade por Derrota (Polícia x Facção x Exército x Máfia):</b></p>
+                        <p style="font-size: 12px; color: #cbd5e1; line-height: 1.5;">
+                            • Vitória da Polícia ou Exército deixa a facção derrotada <b>inativa por 24 horas</b> (a contar das 00:00).<br>
+                            • Vitória do Exército deixa a máfia derrotada <b>inativa por 12 horas</b> (a contar das 00:00).<br>
+                            • Mínimo obrigatório de <b>10 policiais</b> para iniciar a ação.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SEÇÃO 2: CRONOGRAMA POR DIA DA SEMANA -->
+        <div id="subsecao-cronograma" class="subsecao-regras-bloco" style="display: none;">
+            <div class="card" style="margin-bottom: 16px;">
+                <h3 style="color: #38bdf8;">📅 Filtro por Dia da Semana</h3>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px;">
+                    <button class="nav-btn-aba active btn-filtro-dia" onclick="filtrarDiaCronograma('todos', this)">Todos</button>
+                    <button class="nav-btn-aba btn-filtro-dia" onclick="filtrarDiaCronograma('segunda', this)">Segunda</button>
+                    <button class="nav-btn-aba btn-filtro-dia" onclick="filtrarDiaCronograma('terca', this)">Terça</button>
+                    <button class="nav-btn-aba btn-filtro-dia" onclick="filtrarDiaCronograma('quarta', this)">Quarta</button>
+                    <button class="nav-btn-aba btn-filtro-dia" onclick="filtrarDiaCronograma('quinta', this)">Quinta</button>
+                    <button class="nav-btn-aba btn-filtro-dia" onclick="filtrarDiaCronograma('sexta', this)">Sexta</button>
+                    <button class="nav-btn-aba btn-filtro-dia" onclick="filtrarDiaCronograma('sabado', this)">Sábado</button>
+                    <button class="nav-btn-aba btn-filtro-dia" onclick="filtrarDiaCronograma('domingo', this)">Domingo</button>
+                </div>
+            </div>
+
+            <div id="gridDiasCronograma" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 20px;">
+                <!-- SEGUNDA -->
+                <div class="card card-dia-item" data-dia="segunda" style="border: 1px solid rgba(56, 189, 248, 0.3);">
+                    <h4 style="color: #38bdf8; font-size: 15px; margin-bottom: 10px; border-bottom: 1px solid rgba(56, 189, 248, 0.2); padding-bottom: 6px;">Segunda-feira</h4>
+                    <p style="font-size: 13px; color: #e2e8f0; line-height: 1.6;">
+                        • <b>CRM:</b> Facção Verdes<br>
+                        • <b>Tomada de Máfia:</b> 21h às 22h<br>
+                        • <b>Pacificação do EB e PF às facções:</b> 21h às 00h
+                    </p>
+                </div>
+
+                <!-- TERÇA -->
+                <div class="card card-dia-item" data-dia="terca" style="border: 1px solid rgba(56, 189, 248, 0.3);">
+                    <h4 style="color: #38bdf8; font-size: 15px; margin-bottom: 10px; border-bottom: 1px solid rgba(56, 189, 248, 0.2); padding-bottom: 6px;">Terça-feira</h4>
+                    <p style="font-size: 13px; color: #e2e8f0; line-height: 1.6;">
+                        • <b>CRM:</b> Facção Roxos<br>
+                        • <b>Invasão ao EB:</b> Facções Verdes e Roxos (17h às 00h)<br>
+                        • <b>Tomada de Máfia:</b> 21h às 22h
+                    </p>
+                </div>
+
+                <!-- QUARTA -->
+                <div class="card card-dia-item" data-dia="quarta" style="border: 1px solid rgba(56, 189, 248, 0.3);">
+                    <h4 style="color: #38bdf8; font-size: 15px; margin-bottom: 10px; border-bottom: 1px solid rgba(56, 189, 248, 0.2); padding-bottom: 6px;">Quarta-feira</h4>
+                    <p style="font-size: 13px; color: #e2e8f0; line-height: 1.6;">
+                        • <b>CRM:</b> Máfia da Colina<br>
+                        • <b>Tomada de Máfia:</b> 21h às 22h
+                    </p>
+                </div>
+
+                <!-- QUINTA -->
+                <div class="card card-dia-item" data-dia="quinta" style="border: 1px solid rgba(56, 189, 248, 0.3);">
+                    <h4 style="color: #38bdf8; font-size: 15px; margin-bottom: 10px; border-bottom: 1px solid rgba(56, 189, 248, 0.2); padding-bottom: 6px;">Quinta-feira</h4>
+                    <p style="font-size: 13px; color: #e2e8f0; line-height: 1.6;">
+                        • <b>CRM:</b> Máfia Litoral<br>
+                        • <b>Invasão ao EB:</b> Ambas as máfias (19h às 00h) — <b style="color: #fca5a5;">Pausa obrigatória das 22h às 23h</b><br>
+                        • <b>Tomada de Máfia:</b> 22h às 23h
+                    </p>
+                </div>
+
+                <!-- SEXTA -->
+                <div class="card card-dia-item" data-dia="sexta" style="border: 1px solid rgba(56, 189, 248, 0.3);">
+                    <h4 style="color: #38bdf8; font-size: 15px; margin-bottom: 10px; border-bottom: 1px solid rgba(56, 189, 248, 0.2); padding-bottom: 6px;">Sexta-feira</h4>
+                    <p style="font-size: 13px; color: #e2e8f0; line-height: 1.6;">
+                        • <b>CRM:</b> 17h Máfia do Litoral / 19h Máfia da Colina<br>
+                        • <b>Tomada de Máfia:</b> 21h às 22h
+                    </p>
+                </div>
+
+                <!-- SÁBADO -->
+                <div class="card card-dia-item" data-dia="sabado" style="border: 1px solid rgba(56, 189, 248, 0.3);">
+                    <h4 style="color: #38bdf8; font-size: 15px; margin-bottom: 10px; border-bottom: 1px solid rgba(56, 189, 248, 0.2); padding-bottom: 6px;">Sábado</h4>
+                    <p style="font-size: 13px; color: #e2e8f0; line-height: 1.6;">
+                        • <b>CRM:</b> 17h Facção Verdes / 19h Facção Roxos<br>
+                        • <b>Tomada de Máfia:</b> 22h às 23h<br>
+                        • <b>Pacificação do EB às máfias:</b> 21h às 22h
+                    </p>
+                </div>
+
+                <!-- DOMINGO -->
+                <div class="card card-dia-item" data-dia="domingo" style="border: 1px solid rgba(56, 189, 248, 0.3);">
+                    <h4 style="color: #38bdf8; font-size: 15px; margin-bottom: 10px; border-bottom: 1px solid rgba(56, 189, 248, 0.2); padding-bottom: 6px;">Domingo</h4>
+                    <p style="font-size: 13px; color: #e2e8f0; line-height: 1.6;">
+                        • <b>CRM (17h Ação Livre):</b> Primeira facção no local assume a liderança. <b style="color: #fca5a5;">Proibido chegar antes das 17h (FAIL - 4.22)</b>.<br>
+                        • <b>Tomada de Máfia:</b> 21h às 22h<br>
+                        • <b>Pacificação do EB e PF às facções:</b> 21h às 00h
+                    </p>
+                </div>
+            </div>
+
+            <!-- CARDS DEDICADOS PS E MÁFIAS -->
+            <div class="grid-container">
+                <div class="card" style="border: 2px solid #a855f7; background: linear-gradient(145deg, rgba(168, 85, 247, 0.08), rgba(15, 23, 42, 0.95));">
+                    <h3 style="color: #c084fc; border-color: rgba(168, 85, 247, 0.3);">🏛️ Invasão ao PS (Presídio)</h3>
+                    <p style="font-size: 13px; color: #e2e8f0; line-height: 1.6; margin-bottom: 8px;">
+                        • Exclusiva para as facções <b>Verdes e Roxos</b>.<br>
+                        • Não necessita de marcação prévia.<br>
+                        • <b>Horários Permitidos:</b> das 08h às 12h e das 13h às 00h.
+                    </p>
+                    <div style="background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; padding: 8px 12px; border-radius: 8px; font-size: 12px; color: #fca5a5;">
+                        ⚠️ <b>Expressamente proibido entre 12h e 13h</b> sob pena de <b>Banimento (INA - 4.21)</b>.
+                    </div>
+                </div>
+
+                <div class="card" style="border: 2px solid #eab308; background: linear-gradient(145deg, rgba(234, 179, 8, 0.08), rgba(15, 23, 42, 0.95));">
+                    <h3 style="color: #fde047; border-color: rgba(234, 179, 8, 0.3);">⚔️ Regras Adicionais EB & Máfias</h3>
+                    <p style="font-size: 13px; color: #e2e8f0; line-height: 1.6;">
+                        • <b>Pausa das 22h às 23h na quinta-feira:</b> obrigatória e sem exceções para reorganização tática e descanso.<br>
+                        • <b>Maletas durante invasão no EB:</b> Se uma família roubar maleta durante ação de máfia no EB e conquistar a máfia aproveitando a ausência da outra:
+                    </p>
+                    <div style="margin-top: 8px; font-size: 12px; background: rgba(7, 13, 22, 0.7); padding: 8px 12px; border-radius: 8px; border-left: 3px solid #eab308; color: #fde68a;">
+                        Punição: Reset completo da máfia conquistada + 1 Aviso para a família infratora, sendo a posse devolvida imediatamente à máfia anterior.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SEÇÃO 3: CLASSIFICAÇÃO E PREMIAÇÃO -->
+        <div id="subsecao-premiacao" class="subsecao-regras-bloco" style="display: none;">
+            <div class="card" style="border: 2px solid #38bdf8; text-align: center; margin-bottom: 20px;">
+                <h3 style="color: #38bdf8; border: none; margin-bottom: 8px;">🏆 Premiação da Tropa (Horário Regulamentar: 17h às 02h)</h3>
+                <p style="font-size: 13px; color: #cbd5e1; max-width: 650px; margin: 0 auto 18px auto; line-height: 1.5;">
+                    Bonificação especial para os membros com maior dedicação e tempo acumulado durante o ciclo operacional diário e semanal oficial.
+                </p>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+                    <!-- 1º LUGAR -->
+                    <div style="background: linear-gradient(145deg, rgba(234, 179, 8, 0.15), rgba(15, 23, 42, 0.9)); border: 2px solid #eab308; border-radius: 12px; padding: 20px;">
+                        <span style="font-size: 30px;">🥇</span>
+                        <h4 style="color: #fde047; font-size: 16px; margin: 6px 0;">1º Lugar</h4>
+                        <div style="font-size: 24px; font-weight: 800; color: #34d399; margin: 8px 0;">R$ 25.000</div>
+                        <p style="font-size: 11px; color: #94a3b8;">Maior tempo homologado</p>
+                    </div>
+
+                    <!-- 2º LUGAR -->
+                    <div style="background: linear-gradient(145deg, rgba(148, 163, 184, 0.15), rgba(15, 23, 42, 0.9)); border: 2px solid #94a3b8; border-radius: 12px; padding: 20px;">
+                        <span style="font-size: 30px;">🥈</span>
+                        <h4 style="color: #e2e8f0; font-size: 16px; margin: 6px 0;">2º Lugar</h4>
+                        <div style="font-size: 24px; font-weight: 800; color: #34d399; margin: 8px 0;">R$ 15.000</div>
+                        <p style="font-size: 11px; color: #94a3b8;">Segundo maior tempo homologado</p>
+                    </div>
+
+                    <!-- 3º LUGAR -->
+                    <div style="background: linear-gradient(145deg, rgba(180, 83, 9, 0.15), rgba(15, 23, 42, 0.9)); border: 2px solid #b45309; border-radius: 12px; padding: 20px;">
+                        <span style="font-size: 30px;">🥉</span>
+                        <h4 style="color: #fdba74; font-size: 16px; margin: 6px 0;">3º Lugar</h4>
+                        <div style="font-size: 24px; font-weight: 800; color: #34d399; margin: 8px 0;">R$ 10.000</div>
+                        <p style="font-size: 11px; color: #94a3b8;">Terceiro maior tempo homologado</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CRITÉRIOS DE PONTUAÇÃO -->
+            <div class="card" style="border: 1px solid rgba(56, 189, 248, 0.3);">
+                <h3 style="color: #38bdf8;">📌 Critérios Regulamentares de Classificação</h3>
+                <ul style="font-size: 13px; color: #e2e8f0; line-height: 1.7; padding-left: 18px;">
+                    <li>Apenas plantões realizados dentro da janela oficial (<b>17:00 às 02:00</b> no fuso <i>America/Recife</i>) pontuam no ranking.</li>
+                    <li>O tempo mínimo para validação de cada turno é de <b>30 minutos</b> ininterruptos com comprovação de print.</li>
+                    <li>O fechamento do turno é automatizado pontualmente às <b>02:05</b>, assegurando que o tempo válido até 02:00 seja consolidado com precisão.</li>
+                    <li>Em caso de empate em tempo, prevalece o membro com maior assiduidade e maior número de missões diárias concluídas.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
     <div id="aba-ranking" class="tab-content">
         <div class="card" style="max-width: 700px; margin: 0 auto;">
             <h3>🏆 Ranking da Tropa (17h às 02h)</h3>
@@ -731,7 +989,7 @@
 
         function mudarAba(nomeAba, elementoBtn) {
             document.querySelectorAll('.tab-content').forEach(aba => aba.classList.remove('active'));
-            document.querySelectorAll('.nav-btn-aba').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.navbar .nav-btn-aba').forEach(btn => btn.classList.remove('active'));
 
             const alvo = document.getElementById('aba-' + nomeAba);
             if (alvo) alvo.classList.add('active');
@@ -739,6 +997,29 @@
 
             if (nomeAba === 'ranking') carregarRanking();
             if (nomeAba === 'tropa') atualizarFiscalizacaoServidor();
+        }
+
+        function alternarSubSecaoRegras(subNome, elBtn) {
+            document.querySelectorAll('.subsecao-regras-bloco').forEach(b => b.style.display = 'none');
+            document.querySelectorAll('#aba-regras-cronograma > div:first-child .nav-btn-aba').forEach(b => b.classList.remove('active'));
+
+            const target = document.getElementById('subsecao-' + subNome);
+            if (target) target.style.display = 'block';
+            if (elBtn) elBtn.classList.add('active');
+        }
+
+        function filtrarDiaCronograma(dia, elBtn) {
+            document.querySelectorAll('.btn-filtro-dia').forEach(b => b.classList.remove('active'));
+            if (elBtn) elBtn.classList.add('active');
+
+            const cards = document.querySelectorAll('.card-dia-item');
+            cards.forEach(card => {
+                if (dia === 'todos' || card.dataset.dia === dia) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
         }
 
         const userStr = localStorage.getItem('user');
