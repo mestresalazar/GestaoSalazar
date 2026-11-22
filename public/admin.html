@@ -291,6 +291,7 @@
         <div class="nav-brand">Gestão Salazar - Comando</div>
         <div class="nav-links">
             <button class="nav-btn-aba active" onclick="mudarAba('efetivo', this)">👥 Efetivo & Membros</button>
+            <button class="nav-btn-aba" onclick="mudarAba('carteiras', this)">💳 Saldos & Carteiras</button>
             <button class="nav-btn-aba" onclick="mudarAba('inativos', this)">⚠️ Inativos (+3 dias)</button>
             <button class="nav-btn-aba" onclick="mudarAba('comandos', this)">⚡ Comandos & Ações</button>
             <button class="nav-btn-aba" onclick="mudarAba('sorteios', this)">🎁 Sorteios & Roleta</button>
@@ -347,6 +348,51 @@
                     </thead>
                     <tbody id="tabelaEfetivo">
                         <tr><td colspan="4" style="text-align: center; color: #94a3b8;">A carregar efetivo...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ABA: SALDOS & CARTEIRAS DOS OPERACIONAIS -->
+    <!-- ========================================== -->
+    <div id="aba-carteiras" class="tab-content">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 20px;">
+            <div class="card" style="margin-bottom: 0; text-align: center; border: 1px solid rgba(34, 197, 94, 0.4); padding: 18px; background: linear-gradient(145deg, rgba(34, 197, 94, 0.08), rgba(15, 23, 42, 0.9));">
+                <span style="font-size: 11px; color: #a7f3d0; text-transform: uppercase; font-weight: 600;">Total em Aberto (Todos Membros)</span>
+                <h2 id="totalGeralCarteiras" style="color: #34d399; font-size: 24px; margin-top: 6px;">R$ 0,00</h2>
+            </div>
+            <div class="card" style="margin-bottom: 0; text-align: center; border: 1px solid rgba(56, 189, 248, 0.3); padding: 18px;">
+                <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Membros Com Saldo > 0</span>
+                <h2 id="totalMembrosComSaldo" style="color: #38bdf8; font-size: 24px; margin-top: 6px;">0</h2>
+            </div>
+        </div>
+
+        <div class="card" style="border: 1px solid rgba(34, 197, 94, 0.35);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(34, 197, 94, 0.25); padding-bottom: 10px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                <h3 style="color: #22c55e; border: none; margin: 0; padding: 0;">💳 Painel Geral de Saldos e Carteiras</h3>
+                <button onclick="carregarListaCarteirasAdmin()" style="background: rgba(34, 197, 94, 0.2); border: 1px solid #22c55e; color: #34d399; padding: 6px 14px; border-radius: 8px; font-size: 12px; cursor: pointer; font-weight: 600;">🔄 Atualizar Saldos</button>
+            </div>
+            <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Consulte instantaneamente o saldo de cada operacional ou pesquise diretamente pelo nickname/cargo sem precisar inspecionar perfis individuais.</p>
+
+            <div style="margin-bottom: 14px;">
+                <input type="text" id="inputBuscaCarteiras" placeholder="🔍 Pesquisar por nickname ou patente..." oninput="filtrarTabelaCarteiras()" class="search-input-box" style="margin-bottom: 0;">
+            </div>
+
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nickname</th>
+                            <th>Cargo</th>
+                            <th>Status</th>
+                            <th>Saldo Disponível</th>
+                            <th style="text-align: right;">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaCarteirasGeral">
+                        <tr><td colspan="5" style="text-align: center; color: #94a3b8; padding: 15px;">A carregar saldos dos membros...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -636,7 +682,9 @@
             document.getElementById('aba-' + nomeAba).classList.add('active');
             if(elementoBtn) elementoBtn.classList.add('active');
 
-            if (nomeAba === 'inativos') {
+            if (nomeAba === 'carteiras') {
+                carregarListaCarteirasAdmin();
+            } else if (nomeAba === 'inativos') {
                 carregarMembrosInativos();
             }
         }
@@ -657,6 +705,7 @@
         }
 
         let listaMembrosCache = [];
+        let cacheListaCarteiras = [];
         let usuariosOnlineSocket = [];
         let cacheGlobalLogs = [];
         let membroIdSelecionadoCarteira = null;
@@ -687,6 +736,7 @@
             carregarElegiveisSorteio();
             carregarElegiveisUmTurno();
             carregarMembrosInativos();
+            carregarListaCarteirasAdmin();
         });
 
         socket.on('atualizar_logs_admin', () => { carregarLogsAdmin(); });
@@ -736,6 +786,63 @@
             } catch (e) {}
         }
         carregarValorMissaoAdmin();
+
+        async function carregarListaCarteirasAdmin() {
+            try {
+                const res = await fetch('/api/admin/carteiras');
+                const data = await res.json();
+                if (data.success && Array.isArray(data.carteiras)) {
+                    cacheListaCarteiras = data.carteiras;
+                    const totalGeral = Number(data.totalAcumuladoGeral || 0);
+                    const elTotal = document.getElementById('totalGeralCarteiras');
+                    if (elTotal) {
+                        elTotal.innerText = totalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    }
+                    const elCountSaldo = document.getElementById('totalMembrosComSaldo');
+                    if (elCountSaldo) {
+                        const comSaldo = cacheListaCarteiras.filter(c => (c.saldo || 0) > 0).length;
+                        elCountSaldo.innerText = `${comSaldo} / ${cacheListaCarteiras.length}`;
+                    }
+                    filtrarTabelaCarteiras();
+                }
+            } catch (e) {
+                console.error("Erro ao buscar carteiras:", e);
+            }
+        }
+
+        function filtrarTabelaCarteiras() {
+            const termo = (document.getElementById('inputBuscaCarteiras')?.value || '').toLowerCase().trim();
+            const tbody = document.getElementById('tabelaCarteirasGeral');
+            if (!tbody) return;
+
+            tbody.innerHTML = '';
+            const filtrados = cacheListaCarteiras.filter(m =>
+                (m.nickname || '').toLowerCase().includes(termo) ||
+                (m.cargo || '').toLowerCase().includes(termo)
+            );
+
+            if (filtrados.length > 0) {
+                filtrados.forEach(m => {
+                    const tr = document.createElement('tr');
+                    const saldoNum = Number(m.saldo || 0);
+                    const saldoFormatado = saldoNum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    const corSaldo = saldoNum > 0 ? '#34d399' : (saldoNum < 0 ? '#f87171' : '#94a3b8');
+
+                    tr.innerHTML = `
+                        <td><span class="nickname-link" onclick="abrirMenuAcoesMembro('${m._id}', '${m.nickname}', '${m.cargo}', false, '${m.status}')">${m.nickname}</span></td>
+                        <td>${m.cargo}</td>
+                        <td><span class="status-badge status-${m.status === 'ativo' ? 'ativo' : 'pendente'}">${m.status.toUpperCase()}</span></td>
+                        <td><b style="color: ${corSaldo}; font-size: 14px;">${saldoFormatado}</b></td>
+                        <td style="text-align: right;">
+                            <button class="btn-action btn-carteira" style="padding: 5px 12px; font-size: 11px;" onclick="abrirModalCarteiraAdmin('${m._id}', '${m.nickname}')">💰 Gerenciar / Pagar</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #94a3b8; padding: 15px;">Nenhum registo encontrado.</td></tr>`;
+            }
+        }
 
         async function salvarValorMissaoAdmin() {
             const novoValor = document.getElementById('inputValorMissaoAdmin').value.trim();
@@ -1167,6 +1274,7 @@
                             mostrarModalCustomizado('Sucesso', data.message || 'Pagamento registado com sucesso!');
                             carregarEfetivo();
                             carregarLogsAdmin();
+                            carregarListaCarteirasAdmin();
                         } else {
                             mostrarModalCustomizado('Erro', data.message || 'Erro ao efetuar pagamento.');
                         }
@@ -1724,6 +1832,7 @@
 
         carregarEfetivo();
         carregarMembrosInativos();
+        carregarListaCarteirasAdmin();
     </script>
 </body>
 </html>

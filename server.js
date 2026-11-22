@@ -931,6 +931,35 @@ app.post('/api/membro/turno', async (req, res) => {
 });
 
 // --- ROTAS DE GESTÃO DE CARTEIRA E MISSÕES PELO ADMIN ---
+// --- LISTA GERAL DE SALDOS E CARTEIRAS PARA O PAINEL ADM ---
+app.get('/api/admin/carteiras', async (req, res) => {
+    try {
+        const membros = await User.find({}, 'nickname cargo status carteiraSaldo').lean();
+        const lista = membros.map(m => ({
+            _id: m._id,
+            nickname: m.nickname,
+            cargo: m.cargo || 'Privado',
+            status: m.status || 'ativo',
+            saldo: typeof m.carteiraSaldo === 'number' ? m.carteiraSaldo : 0
+        }));
+
+        // Ordena por maior saldo primeiro
+        lista.sort((a, b) => b.saldo - a.saldo);
+
+        const totalAcumuladoGeral = lista.reduce((acc, curr) => acc + curr.saldo, 0);
+
+        res.json({
+            success: true,
+            totalAcumuladoGeral,
+            totalMembros: lista.length,
+            carteiras: lista
+        });
+    } catch (e) {
+        console.error("Erro ao listar carteiras:", e);
+        res.status(500).json({ success: false, message: 'Erro ao carregar lista de carteiras.' });
+    }
+});
+
 app.get('/api/admin/membro/carteira/:id', async (req, res) => {
     try {
         const { id } = req.params;
