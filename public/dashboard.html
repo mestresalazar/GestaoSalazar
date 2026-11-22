@@ -1622,7 +1622,10 @@
                     window.location.href = linkGrupoWhatsappGlobal;
                 }
             } else {
-                mostrarModalCustomizado('Grupo WhatsApp', 'O seu número de WhatsApp já está registado com sucesso! O Comando enviará o convite direto ou configurará o link em instantes.');
+                mostrarModalCustomizado(
+                    '✅ Acesso Liberado ao WhatsApp',
+                    `Número do WhatsApp validado: <b>${escapeHTML(telefoneMembroAtualCache)}</b>.<br><br>Você já tem acesso autorizado ao grupo da tropa! O Comando foi notificado do seu número cadastrado.`
+                );
             }
         }
 
@@ -1675,13 +1678,15 @@
 
         async function salvarPerfilCompleto() {
             const inputNick = document.getElementById('inputNicknamePerfil');
-            const novoNickname = inputNick ? inputNick.value.trim() : user.nickname;
-            const telefoneNovo = document.getElementById('inputTelefonePerfil').value.trim();
+            let novoNickname = inputNick ? inputNick.value.trim() : '';
 
+            // Se o campo de texto estiver vazio no formulário, preserva o nickname existente na sessão
             if (!novoNickname) {
-                mostrarModalCustomizado('Atenção', 'O nome/nickname não pode ficar em branco.');
-                return;
+                novoNickname = user.nickname || '';
+                if (inputNick) inputNick.value = novoNickname;
             }
+
+            const telefoneNovo = (document.getElementById('inputTelefonePerfil')?.value || '').trim();
 
             if (!telefoneNovo) {
                 mostrarModalCustomizado('Atenção', 'O número do WhatsApp é obrigatório para cadastro e acesso ao grupo da tropa.');
@@ -1701,7 +1706,7 @@
                     body: JSON.stringify({
                         id: user._id || user.id,
                         nickname: user.nickname,
-                        novoNickname: novoNickname,
+                        novoNickname: novoNickname || user.nickname,
                         telefone: telefoneNovo
                     })
                 });

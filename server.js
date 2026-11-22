@@ -649,16 +649,30 @@ app.get('/api/membro/perfil/:nickname', async (req, res) => {
         const parametro = decodeURIComponent(req.params.nickname || '').trim();
         if (!parametro) return res.status(400).json({ success: false, message: 'Identificador do membro não informado.' });
 
-        let query = { nickname: new RegExp('^' + escaparRegex(parametro) + '$', 'i') };
+        const conditions = [
+            { nickname: new RegExp('^' + escaparRegex(parametro) + '$', 'i') },
+            { username: new RegExp('^' + escaparRegex(parametro) + '$', 'i') }
+        ];
         if (parametro.match(/^[0-9a-fA-F]{24}$/)) {
-            query = { $or: [{ _id: parametro }, { nickname: new RegExp('^' + escaparRegex(parametro) + '$', 'i') }] };
+            conditions.unshift({ _id: parametro });
         }
 
-        const membro = await User.findOne(
-            query,
+        let membro = await User.findOne(
+            { $or: conditions },
             'nickname cargo status avatar telefone historicoTurnos.duracao historicoTurnos.data'
         ).lean();
-        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        // Caso o usuário esteja autenticado mas não possua documento salvo, sincroniza automaticamente
+        if (!membro) {
+            const novoNick = parametro.match(/^[0-9a-fA-F]{24}$/) ? 'Operacional' : parametro;
+            const novoDoc = new User({
+                nickname: novoNick,
+                cargo: 'Privado',
+                status: 'ativo'
+            });
+            await novoDoc.save();
+            membro = novoDoc.toObject();
+        }
 
         let totalSegundos = 0;
         if (membro.historicoTurnos) {
@@ -716,55 +730,71 @@ app.put('/api/membro/atualizar-perfil', async (req, res) => {
             return res.status(503).json({ success: false, message: 'Conexão com a base de dados indisponível no momento. Tente novamente em instantes.' });
         }
 
-        const { id, userId, nickname, novoNickname, telefone, avatar } = req.body;
+        const { id, userId, nickname, novoNickname, username, email, telefone, avatar } = req.body;
         const nickAtual = String(nickname || '').trim();
-
-        let query = null;
         const idValido = id || userId;
+
+        const orConditions = [];
         if (idValido && String(idValido).match(/^[0-9a-fA-F]{24}$/)) {
-            query = { _id: idValido };
-        } else if (nickAtual) {
-            query = { nickname: new RegExp('^' + escaparRegex(nickAtual) + '$', 'i') };
+            orConditions.push({ _id: idValido });
+        }
+        if (nickAtual) {
+            orConditions.push({ nickname: new RegExp('^' + escaparRegex(nickAtual) + '$', 'i') });
+        }
+        if (username) {
+            orConditions.push({ username: new RegExp('^' + escaparRegex(username) + '$', 'i') });
+        }
+        if (email) {
+            orConditions.push({ email: new RegExp('^' + escaparRegex(email) + '$', 'i') });
         }
 
-        if (!query) {
+        if (orConditions.length === 0) {
             return res.status(400).json({ success: false, message: 'Identificação do membro não fornecida.' });
         }
 
-        const membro = await User.findOne(query);
-        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+        let membro = await User.findOne({ $or: orConditions });
+
+        // Se ainda não existir no banco, cria e sincroniza o documento no ato
+        if (!membro) {
+            const nickInicial = (novoNickname && novoNickname.trim()) ? novoNickname.trim() : (nickAtual || 'Operacional');
+            membro = new User({
+                nickname: nickInicial,
+                cargo: 'Privado',
+                status: 'ativo'
+            });
+            await membro.save();
+        }
 
         const updateData = {};
         let mudouNickname = false;
         let nicknameFinal = membro.nickname;
 
-        if (novoNickname !== undefined && novoNickname.trim() !== '') {
-            const nickLimpo = novoNickname.trim();
+        const nickCandidato = (novoNickname !== undefined && novoNickname.trim() !== '') ? novoNickname.trim() : '';
+
+        if (nickCandidato && nickCandidato.toLowerCase() !== membro.nickname.toLowerCase()) {
             const regexNickname = /^[a-zA-Z0-9_.\-\s]{2,30}$/;
-            if (!regexNickname.test(nickLimpo)) {
+            if (!regexNickname.test(nickCandidato)) {
                 return res.status(400).json({
                     success: false,
                     message: 'O novo nome deve conter entre 2 e 30 caracteres válidos (letras, números, espaços, hífens, pontos ou underlines).'
                 });
             }
 
-            if (nickLimpo.toLowerCase() !== membro.nickname.toLowerCase()) {
-                const jaExiste = await User.findOne({
-                    _id: { $ne: membro._id },
-                    nickname: new RegExp('^' + nickLimpo + '$', 'i')
-                }).lean();
+            const jaExiste = await User.findOne({
+                _id: { $ne: membro._id },
+                nickname: new RegExp('^' + escaparRegex(nickCandidato) + '$', 'i')
+            }).lean();
 
-                if (jaExiste) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'Este novo nome/nickname já está em uso por outro membro da tropa.'
-                    });
-                }
-
-                updateData.nickname = nickLimpo;
-                nicknameFinal = nickLimpo;
-                mudouNickname = true;
+            if (jaExiste) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Este novo nome/nickname já está em uso por outro membro da tropa.'
+                });
             }
+
+            updateData.nickname = nickCandidato;
+            nicknameFinal = nickCandidato;
+            mudouNickname = true;
         }
 
         if (telefone !== undefined) {
