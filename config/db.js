@@ -16,6 +16,13 @@ const obterUriBanco = () => {
   if ((uri.startsWith('"') && uri.endsWith('"')) || (uri.startsWith("'") && uri.endsWith("'"))) {
     uri = uri.slice(1, -1).trim();
   }
+
+  // Para URIs com mongodb+srv://, o DNS SRV gerencia a resolução de portas dinamicamente.
+  // Remove qualquer porta explícita (ex: :27017) que cause rejeição pelo driver do MongoDB.
+  if (uri.startsWith('mongodb+srv://')) {
+    uri = uri.replace(/(mongodb\+srv:\/\/[^/:]+)(?::\d+)(\/|\?|$)/, '$1$2');
+  }
+
   return uri;
 };
 
