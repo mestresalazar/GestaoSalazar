@@ -1,2 +1,5 @@
 node_modules/
 .env
+.aider*
+
+rodar-aider.bat
