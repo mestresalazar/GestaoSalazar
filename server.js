@@ -100,8 +100,8 @@ app.get(['/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.
     res.send(gerarSvgIconeSalazar(512));
 });
 
-// Rota de Download Direto do APK Android
-app.get(['/app.apk', '/salazar.apk', '/downloads/salazar.apk', '/api/app/download-apk'], (req, res) => {
+// Helper para localizar arquivo APK real e válido (maior que 100 KB)
+function obterCaminhoApkValido() {
     const fs = require('fs');
     const possiveisCaminhos = [
         process.env.APK_FILE_PATH,
@@ -112,33 +112,60 @@ app.get(['/app.apk', '/salazar.apk', '/downloads/salazar.apk', '/api/app/downloa
         path.join(__dirname, 'downloads', 'salazar.apk')
     ].filter(Boolean);
 
-    const caminhoEncontrado = possiveisCaminhos.find(p => fs.existsSync(p));
+    for (const p of possiveisCaminhos) {
+        try {
+            if (fs.existsSync(p)) {
+                const stats = fs.statSync(p);
+                // Arquivo APK Android real e válido possui no mínimo > 100 KB (102.400 bytes)
+                if (stats.isFile() && stats.size > 102400) {
+                    return { caminho: p, tamanho: stats.size };
+                }
+            }
+        } catch (e) {}
+    }
+    return null;
+}
 
-    if (caminhoEncontrado) {
-        return res.download(caminhoEncontrado, 'Salazar_Operacional.apk');
+// Endpoint para o frontend consultar a existência prévia de APK real
+app.get('/api/app/status-apk', (req, res) => {
+    const apkValido = obterCaminhoApkValido();
+    if (apkValido) {
+        return res.json({ success: true, disponivel: true, tamanho: apkValido.tamanho });
+    }
+    if (process.env.APK_DOWNLOAD_URL) {
+        return res.json({ success: true, disponivel: true, urlExterna: true });
+    }
+    res.json({ success: true, disponivel: false });
+});
+
+// Rota de Download do APK Android (serve apenas arquivos válidos e reais)
+app.get(['/app.apk', '/salazar.apk', '/downloads/salazar.apk', '/api/app/download-apk'], (req, res) => {
+    const apkValido = obterCaminhoApkValido();
+
+    if (apkValido) {
+        return res.download(apkValido.caminho, 'Salazar_Operacional.apk');
     }
 
     if (process.env.APK_DOWNLOAD_URL) {
         return res.redirect(process.env.APK_DOWNLOAD_URL);
     }
 
-    // Garante a existência do arquivo para download direto sem telas intermediárias
-    const dirDownloads = path.join(__dirname, 'public', 'downloads');
-    if (!fs.existsSync(dirDownloads)) {
-        try { fs.mkdirSync(dirDownloads, { recursive: true }); } catch (e) {}
-    }
+    // Limpa preventivamente arquivo mock minúsculo se existir no diretório
+    try {
+        const fs = require('fs');
+        const mockApk = path.join(__dirname, 'public', 'downloads', 'salazar.apk');
+        if (fs.existsSync(mockApk)) {
+            const stats = fs.statSync(mockApk);
+            if (stats.size < 102400) {
+                fs.unlinkSync(mockApk);
+            }
+        }
+    } catch (e) {}
 
-    const caminhoPadrao = path.join(dirDownloads, 'salazar.apk');
-    if (!fs.existsSync(caminhoPadrao)) {
-        try {
-            // Cria arquivo APK inicial funcional caso ainda não exista no servidor
-            fs.writeFileSync(caminhoPadrao, Buffer.from("PK\x03\x04\x14\x00\x08\x00\x08\x00Salazar_PWA_Wrapper"));
-        } catch (e) {}
-    }
-
-    res.setHeader('Content-Type', 'application/vnd.android.package-archive');
-    res.setHeader('Content-Disposition', 'attachment; filename="Salazar_Operacional.apk"');
-    res.sendFile(caminhoPadrao);
+    res.status(404).json({
+        success: false,
+        message: 'O pacote .APK compilado ainda não está publicado no servidor. Instale o aplicativo diretamente pela tela inicial (PWA).'
+    });
 });
 
 app.get('/sw.js', (req, res) => {

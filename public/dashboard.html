@@ -1341,8 +1341,8 @@
                         3. Role a lista e toque em <b>"Adicionar à Tela de Início"</b> (➕).<br>
                         4. Toque em <b>"Adicionar"</b> no canto superior direito.
                     </div>
-                    <button onclick="instrucoesIosDetalhes()" class="btn-action" style="margin: 0; padding: 10px; font-size: 12px; background: rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; color: #38bdf8;">
-                        📲 Ver Instruções na Tela (Pop-up)
+                    <button onclick="instrucoesIosDetalhes()" class="btn-action" style="margin: 0; padding: 11px; font-size: 13px; font-weight: 700; background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(2, 132, 199, 0.35)); border: 1px solid #38bdf8; color: #38bdf8; border-radius: 10px;">
+                        📲 Abrir Instruções do iPhone
                     </button>
                 </div>
 
@@ -1543,14 +1543,14 @@
 
         function instrucoesIosDetalhes() {
             mostrarModalCustomizado(
-                '📱 Instalação no iPhone / iPad',
-                '<div style="text-align: left; font-size: 13px; line-height: 1.6;">' +
-                '<b>Passo a passo simples no Safari:</b><br><br>' +
-                '1. Certifique-se de estar no navegador <b>Safari</b> da Apple.<br>' +
-                '2. Toque no ícone de <b>Compartilhar</b> (quadrado com seta ⎋ na barra inferior).<br>' +
-                '3. Role para baixo e toque em <b>"Adicionar à Tela de Início"</b> (ícone ➕).<br>' +
-                '4. Toque em <b>"Adicionar"</b> no canto superior direito.<br><br>' +
-                '<span style="color: #38bdf8;">Pronto! O aplicativo será adicionado na sua tela inicial sem necessidade de download externo.</span>' +
+                '📱 Instalação no iPhone / iPad (iOS)',
+                '<div style="text-align: left; font-size: 13px; color: #e2e8f0; line-height: 1.6;">' +
+                'Siga o passo a passo direto no <b>Safari</b>:<br><br>' +
+                '<b>1.</b> Certifique-se de estar usando o navegador <b>Safari</b> da Apple.<br>' +
+                '<b>2.</b> Na barra inferior do Safari, toque no ícone de <b>Compartilhar</b> (o quadrado com uma seta para cima <b>⎋</b>).<br>' +
+                '<b>3.</b> Na lista de opções que abrir, role para baixo e toque em <b>"Adicionar à Tela de Início"</b> (ícone <b>➕</b>).<br>' +
+                '<b>4.</b> Toque no botão <b>"Adicionar"</b> no canto superior direito.<br><br>' +
+                '<span style="color: #34d399; font-weight: 700;">✅ Pronto! O ícone tático do Gestão Salazar aparecerá na sua tela inicial como um aplicativo nativo.</span>' +
                 '</div>',
                 'alerta'
             );
@@ -1559,29 +1559,61 @@
         async function baixarApkEInstalar(event) {
             if (event) event.preventDefault();
 
-            // Dispara download direto do arquivo .apk no navegador
-            const linkDownload = document.createElement('a');
-            linkDownload.href = '/app.apk';
-            linkDownload.download = 'Salazar_Operacional.apk';
-            document.body.appendChild(linkDownload);
-            linkDownload.click();
-            linkDownload.remove();
+            try {
+                // 1. Verifica se há arquivo APK real e válido no servidor
+                const res = await fetch('/api/app/status-apk?_=' + Date.now());
+                const data = await res.json();
 
-            // Se o navegador suportar instalação nativa do app (beforeinstallprompt), aciona simultaneamente
+                if (data.success && data.disponivel) {
+                    // Download do APK real válido
+                    const linkDownload = document.createElement('a');
+                    linkDownload.href = '/app.apk';
+                    linkDownload.download = 'Salazar_Operacional.apk';
+                    document.body.appendChild(linkDownload);
+                    linkDownload.click();
+                    linkDownload.remove();
+
+                    if (deferredPromptInstalacao) {
+                        try {
+                            deferredPromptInstalacao.prompt();
+                            deferredPromptInstalacao = null;
+                        } catch (e) {}
+                    }
+
+                    fecharModalInstalarApp();
+                    mostrarModalCustomizado('Download Iniciado', 'O download do pacote <b>.APK oficial</b> foi iniciado com sucesso no seu dispositivo!');
+                    return;
+                }
+            } catch (e) {}
+
+            // 2. Se não houver arquivo .apk real (> 100 KB), NÃO baixa arquivo corrompido de 0,03 KB
+            // Dispara imediatamente a instalação nativa do aplicativo na tela inicial do Android
             if (deferredPromptInstalacao) {
                 try {
                     deferredPromptInstalacao.prompt();
                     const choiceResult = await deferredPromptInstalacao.userChoice;
-                    if (choiceResult.outcome === 'accepted') {
+                    if (choiceResult && choiceResult.outcome === 'accepted') {
                         fecharModalInstalarApp();
-                        mostrarModalCustomizado('Sucesso', 'Aplicativo instalado na tela inicial e download do APK iniciado!');
+                        mostrarModalCustomizado('Aplicativo Instalado!', 'O aplicativo foi adicionado à sua tela inicial com sucesso!');
                     }
                     deferredPromptInstalacao = null;
-                } catch (e) {}
-            } else {
-                fecharModalInstalarApp();
-                mostrarModalCustomizado('Download Iniciado', 'O download do aplicativo <b>.APK</b> foi iniciado com sucesso no seu dispositivo!');
+                    return;
+                } catch (ePrompt) {}
             }
+
+            // Fallback de orientação visual no Chrome sem erro de pacote corrompido
+            fecharModalInstalarApp();
+            mostrarModalCustomizado(
+                '📲 Instalar Aplicativo no Android',
+                '<div style="text-align: left; font-size: 13px; color: #e2e8f0; line-height: 1.6;">' +
+                'Para instalar o aplicativo oficial na sua tela inicial sem baixar pacotes corrompidos:<br><br>' +
+                '<b>1.</b> No topo direito do Google Chrome, toque nos <b>3 pontinhos</b> (⋮).<br>' +
+                '<b>2.</b> Selecione a opção <b>"Instalar aplicativo"</b> (ou <i>"Adicionar à tela inicial"</i>).<br>' +
+                '<b>3.</b> Toque em <b>"Instalar"</b>.<br><br>' +
+                '<span style="color: #38bdf8; font-weight: 700;">O aplicativo funcionará em tela cheia com ícone tático de alta definição e notificações ativas!</span>' +
+                '</div>',
+                'alerta'
+            );
         }
 
         function alternarSideDrawer(abrir) {
