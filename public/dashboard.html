@@ -453,13 +453,6 @@
         </div>
     </div>
 
-    <div id="bannerPush" class="card" style="border: 2px solid #eab308; background: rgba(234, 179, 8, 0.08); display: none; text-align: center; margin-bottom: 20px;">
-        <h3 style="color: #eab308; border: none; margin-bottom: 8px;">🔔 Notificações da Tropa</h3>
-        <p id="textoBannerPush" style="color: #e2e8f0; font-size: 13px; margin-bottom: 16px;">Para receber convocações e alarmes de AÇÃO no seu dispositivo, autorize as notificações.</p>
-        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-            <button id="btnAtivarPush" class="btn-action" style="background-color: rgba(34, 197, 94, 0.9); width: auto; display: inline-block; padding: 10px 25px; margin-top: 0;" onclick="ativarNotificacoesPush(true)">🔔 Permitir Notificações</button>
-        </div>
-    </div>
 
     <div id="aba-turnos" class="tab-content active">
         <div class="grid-container">
@@ -482,7 +475,17 @@
                 </div>
 
                 <div class="card">
-                    <h3>🪖 Módulo Bate-Ponto & Turnos</h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(56, 189, 248, 0.2); padding-bottom: 10px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                        <h3 style="border: none; margin: 0; padding: 0;">🪖 Módulo Bate-Ponto & Turnos</h3>
+                        <div id="statusNotificacoesTurno" style="font-size: 12px;"></div>
+                    </div>
+
+                    <!-- Bloco de Notificações do Turno -->
+                    <div id="boxNotificacaoTurno" style="display: none; margin-bottom: 14px; padding: 10px 14px; border-radius: 10px; font-size: 12px; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+                        <span id="textoNotificacaoTurno" style="color: #e2e8f0;"></span>
+                        <button id="btnPermitirNotificacaoTurno" onclick="ativarNotificacoesPush(true)" style="background: rgba(34, 197, 94, 0.25); border: 1px solid #22c55e; color: #34d399; font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: 8px; cursor: pointer; transition: all 0.2s;">🔔 Permitir Notificações</button>
+                    </div>
+
                     <p id="etapaAtual" style="color: #e2e8f0; font-size: 13px;">Etapa: A carregar horário regulamentar...</p>
 
                     <div class="timer-display" id="timerDisplay">00:00:00</div>
