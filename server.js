@@ -51,7 +51,13 @@ app.get('/', (req, res) => {
 });
 
 app.get('/sw.js', (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript');
     res.sendFile(path.join(__dirname, 'public', 'sw.js'));
+});
+
+// Endpoint para fornecer a chave pública VAPID ao frontend
+app.get('/api/push-public-key', (req, res) => {
+    res.json({ success: true, publicKey: publicVapidKey });
 });
 
 // Endpoint seguro para verificar saúde da conexão com o MongoDB
@@ -722,7 +728,7 @@ app.post('/api/admin/disparar-acao', async (req, res) => {
             }
         }
 
-        const membrosComPush = await User.find({ pushSubscription: { $exists: true, $ne: null } }, 'pushSubscription').lean();
+        const membrosComPush = await User.find({ pushSubscription: { $exists: true, $ne: null } }, '_id pushSubscription').lean();
         const payload = JSON.stringify({
             title: `🚨 AÇÃO: ${tituloFinal}`,
             body: descricaoFinal,
@@ -735,7 +741,12 @@ app.post('/api/admin/disparar-acao', async (req, res) => {
                 try {
                     await webpush.sendNotification(membro.pushSubscription, payload);
                     enviados++;
-                } catch (err) {}
+                } catch (err) {
+                    // Se a subscription expirou ou foi cancelada no navegador (410/404), remove do banco
+                    if (err.statusCode === 410 || err.statusCode === 404) {
+                        await User.updateOne({ _id: membro._id }, { $unset: { pushSubscription: 1 } });
+                    }
+                }
             }
         }
 
