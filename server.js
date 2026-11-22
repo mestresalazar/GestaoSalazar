@@ -355,6 +355,56 @@ app.get('/api/db-status', (req, res) => {
     });
 });
 
+// --- ROTINA DE PURGA PARA EVITAR LIMITE DE 16MB DO MONGODB (CODE 10334) ---
+async function limparDocumentoUsuarioSobrecarga(userId) {
+    try {
+        const usuario = await User.findById(userId, 'historicoTurnos historicoMissoes caixaEntrada comprovantesTurnoAtivo').lean();
+        if (!usuario) return;
+
+        const updateLimpeza = {};
+
+        // 1. Limita notificações acumuladas
+        if (Array.isArray(usuario.caixaEntrada) && usuario.caixaEntrada.length > 25) {
+            updateLimpeza.caixaEntrada = usuario.caixaEntrada.slice(-25);
+        }
+
+        // 2. Limpa base64 de comprovantes de turnos antigos (mantém imagem apenas nos 15 mais recentes)
+        if (Array.isArray(usuario.historicoTurnos) && usuario.historicoTurnos.length > 0) {
+            const turnosPodados = usuario.historicoTurnos.slice(-50).map((t, idx, arr) => {
+                const ehRecente = idx >= arr.length - 15;
+                return {
+                    ...t,
+                    fotoComprovante: ehRecente ? (t.fotoComprovante || '') : (t.fotoComprovante ? 'Comprovante arquivado' : ''),
+                    comprovantesVerificacao: ehRecente ? (t.comprovantesVerificacao || []).slice(-4) : []
+                };
+            });
+            updateLimpeza.historicoTurnos = turnosPodados;
+        }
+
+        // 3. Limpa base64 de missões antigas
+        if (Array.isArray(usuario.historicoMissoes) && usuario.historicoMissoes.length > 0) {
+            const missoesPodadas = usuario.historicoMissoes.slice(-25).map((m, idx, arr) => {
+                const ehRecente = idx >= arr.length - 8;
+                return {
+                    ...m,
+                    comprovante: ehRecente ? (m.comprovante || '') : (m.comprovante ? 'Comprovante arquivado' : '')
+                };
+            });
+            updateLimpeza.historicoMissoes = missoesPodadas;
+        }
+
+        if (Array.isArray(usuario.comprovantesTurnoAtivo) && usuario.comprovantesTurnoAtivo.length > 8) {
+            updateLimpeza.comprovantesTurnoAtivo = usuario.comprovantesTurnoAtivo.slice(-8);
+        }
+
+        if (Object.keys(updateLimpeza).length > 0) {
+            await User.updateOne({ _id: userId }, { $set: updateLimpeza });
+        }
+    } catch (errLimpeza) {
+        console.error("Aviso ao limpar sobrecarga do usuário:", errLimpeza.message);
+    }
+}
+
 async function registarLogAdmin(autor, acao, detalhes) {
     try {
         await LogAdmin.create({
@@ -714,11 +764,17 @@ async function verificarFechamentoAutomaticoTurnos() {
                         { _id: membro._id },
                         {
                             $push: {
-                                historicoTurnos: novoTurno,
+                                historicoTurnos: {
+                                    $each: [novoTurno],
+                                    $slice: -60
+                                },
                                 caixaEntrada: {
-                                    titulo: '⏱️ Turno Finalizado Automaticamente',
-                                    mensagem: `O teu plantão foi encerrado e consolidado automaticamente pelo sistema às 02:05 (limite regulamentar 02:00 horário de Brasília). Duração computada: <b>${duracaoFormatada}</b>.`,
-                                    data: new Date()
+                                    $each: [{
+                                        titulo: '⏱️ Turno Finalizado Automaticamente',
+                                        mensagem: `O teu plantão foi encerrado e consolidado automaticamente pelo sistema às 02:05 (limite regulamentar 02:00 horário de Brasília). Duração computada: <b>${duracaoFormatada}</b>.`,
+                                        data: new Date()
+                                    }],
+                                    $slice: -30
                                 }
                             },
                             $set: {
@@ -1252,7 +1308,17 @@ app.post('/api/admin/disparar-acao', async (req, res) => {
             mensagem: descricaoFinal,
             data: new Date()
         };
-        await User.updateMany({}, { $push: { caixaEntrada: notifGeral } });
+        await User.updateMany(
+            {},
+            {
+                $push: {
+                    caixaEntrada: {
+                        $each: [notifGeral],
+                        $slice: -30
+                    }
+                }
+            }
+        );
 
         io.emit('tocar_alarme_acao', {
             id: alertaId,
@@ -1347,10 +1413,24 @@ app.put('/api/membro/status-plantao', async (req, res) => {
             }
         }
 
-        await User.updateOne(
-            { _id: membroAtual._id },
-            { $set: updateData }
-        );
+        try {
+            await User.updateOne(
+                { _id: membroAtual._id },
+                { $set: updateData }
+            );
+        } catch (errUpdate) {
+            // Se estourar os 16MB (código 10334 ou BSONObj size), executa expurgo e retenta
+            if (errUpdate.code === 10334 || String(errUpdate.message).includes('16793600') || String(errUpdate.message).includes('BSONObj size')) {
+                console.warn(`[Documento > 16MB] Purga automática iniciada para o membro ${membroAtual.nickname}...`);
+                await limparDocumentoUsuarioSobrecarga(membroAtual._id);
+                await User.updateOne(
+                    { _id: membroAtual._id },
+                    { $set: updateData }
+                );
+            } else {
+                throw errUpdate;
+            }
+        }
 
         // Ao dar check-in, registra a presença na etapa no BatePonto imediatamente
         if (ehNovoTurno) {
@@ -1435,7 +1515,13 @@ app.put('/api/membro/status-plantao', async (req, res) => {
         });
     } catch (e) {
         console.error("Erro ao atualizar status-plantao:", e);
-        res.status(500).json({ success: false, message: 'Erro ao atualizar status na conta.' });
+        const ehTamanhoBson = e.code === 10334 || String(e.message).includes('16793600') || String(e.message).includes('BSONObj size');
+        res.status(ehTamanhoBson ? 413 : 500).json({
+            success: false,
+            message: ehTamanhoBson
+                ? 'Limite de armazenamento do documento excedido. A purga automática foi ativada, tente novamente.'
+                : (e.message || 'Erro ao atualizar status do turno na conta.')
+        });
     }
 });
 
@@ -1463,7 +1549,12 @@ app.post('/api/membro/turno/verificacao-hora', async (req, res) => {
         await User.updateOne(
             { _id: membro._id },
             {
-                $push: { comprovantesTurnoAtivo: novoRegistroVerificacao },
+                $push: {
+                    comprovantesTurnoAtivo: {
+                        $each: [novoRegistroVerificacao],
+                        $slice: -10
+                    }
+                },
                 $set: { fotoComprovanteAtiva: fotoComprovante }
             }
         );
@@ -1535,21 +1626,53 @@ app.post('/api/membro/turno', async (req, res) => {
             comprovantesVerificacao: listaComprovantes
         };
 
-        // 1. Atualiza no User (historicoTurnos e zera estado)
-        await User.updateOne(
-            { _id: membroDoc._id },
-            {
-                $push: { historicoTurnos: novoTurno },
-                $set: {
-                    emPlantao: false,
-                    estadoTurno: 'parado',
-                    inicioPlantao: null,
-                    segundosAcumulados: 0,
-                    fotoComprovanteAtiva: '',
-                    comprovantesTurnoAtivo: []
+        // 1. Atualiza no User com histórico controlado por $slice para evitar estouro de 16MB
+        try {
+            await User.updateOne(
+                { _id: membroDoc._id },
+                {
+                    $push: {
+                        historicoTurnos: {
+                            $each: [novoTurno],
+                            $slice: -60
+                        }
+                    },
+                    $set: {
+                        emPlantao: false,
+                        estadoTurno: 'parado',
+                        inicioPlantao: null,
+                        segundosAcumulados: 0,
+                        fotoComprovanteAtiva: '',
+                        comprovantesTurnoAtivo: []
+                    }
                 }
+            );
+        } catch (errTurnoUser) {
+            if (errTurnoUser.code === 10334 || String(errTurnoUser.message).includes('16793600') || String(errTurnoUser.message).includes('BSONObj size')) {
+                await limparDocumentoUsuarioSobrecarga(membroDoc._id);
+                await User.updateOne(
+                    { _id: membroDoc._id },
+                    {
+                        $push: {
+                            historicoTurnos: {
+                                $each: [novoTurno],
+                                $slice: -60
+                            }
+                        },
+                        $set: {
+                            emPlantao: false,
+                            estadoTurno: 'parado',
+                            inicioPlantao: null,
+                            segundosAcumulados: 0,
+                            fotoComprovanteAtiva: '',
+                            comprovantesTurnoAtivo: []
+                        }
+                    }
+                );
+            } else {
+                throw errTurnoUser;
             }
-        );
+        }
 
         // 2. Persiste e acumula no modelo BatePonto na etapa regulamentar
         const dataInicioRef = membroDoc.inicioPlantao ? new Date(membroDoc.inicioPlantao) : new Date();
@@ -1928,6 +2051,10 @@ app.post('/api/membro/carteira/atualizar', async (req, res) => {
                 motivo: motivo || 'Missão Diária',
                 comprovante: comprovantePrint
             });
+            // Mantém no máximo as últimas 30 missões no documento para controlar tamanho
+            if (membro.historicoMissoes.length > 30) {
+                membro.historicoMissoes = membro.historicoMissoes.slice(-30);
+            }
         }
 
         await membro.save();
