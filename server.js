@@ -600,7 +600,18 @@ app.post('/api/auth/login', async (req, res) => {
         }
 
         await registarLogAdmin(user.nickname, 'Login no Sistema', `Utilizador ${user.nickname} efetuou login.`);
-        res.json({ success: true, message: 'Login bem-sucedido', user: { nickname: user.nickname, cargo: user.cargo, role: user.role, status: user.status } });
+        res.json({
+            success: true,
+            message: 'Login bem-sucedido',
+            user: {
+                _id: user._id,
+                nickname: user.nickname,
+                cargo: user.cargo,
+                role: user.role,
+                status: user.status,
+                telefone: user.telefone || ''
+            }
+        });
     } catch (e) {
         console.error("Erro no login:", e);
         const ehErroBanco = e.name === 'MongoServerSelectionError' || e.name === 'MongoNetworkError' || e.name === 'MongooseError';
@@ -754,11 +765,12 @@ app.put('/api/membro/atualizar-perfil', async (req, res) => {
 
         let membro = await User.findOne({ $or: orConditions });
 
-        // Se ainda não existir no banco, cria e sincroniza o documento no ato
+        // Se ainda não existir no banco, cria e sincroniza o documento no ato com senha padrão
         if (!membro) {
             const nickInicial = (novoNickname && novoNickname.trim()) ? novoNickname.trim() : (nickAtual || 'Operacional');
             membro = new User({
                 nickname: nickInicial,
+                password: 'temp_' + Date.now(),
                 cargo: 'Privado',
                 status: 'ativo'
             });
@@ -798,9 +810,10 @@ app.put('/api/membro/atualizar-perfil', async (req, res) => {
         }
 
         if (telefone !== undefined) {
-            updateData.telefone = telefone;
-            if (telefone.trim() !== '') {
-                await registarLogAdmin(nicknameFinal, 'Atualizou Telemóvel / WhatsApp', `Operacional ${nicknameFinal} definiu o número: ${telefone}`);
+            const telLimpo = String(telefone || '').trim();
+            updateData.telefone = telLimpo;
+            if (telLimpo !== '') {
+                registarLogAdmin(nicknameFinal, 'Atualizou Telemóvel / WhatsApp', `Operacional ${nicknameFinal} definiu o número: ${telLimpo}`).catch(() => {});
             }
         }
 
@@ -821,21 +834,35 @@ app.put('/api/membro/atualizar-perfil', async (req, res) => {
                 console.warn("Aviso ao atualizar nickname no BatePonto:", errBatePonto.message);
             }
 
-            await registarLogAdmin(membro.nickname, 'Alteração de Nickname', `Operacional alterou o nome de "${membro.nickname}" para "${nicknameFinal}".`);
+            registarLogAdmin(membro.nickname, 'Alteração de Nickname', `Operacional alterou o nome de "${membro.nickname}" para "${nicknameFinal}".`).catch(() => {});
             io.emit('atualizar_status_geral_tropa');
         }
 
         res.json({
             success: true,
             message: mudouNickname ? `Perfil e nome alterados para "${nicknameFinal}" com sucesso!` : 'Perfil atualizado com sucesso!',
-            novoNickname: nicknameFinal
+            novoNickname: nicknameFinal,
+            telefone: updateData.telefone !== undefined ? updateData.telefone : membro.telefone
         });
     } catch (e) {
         console.error("Erro ao atualizar perfil:", e);
+        if (e.code === 11000) {
+            const campoDuplicado = Object.keys(e.keyPattern || {})[0] || 'campo';
+            return res.status(400).json({
+                success: false,
+                message: `Conflito de registo: Já existe uma conta com este ${campoDuplicado === 'nickname' ? 'nome/nickname' : campoDuplicado}.`
+            });
+        }
+        if (e.name === 'ValidationError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Dados inválidos: ' + e.message
+            });
+        }
         const ehErroBanco = e.name === 'MongoServerSelectionError' || e.name === 'MongoNetworkError' || e.name === 'MongooseError';
         res.status(ehErroBanco ? 503 : 500).json({
             success: false,
-            message: ehErroBanco ? 'Falha na conexão com o banco de dados MongoDB.' : 'Erro ao atualizar perfil.'
+            message: ehErroBanco ? 'Falha na conexão com o banco de dados MongoDB.' : (e.message || 'Erro ao atualizar perfil.')
         });
     }
 });

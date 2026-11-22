@@ -1624,7 +1624,11 @@
             } else {
                 mostrarModalCustomizado(
                     '✅ Acesso Liberado ao WhatsApp',
-                    `Número do WhatsApp validado: <b>${escapeHTML(telefoneMembroAtualCache)}</b>.<br><br>Você já tem acesso autorizado ao grupo da tropa! O Comando foi notificado do seu número cadastrado.`
+                    `Número do WhatsApp registado: <b>${escapeHTML(telefoneMembroAtualCache)}</b>.<br><br>Você já está autorizado no grupo da tropa!`,
+                    'alerta',
+                    () => {
+                        window.open('https://web.whatsapp.com', '_blank', 'noopener,noreferrer');
+                    }
                 );
             }
         }
@@ -1739,23 +1743,20 @@
                     fecharPerfilModal();
                     mostrarModalCustomizado(
                         'Perfil Atualizado!',
-                        `Dados salvos com sucesso! Número do WhatsApp registado: <b>${escapeHTML(telefoneNovo)}</b>.`,
+                        `Dados salvos com sucesso! Número do WhatsApp registado: <b>${escapeHTML(telefoneNovo)}</b>.<br><br>O seu acesso ao Grupo da Tropa está liberado!`,
                         'alerta',
                         () => {
                             if (linkGrupoWhatsappGlobal && linkGrupoWhatsappGlobal.trim() !== '') {
-                                const abrir = window.confirm('Deseja abrir o grupo do WhatsApp agora?');
-                                if (abrir) {
-                                    window.open(linkGrupoWhatsappGlobal, '_blank', 'noopener,noreferrer');
-                                }
+                                window.open(linkGrupoWhatsappGlobal, '_blank', 'noopener,noreferrer');
                             }
                         }
                     );
                     sincronizarCarteiraEMissoes();
                 } else {
-                    mostrarModalCustomizado('Erro', escapeHTML(data.message || 'Erro ao atualizar perfil.'));
+                    mostrarModalCustomizado('Atenção', escapeHTML(data.message || 'Não foi possível atualizar o perfil.'));
                 }
             } catch (e) {
-                mostrarModalCustomizado('Erro', 'Erro de conexão ao salvar perfil.');
+                mostrarModalCustomizado('Erro', 'Falha na conexão ao salvar o perfil.');
             } finally {
                 if (btn) {
                     btn.disabled = false;
