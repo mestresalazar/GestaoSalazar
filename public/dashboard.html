@@ -713,6 +713,25 @@
         <p style="color: #94a3b8; font-size: 11px; margin-top: 6px; letter-spacing: 1.5px; font-weight: 600;">SINCRONIZANDO PAINEL OPERACIONAL...</p>
     </div>
 
+    <!-- BANNER PWA SUPERIOR (INSTALAÇÃO DIRETA NA TELA INICIAL) -->
+    <div id="bannerInstalarPwaTopo" style="display: none; background: linear-gradient(135deg, rgba(15, 20, 31, 0.98), rgba(7, 9, 15, 0.99)); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 14px; padding: 10px 14px; margin-bottom: 12px; box-shadow: 0 4px 18px rgba(0,0,0,0.7), 0 0 10px rgba(239, 68, 68, 0.15); align-items: center; justify-content: space-between; gap: 10px; z-index: 950; animation: fadeIn 0.3s ease-in-out;">
+        <div style="display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;">
+            <img src="/icons/icon-192.png" alt="Salazar" style="width: 38px; height: 38px; border-radius: 10px; border: 1px solid #ef4444; flex-shrink: 0; object-fit: cover;">
+            <div style="display: flex; flex-direction: column; min-width: 0;">
+                <span style="color: #fff; font-size: 13px; font-weight: 700; line-height: 1.2;">Instalar Aplicativo Oficial</span>
+                <span id="textoBannerPwaTopo" style="color: #94a3b8; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Adicione à sua tela inicial para acesso rápido</span>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+            <button id="btnAcaoBannerPwaTopo" onclick="executarInstalacaoPwaTopo()" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; border: none; padding: 7px 14px; border-radius: 9px; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);">
+                Instalar
+            </button>
+            <button onclick="fecharBannerPwaTopo()" style="background: none; border: none; color: #94a3b8; font-size: 18px; cursor: pointer; padding: 4px 6px; line-height: 1;" title="Fechar aviso">
+                ✕
+            </button>
+        </div>
+    </div>
+
     <!-- TOP APP BAR COMPACTO (ESTILO APLICATIVO) -->
     <header class="app-header">
         <div class="app-header-left">
@@ -1566,12 +1585,88 @@
 
         let deferredPromptInstalacao = null;
 
+        function verificarExibicaoBannerPwaTopo() {
+            const banner = document.getElementById('bannerInstalarPwaTopo');
+            if (!banner) return;
+
+            const { ehIOS, ehStandalone } = detectarPlataformaNavegador();
+
+            // Nunca exibe se já estiver rodando em modo aplicativo instalado (standalone)
+            if (ehStandalone) {
+                banner.style.display = 'none';
+                return;
+            }
+
+            // Respeita o fechamento do banner na sessão do usuário
+            if (sessionStorage.getItem('pwa_banner_topo_fechado') === 'true') {
+                banner.style.display = 'none';
+                return;
+            }
+
+            const textoEl = document.getElementById('textoBannerPwaTopo');
+            const btnEl = document.getElementById('btnAcaoBannerPwaTopo');
+
+            if (ehIOS) {
+                if (textoEl) textoEl.innerText = 'Toque em Compartilhar e Adicionar à Tela de Início';
+                if (btnEl) btnEl.innerText = 'Como Instalar';
+            } else {
+                if (textoEl) textoEl.innerText = 'Acesso em 1 toque e notificações em tempo real';
+                if (btnEl) btnEl.innerText = 'Instalar App';
+            }
+
+            banner.style.display = 'flex';
+        }
+
+        function fecharBannerPwaTopo() {
+            const banner = document.getElementById('bannerInstalarPwaTopo');
+            if (banner) banner.style.display = 'none';
+            sessionStorage.setItem('pwa_banner_topo_fechado', 'true');
+        }
+
+        async function executarInstalacaoPwaTopo() {
+            const { ehIOS } = detectarPlataformaNavegador();
+
+            if (ehIOS) {
+                instrucoesIosDetalhes();
+                return;
+            }
+
+            if (deferredPromptInstalacao) {
+                try {
+                    deferredPromptInstalacao.prompt();
+                    const choiceResult = await deferredPromptInstalacao.userChoice;
+                    if (choiceResult && choiceResult.outcome === 'accepted') {
+                        fecharBannerPwaTopo();
+                        mostrarModalCustomizado('Aplicativo Instalado!', 'O Gestão Salazar foi adicionado à sua tela inicial com sucesso!');
+                    }
+                    deferredPromptInstalacao = null;
+                } catch (e) {
+                    mostrarInstrucaoTresPontinhos();
+                }
+            } else {
+                mostrarInstrucaoTresPontinhos();
+            }
+        }
+
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPromptInstalacao = e;
             const btnPwa = document.getElementById('btnPromptInstalarPwa');
             if (btnPwa) btnPwa.innerText = '⚡ Instalar App Web Agora';
+            verificarExibicaoBannerPwaTopo();
         });
+
+        window.addEventListener('appinstalled', () => {
+            fecharBannerPwaTopo();
+            deferredPromptInstalacao = null;
+        });
+
+        // Verificação imediata ao carregar a página
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', verificarExibicaoBannerPwaTopo);
+        } else {
+            verificarExibicaoBannerPwaTopo();
+        }
 
         function abrirModalInstalarApp() {
             document.getElementById('modalInstalarApp').style.display = 'flex';
