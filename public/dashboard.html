@@ -20,76 +20,215 @@
             -webkit-tap-highlight-color: transparent;
         }
         body {
-            background-image: linear-gradient(rgba(7, 13, 22, 0.8), rgba(7, 13, 22, 0.9)), url('/background.jpg');
+            background-image: linear-gradient(rgba(7, 13, 22, 0.85), rgba(7, 13, 22, 0.95)), url('/background.jpg');
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
             background-color: #070d16;
             color: #ffffff;
-            padding: 16px;
-            padding-bottom: 84px;
+            padding: 12px;
+            padding-bottom: 92px;
             overflow-x: hidden;
             width: 100%;
         }
-        .navbar {
+
+        /* --- APP HEADER COMPACTO & ELEGANTE --- */
+        .app-header {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            background: linear-gradient(145deg, rgba(15, 23, 42, 0.92), rgba(7, 13, 22, 0.98)) !important;
-            backdrop-filter: blur(16px) !important;
-            -webkit-backdrop-filter: blur(16px) !important;
-            padding: 14px 20px;
-            border-radius: 16px !important;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.75) !important;
-            border: 1px solid rgba(56, 189, 248, 0.25) !important;
-            flex-wrap: wrap;
+            justify-content: space-between;
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.94), rgba(7, 13, 22, 0.98));
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            padding: 10px 16px;
+            border-radius: 16px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            position: sticky;
+            top: 8px;
+            z-index: 900;
+        }
+        .app-header-left {
+            display: flex;
+            align-items: center;
             gap: 12px;
         }
-        .nav-brand {
+        .btn-side-menu-trigger {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.35);
             color: #38bdf8;
-            font-size: 18px;
-            font-weight: 800;
-            text-shadow: 0 2px 6px rgba(0,0,0,0.8);
-            letter-spacing: -0.02em;
-        }
-        .nav-links {
+            font-size: 20px;
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
             display: flex;
-            gap: 8px;
             align-items: center;
-            flex-wrap: wrap;
-        }
-        .nav-btn-aba {
-            background: rgba(30, 41, 59, 0.7);
-            color: #cbd5e1;
-            border: 1px solid rgba(56, 189, 248, 0.15);
-            padding: 8px 14px;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 13px;
+            justify-content: center;
             cursor: pointer;
-            transition: all 0.25s ease;
+            transition: all 0.2s ease;
         }
-        .nav-btn-aba:hover, .nav-btn-aba.active {
-            background: rgba(56, 189, 248, 0.2);
+        .btn-side-menu-trigger:hover, .btn-side-menu-trigger:active {
+            background: rgba(56, 189, 248, 0.3);
+            transform: scale(0.97);
+        }
+        .app-header-title-box {
+            display: flex;
+            flex-direction: column;
+        }
+        .app-header-brand {
+            font-size: 16px;
+            font-weight: 800;
             color: #38bdf8;
-            border-color: rgba(56, 189, 248, 0.5);
-            box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+            letter-spacing: -0.02em;
+            line-height: 1.2;
         }
-        .logout-btn {
-            background-color: rgba(239, 68, 68, 0.9);
-            color: white;
-            border: none;
-            padding: 8px 14px;
+        .app-header-category {
+            font-size: 11px;
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .app-header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .app-header-user-btn {
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            color: #e2e8f0;
+            padding: 6px 12px;
             border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* --- SIDE DRAWER (MENU LATERAL DESLIZANTE) --- */
+        .drawer-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(3, 7, 18, 0.7);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .drawer-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        .side-drawer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 290px;
+            max-width: 82vw;
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99));
+            border-right: 1px solid rgba(56, 189, 248, 0.3);
+            z-index: 2100;
+            transform: translateX(-100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 10px 0 30px rgba(0, 0, 0, 0.8);
+        }
+        .side-drawer.open {
+            transform: translateX(0);
+        }
+        .drawer-header {
+            padding: 20px 18px;
+            border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(15, 23, 42, 0.6);
+        }
+        .drawer-user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .drawer-avatar-mini {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 2px solid #38bdf8;
+            background: rgba(30, 41, 59, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            object-fit: cover;
+        }
+        .drawer-user-name {
+            font-size: 14px;
             font-weight: 700;
-            font-size: 13px;
-            transition: all 0.25s ease;
+            color: #fff;
         }
-        .logout-btn:hover {
-            background-color: #dc2626;
+        .drawer-user-rank {
+            font-size: 11px;
+            color: #38bdf8;
+            font-weight: 600;
         }
+        .drawer-close-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px;
+        }
+        .drawer-body {
+            padding: 12px 10px;
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .drawer-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            color: #cbd5e1;
+            font-size: 14px;
+            font-weight: 600;
+            background: none;
+            border: 1px solid transparent;
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+        .drawer-nav-item:hover, .drawer-nav-item.active {
+            background: rgba(56, 189, 248, 0.15);
+            color: #38bdf8;
+            border-color: rgba(56, 189, 248, 0.35);
+        }
+        .drawer-nav-item span.icon {
+            font-size: 18px;
+            width: 22px;
+            text-align: center;
+        }
+        .drawer-footer {
+            padding: 14px;
+            border-top: 1px solid rgba(56, 189, 248, 0.2);
+            background: rgba(7, 13, 22, 0.7);
+        }
+
         .tab-content {
             display: none;
             animation: fadeIn 0.3s ease-in-out;
@@ -111,39 +250,25 @@
                 grid-template-columns: 1fr;
             }
             body {
-                padding: 10px;
-                padding-bottom: 90px;
-            }
-            .navbar {
-                padding: 12px 14px;
-                flex-direction: column;
-                align-items: stretch;
-                text-align: center;
-            }
-            .nav-links {
-                justify-content: center;
-                gap: 6px;
-            }
-            .nav-btn-aba {
-                font-size: 12px;
-                padding: 7px 10px;
+                padding: 8px;
+                padding-bottom: 92px;
             }
         }
 
-        /* --- BARRA DE NAVEGAÇÃO INFERIOR FIXA (MOBILE BOTTOM NAV) --- */
+        /* --- BARRA DE NAVEGAÇÃO INFERIOR FIXA (MOBILE & DESKTOP BOTTOM NAV) --- */
         .bottom-nav {
-            display: none;
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            background: linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(7, 13, 22, 0.99));
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(7, 13, 22, 0.99));
             backdrop-filter: blur(18px);
             -webkit-backdrop-filter: blur(18px);
             border-top: 1px solid rgba(56, 189, 248, 0.3);
-            z-index: 999;
-            padding: 6px 10px calc(env(safe-area-inset-bottom, 0px) + 6px) 10px;
-            box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            padding: 6px 12px calc(env(safe-area-inset-bottom, 0px) + 6px) 12px;
+            box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.85);
+            display: flex;
             justify-content: space-around;
             align-items: center;
         }
@@ -158,11 +283,11 @@
             font-size: 11px;
             font-weight: 600;
             padding: 6px 8px;
-            border-radius: 10px;
+            border-radius: 12px;
             cursor: pointer;
             transition: all 0.2s ease;
             min-height: 48px;
-            min-width: 54px;
+            min-width: 56px;
             touch-action: manipulation;
         }
         .bottom-nav-item span.icon {
@@ -173,12 +298,6 @@
         .bottom-nav-item.active {
             color: #38bdf8;
             background: rgba(56, 189, 248, 0.15);
-        }
-
-        @media(max-width: 900px) {
-            .bottom-nav {
-                display: flex;
-            }
         }
         .card {
             background: linear-gradient(145deg, rgba(15, 23, 42, 0.85), rgba(7, 13, 22, 0.95)) !important;
@@ -495,24 +614,93 @@
 </head>
 <body>
 
-    <div class="navbar">
-        <div class="nav-brand">Gestão Salazar</div>
-        <div class="nav-links">
-            <button class="nav-btn-aba active" data-tab="turnos" onclick="mudarAba('turnos', this)">🪖 Turnos</button>
-            <button class="nav-btn-aba" data-tab="carteira" onclick="mudarAba('carteira', this)">💳 Carteira & Sorteio</button>
-            <button class="nav-btn-aba" data-tab="missoes" onclick="mudarAba('missoes', this)">📋 Missões</button>
-            <button class="nav-btn-aba" data-tab="tropa" onclick="mudarAba('tropa', this)">👀 Tropa & Rádio</button>
-            <button class="nav-btn-aba" data-tab="voz" onclick="mudarAba('voz', this)">🎙️ Voz & Rádio</button>
-            <button class="nav-btn-aba" data-tab="ranking" onclick="mudarAba('ranking', this)">🏆 Ranking</button>
-            <button class="nav-btn-aba" data-tab="regras-cronograma" onclick="mudarAba('regras-cronograma', this)">📖 Regras & Cronograma</button>
-            <a href="admin.html" id="navAdminLink" style="display: none; background: rgba(3, 105, 161, 0.25); color: #38bdf8; padding: 8px 12px; border-radius: 10px; font-size: 13px; text-decoration: none; font-weight: 600; border: 1px solid rgba(56, 189, 248, 0.4);">Painel ADM</a>
-            <button class="nav-btn-aba" style="background: rgba(51, 65, 85, 0.85);" onclick="abrirHistorico()">📜 Histórico</button>
-            <button class="nav-btn-aba" style="background: rgba(147, 51, 234, 0.85);" onclick="abrirPerfilModal()">👤 Perfil</button>
-            <button class="nav-btn-aba" id="btnGrupoWhatsappNav" style="display: none; background: rgba(34, 197, 94, 0.9); color:#fff;" onclick="abrirGrupoWhatsapp()">📱 WhatsApp</button>
-            <span id="userBadgeInfo" style="font-size: 12px; color: #e2e8f0; font-weight: 600;"></span>
-            <button class="logout-btn" onclick="logout()">Sair</button>
+    <!-- TOP APP BAR COMPACTO (ESTILO APLICATIVO) -->
+    <header class="app-header">
+        <div class="app-header-left">
+            <button class="btn-side-menu-trigger" onclick="alternarSideDrawer(true)" aria-label="Abrir Menu">☰</button>
+            <div class="app-header-title-box">
+                <span class="app-header-brand">Gestão Salazar</span>
+                <span class="app-header-category" id="appHeaderCategoryTitle">Módulo Turnos & Ponto</span>
+            </div>
         </div>
-    </div>
+        <div class="app-header-right">
+            <button class="app-header-user-btn" onclick="abrirPerfilModal()">
+                <span id="headerUserAvatarMini" style="font-size: 14px;">🛡️</span>
+                <span id="headerUserNicknameShort">Membro</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- BACKDROP & MENU LATERAL (SIDE DRAWER) -->
+    <div id="drawerOverlay" class="drawer-overlay" onclick="alternarSideDrawer(false)"></div>
+    <aside id="sideDrawer" class="side-drawer">
+        <div class="drawer-header">
+            <div class="drawer-user-info" onclick="abrirPerfilModal(); alternarSideDrawer(false);" style="cursor: pointer;">
+                <div class="drawer-avatar-mini" id="drawerAvatarMini">🛡️</div>
+                <div>
+                    <div class="drawer-user-name" id="drawerUserName">Operacional</div>
+                    <div class="drawer-user-rank" id="drawerUserRank">Soldado</div>
+                </div>
+            </div>
+            <button class="drawer-close-btn" onclick="alternarSideDrawer(false)">✕</button>
+        </div>
+
+        <nav class="drawer-body">
+            <button class="drawer-nav-item active" data-tab="turnos" onclick="mudarAba('turnos')">
+                <span class="icon">🪖</span>
+                <span>Turnos & Bate-Ponto</span>
+            </button>
+            <button class="drawer-nav-item" data-tab="carteira" onclick="mudarAba('carteira')">
+                <span class="icon">💳</span>
+                <span>Carteira & Sorteio</span>
+            </button>
+            <button class="drawer-nav-item" data-tab="missoes" onclick="mudarAba('missoes')">
+                <span class="icon">📋</span>
+                <span>Missões Diárias</span>
+            </button>
+            <button class="drawer-nav-item" data-tab="tropa" onclick="mudarAba('tropa')">
+                <span class="icon">👀</span>
+                <span>Tropa & Rádio Tático</span>
+            </button>
+            <button class="drawer-nav-item" data-tab="voz" onclick="mudarAba('voz')">
+                <span class="icon">🎙️</span>
+                <span>Central de Voz (Call)</span>
+            </button>
+            <button class="drawer-nav-item" data-tab="ranking" onclick="mudarAba('ranking')">
+                <span class="icon">🏆</span>
+                <span>Ranking da Tropa</span>
+            </button>
+            <button class="drawer-nav-item" data-tab="regras-cronograma" onclick="mudarAba('regras-cronograma')">
+                <span class="icon">📖</span>
+                <span>Regras & Cronograma</span>
+            </button>
+
+            <div style="height: 1px; background: rgba(56, 189, 248, 0.2); margin: 8px 6px;"></div>
+
+            <button class="drawer-nav-item" onclick="abrirHistorico(); alternarSideDrawer(false);">
+                <span class="icon">📜</span>
+                <span>Histórico Completo</span>
+            </button>
+            <button class="drawer-nav-item" onclick="abrirPerfilModal(); alternarSideDrawer(false);">
+                <span class="icon">👤</span>
+                <span>Meu Perfil</span>
+            </button>
+            <button class="drawer-nav-item" id="btnGrupoWhatsappNav" style="display: none; color: #4ade80;" onclick="abrirGrupoWhatsapp(); alternarSideDrawer(false);">
+                <span class="icon">📱</span>
+                <span>Grupo WhatsApp</span>
+            </button>
+            <a href="admin.html" class="drawer-nav-item" id="navAdminLink" style="display: none; color: #38bdf8;">
+                <span class="icon">⚡</span>
+                <span>Painel ADM</span>
+            </a>
+        </nav>
+
+        <div class="drawer-footer">
+            <button class="btn-action" style="margin-top: 0; background: linear-gradient(135deg, #ef4444, #dc2626); padding: 11px; font-size: 13px;" onclick="logout()">
+                🚪 Sair da Conta
+            </button>
+        </div>
+    </aside>
 
     <!-- ========================================== -->
     <!-- CATEGORIA 1: TURNOS & BATE-PONTO -->
@@ -1057,7 +1245,7 @@
         </div>
     </div>
 
-    <!-- BARRA DE NAVEGAÇÃO INFERIOR FIXA NO MOBILE (BOTTOM NAV) -->
+    <!-- BARRA DE NAVEGAÇÃO INFERIOR FIXA (BOTTOM NAV) -->
     <nav class="bottom-nav">
         <button class="bottom-nav-item active" data-tab="turnos" onclick="mudarAba('turnos')">
             <span class="icon">🪖</span>
@@ -1075,9 +1263,9 @@
             <span class="icon">👀</span>
             <span>Tropa</span>
         </button>
-        <button class="bottom-nav-item" data-tab="ranking" onclick="mudarAba('ranking')">
-            <span class="icon">🏆</span>
-            <span>Ranking</span>
+        <button class="bottom-nav-item" onclick="alternarSideDrawer(true)">
+            <span class="icon">☰</span>
+            <span>Menu</span>
         </button>
     </nav>
 
@@ -1093,10 +1281,35 @@
                 .replace(/'/g, '&#39;');
         }
 
-        function mudarAba(nomeAba, elementoBtn) {
+        const titulosCategorias = {
+            'turnos': 'Módulo Turnos & Ponto',
+            'carteira': 'Carteira Digital & Sorteio',
+            'missoes': 'Missões Diárias do QG',
+            'tropa': 'Tropa & Rádio Tático',
+            'voz': 'Central de Voz (Call)',
+            'ranking': 'Ranking da Semana',
+            'regras-cronograma': 'Regras & Cronograma'
+        };
+
+        function alternarSideDrawer(abrir) {
+            const drawer = document.getElementById('sideDrawer');
+            const overlay = document.getElementById('drawerOverlay');
+            if (!drawer || !overlay) return;
+            if (abrir) {
+                drawer.classList.add('open');
+                overlay.classList.add('open');
+            } else {
+                drawer.classList.remove('open');
+                overlay.classList.remove('open');
+            }
+        }
+
+        function mudarAba(nomeAba) {
+            alternarSideDrawer(false);
+
             document.querySelectorAll('.tab-content').forEach(aba => aba.classList.remove('active'));
-            document.querySelectorAll('.navbar .nav-btn-aba').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.tab === nomeAba || btn === elementoBtn);
+            document.querySelectorAll('.drawer-nav-item').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === nomeAba);
             });
             document.querySelectorAll('.bottom-nav-item').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.tab === nomeAba);
@@ -1104,6 +1317,11 @@
 
             const alvo = document.getElementById('aba-' + nomeAba);
             if (alvo) alvo.classList.add('active');
+
+            const titleEl = document.getElementById('appHeaderCategoryTitle');
+            if (titleEl && titulosCategorias[nomeAba]) {
+                titleEl.innerText = titulosCategorias[nomeAba];
+            }
 
             if (nomeAba === 'ranking') carregarRanking();
             if (nomeAba === 'tropa') atualizarFiscalizacaoServidor();
@@ -1153,8 +1371,17 @@
             const cargosAdminPermitidos = ['General', 'Coronel All'];
             const temPermissaoAdmin = user.role === 'admin' || cargosAdminPermitidos.includes(user.cargo);
 
-            document.getElementById('userBadgeInfo').innerHTML = `${escapeHTML(user.nickname)} (${escapeHTML(user.cargo || 'Privado')}) <span class="status-badge status-${escapeHTML(user.status || 'ativo')}">${escapeHTML((user.status || 'ativo').toUpperCase())}</span>`;
-            document.getElementById('navAdminLink').style.display = temPermissaoAdmin ? 'inline-block' : 'none';
+            const nickEl = document.getElementById('headerUserNicknameShort');
+            if (nickEl) nickEl.innerText = user.nickname;
+
+            const drawerName = document.getElementById('drawerUserName');
+            if (drawerName) drawerName.innerText = user.nickname;
+
+            const drawerRank = document.getElementById('drawerUserRank');
+            if (drawerRank) drawerRank.innerText = `${user.cargo || 'Privado'} (${(user.status || 'ativo').toUpperCase()})`;
+
+            const navAdmin = document.getElementById('navAdminLink');
+            if (navAdmin) navAdmin.style.display = temPermissaoAdmin ? 'flex' : 'none';
         }
         atualizarBadgeUsuarioUI();
 
@@ -1247,6 +1474,14 @@
                         img.src = p.avatar;
                         img.style.cssText = 'width: 100%; height: 100%; border-radius: 50%; object-fit: cover;';
                         avatarDiv.replaceChildren(img);
+
+                        const drawerAv = document.getElementById('drawerAvatarMini');
+                        if (drawerAv) {
+                            const imgMini = document.createElement('img');
+                            imgMini.src = p.avatar;
+                            imgMini.style.cssText = 'width: 100%; height: 100%; border-radius: 50%; object-fit: cover;';
+                            drawerAv.replaceChildren(imgMini);
+                        }
                     } else {
                         avatarDiv.textContent = '🛡️';
                     }
