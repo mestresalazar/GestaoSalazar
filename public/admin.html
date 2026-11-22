@@ -348,28 +348,49 @@
             font-weight: 700;
         }
 
-        /* TABELA LIMPA COM INTERAÇÃO AO CLICAR NO NOME */
-        .table-responsive {
-            width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
+        /* --- ESTILOS DE CARDS MOBILE E RESPONSIVOS (PADRÃO APP) --- */
+        .admin-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+            gap: 12px;
             margin-top: 10px;
-            border: 1px solid rgba(56, 189, 248, 0.2);
-            border-radius: 10px;
-            background: rgba(7, 13, 22, 0.6);
         }
-        table { width: 100%; border-collapse: collapse; white-space: nowrap; }
-        th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid rgba(56, 189, 248, 0.15); font-size: 13px; }
-        th { background-color: rgba(15, 23, 42, 0.85); color: #38bdf8; font-weight: 700; }
+
+        .admin-card-item {
+            background: rgba(15, 23, 42, 0.82);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            border-radius: 14px;
+            padding: 14px 16px;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+        }
+
+        .admin-card-item:hover {
+            border-color: rgba(56, 189, 248, 0.45);
+            transform: translateY(-1px);
+        }
+
+        .admin-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
 
         .nickname-link {
             color: #38bdf8;
-            font-weight: bold;
+            font-size: 15px;
+            font-weight: 700;
             cursor: pointer;
-            text-decoration: underline;
+            text-decoration: none;
             transition: color 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
-        .nickname-link:hover { color: #7dd3fc; }
+        .nickname-link:hover { color: #7dd3fc; text-decoration: underline; }
 
         .search-input-box {
             width: 100%;
@@ -385,17 +406,14 @@
         .search-input-box:focus { border-color: #38bdf8; box-shadow: 0 0 10px rgba(56, 189, 248, 0.4); }
 
         .logs-scroll-wrapper {
-            max-height: 280px;
-            overflow-x: auto;
+            max-height: 480px;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
-            background: rgba(7, 13, 22, 0.75);
-            border: 1px solid rgba(147, 51, 234, 0.35);
-            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding-right: 4px;
         }
-        .logs-table { width: 100%; border-collapse: collapse; white-space: nowrap; }
-        .logs-table th { background-color: rgba(24, 20, 48, 0.95); color: #a855f7; font-size: 12px; }
-        .logs-table td { padding: 8px 12px; font-size: 12px; border-bottom: 1px solid rgba(147, 51, 234, 0.15); }
 
         .btn-action {
             padding: 7px 12px;
@@ -585,21 +603,9 @@
                 <input type="text" id="inputBuscaMembro" placeholder="🔍 Pesquisar operacional por nickname..." oninput="filtrarTabelaEfetivo()" class="search-input-box" style="margin-bottom: 0;">
             </div>
 
-            <!-- TABELA LIMPA E RESPONSIVA -->
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Nickname</th>
-                            <th>Cargo</th>
-                            <th>Status Operacional</th>
-                            <th>Último Plantão</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabelaEfetivo">
-                        <tr><td colspan="4" style="text-align: center; color: #94a3b8;">A carregar efetivo...</td></tr>
-                    </tbody>
-                </table>
+            <!-- CARDS DE EFETIVO (ESTILO APP NATIVO) -->
+            <div id="containerCardsEfetivo" class="admin-cards-grid">
+                <p style="color: #94a3b8; font-size: 13px; grid-column: 1/-1; text-align: center; padding: 20px;">A carregar efetivo...</p>
             </div>
         </div>
     </div>
@@ -657,21 +663,9 @@
             <h3 style="color: #eab308; border-color: rgba(234, 179, 8, 0.3);">⚠️ Operacionais Inativos (Há mais de 3 dias sem turnos)</h3>
             <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Lista isolada de membros que não registam plantões há mais de 3 dias. Ideal para controle e limpeza de efetivo.</p>
             
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Nickname</th>
-                            <th>Cargo</th>
-                            <th>Último Turno</th>
-                            <th>Dias Ausente</th>
-                            <th>Ação</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabelaInativos">
-                        <tr><td colspan="5" style="text-align: center; color: #94a3b8; padding: 15px;">A carregar inativos...</td></tr>
-                    </tbody>
-                </table>
+            <!-- CARDS DE INATIVOS (ESTILO APP NATIVO) -->
+            <div id="containerCardsInativos" class="admin-cards-grid">
+                <p style="color: #94a3b8; font-size: 13px; grid-column: 1/-1; text-align: center; padding: 20px;">A carregar inativos...</p>
             </div>
         </div>
     </div>
@@ -889,20 +883,8 @@
             
             <input type="text" id="inputPesquisaLogs" class="search-input-box" placeholder="🔍 Pesquisar nos logs por autor, ação ou detalhes..." oninput="filtrarLogsAuditoria()">
 
-            <div class="logs-scroll-wrapper">
-                <table class="logs-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 18%;">Data/Hora</th>
-                            <th style="width: 17%;">Autor</th>
-                            <th style="width: 23%;">Ação</th>
-                            <th style="width: 42%;">Detalhes</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabelaLogsAdmin">
-                        <tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 15px;">A carregar registos...</td></tr>
-                    </tbody>
-                </table>
+            <div class="logs-scroll-wrapper" id="containerCardsLogsAdmin">
+                <p style="text-align: center; color: #94a3b8; padding: 20px; font-size: 13px;">A carregar registos...</p>
             </div>
         </div>
     </div>
@@ -1504,10 +1486,10 @@
 
         function filtrarLogsAuditoria() {
             const termo = (document.getElementById('inputPesquisaLogs')?.value || '').toLowerCase();
-            const tbody = document.getElementById('tabelaLogsAdmin');
-            if (!tbody) return;
+            const container = document.getElementById('containerCardsLogsAdmin');
+            if (!container) return;
 
-            tbody.innerHTML = '';
+            container.innerHTML = '';
             const filtrados = cacheGlobalLogs.filter(log => 
                 (log.autor && log.autor.toLowerCase().includes(termo)) ||
                 (log.acao && log.acao.toLowerCase().includes(termo)) ||
@@ -1516,54 +1498,77 @@
 
             if (filtrados.length > 0) {
                 filtrados.forEach(log => {
-                    const tr = document.createElement('tr');
+                    const card = document.createElement('div');
+                    card.style.cssText = "background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(147, 51, 234, 0.28); border-radius: 12px; padding: 12px 14px;";
+
                     const dataFormatada = new Date(log.data).toLocaleString('pt-BR', {
                         timeZone: 'America/Sao_Paulo',
                         day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'
                     });
                     const detalhesLimpos = (log.detalhes || '').replace(/R\$\s*undefined/gi, 'Saldo Atualizado');
-                    tr.innerHTML = `
-                        <td style="color: #94a3b8;">${dataFormatada}</td>
-                        <td style="color: #38bdf8; font-weight: bold;">${log.autor}</td>
-                        <td style="color: #eab308;">${log.acao}</td>
-                        <td style="color: #e2e8f0;">${detalhesLimpos}</td>
+
+                    card.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+                            <span style="color: #c084fc; font-weight: 700; font-size: 13px;">⚡ ${log.acao || 'Ação'}</span>
+                            <span style="color: #94a3b8; font-size: 11px;">${dataFormatada}</span>
+                        </div>
+                        <div style="font-size: 12px; color: #e2e8f0; line-height: 1.4; margin-bottom: 4px;">${detalhesLimpos}</div>
+                        <div style="font-size: 11px; color: #94a3b8;">Autor: <b style="color: #38bdf8;">${log.autor || 'Sistema'}</b></div>
                     `;
-                    tbody.appendChild(tr);
+                    container.appendChild(card);
                 });
             } else {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 15px;">Nenhum registo encontrado.</td></tr>`;
+                container.innerHTML = `<p style="text-align: center; color: #94a3b8; padding: 20px; font-size: 13px;">Nenhum registo de auditoria encontrado.</p>`;
             }
         }
         carregarLogsAdmin();
 
         async function carregarMembrosInativos() {
+            const container = document.getElementById('containerCardsInativos');
+            if (!container) return;
+
             try {
-                const res = await fetch('/api/admin/membros-inativos');
+                const res = await fetch('/api/admin/membros-inativos?_=' + Date.now());
                 const data = await res.json();
-                const tbody = document.getElementById('tabelaInativos');
-                if (!tbody) return;
-                tbody.innerHTML = '';
+                container.innerHTML = '';
 
                 if (data.success && data.inativos && data.inativos.length > 0) {
                     data.inativos.forEach(m => {
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `
-                            <td><span class="nickname-link" onclick="abrirMenuAcoesMembro('${m._id}', '${m.nickname}', '${m.cargo}', false, 'ativo')">${m.nickname}</span></td>
-                            <td>${m.cargo}</td>
-                            <td style="color: #38bdf8;">${m.ultimoTurno}</td>
-                            <td><b style="color: #eab308;">${m.diasAusente} dia(s)</b></td>
-                            <td>
-                                <button class="btn-action btn-demitir" style="padding: 5px 10px; font-size: 11px;" onclick="demitirMembro('${m._id}')">Demitir</button>
-                            </td>
+                        const card = document.createElement('div');
+                        card.className = 'admin-card-item';
+                        card.style.border = '1px solid rgba(234, 179, 8, 0.4)';
+
+                        card.innerHTML = `
+                            <div class="admin-card-header">
+                                <span class="nickname-link" onclick="abrirMenuAcoesMembro('${m._id}', '${m.nickname}', '${m.cargo}', false, 'ativo')">
+                                    ⚠️ ${m.nickname}
+                                </span>
+                                <span style="background: rgba(234, 179, 8, 0.25); color: #fde047; border: 1px solid #eab308; font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 700;">
+                                    ${m.diasAusente} DIAS AUSENTE
+                                </span>
+                            </div>
+
+                            <div style="background: rgba(7, 13, 22, 0.6); padding: 8px 12px; border-radius: 8px; font-size: 12px; color: #cbd5e1; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <span>Patente: <b style="color: #38bdf8;">${m.cargo}</b></span>
+                                <span>Último: <b style="color: #94a3b8;">${m.ultimoTurno}</b></span>
+                            </div>
+
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn-action btn-historico" style="flex: 1; margin: 0; padding: 7px;" onclick="verHistoricoMembro('${m.nickname}', '${m._id}')">
+                                    📜 Histórico
+                                </button>
+                                <button class="btn-action btn-demitir" style="flex: 1; margin: 0; padding: 7px;" onclick="demitirMembro('${m._id}')">
+                                    ❌ Demitir
+                                </button>
+                            </div>
                         `;
-                        tbody.appendChild(tr);
+                        container.appendChild(card);
                     });
                 } else {
-                    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #94a3b8; padding: 15px;">Nenhum operacional inativo há mais de 3 dias.</td></tr>`;
+                    container.innerHTML = `<p style="color: #94a3b8; font-size: 13px; grid-column: 1/-1; text-align: center; padding: 20px;">Nenhum operacional inativo há mais de 3 dias.</p>`;
                 }
             } catch (e) {
-                const tbody = document.getElementById('tabelaInativos');
-                if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ef4444; padding: 15px;">Erro ao carregar inativos.</td></tr>`;
+                container.innerHTML = `<p style="color: #ef4444; font-size: 13px; grid-column: 1/-1; text-align: center; padding: 20px;">Erro ao carregar inativos.</p>`;
             }
         }
 
@@ -1764,8 +1769,9 @@
         }
 
         function renderizarTabelaEfetivo(membrosParaRenderizar = listaMembrosCache) {
-            const tabela = document.getElementById('tabelaEfetivo');
-            tabela.innerHTML = '';
+            const container = document.getElementById('containerCardsEfetivo');
+            if (!container) return;
+            container.innerHTML = '';
 
             const membrosOrdenados = [...membrosParaRenderizar].sort((a, b) => {
                 const aOnline = usuariosOnlineSocket.some(u => u.nickname.toLowerCase() === a.nickname.toLowerCase());
@@ -1777,28 +1783,47 @@
 
             if (membrosOrdenados.length > 0) {
                 membrosOrdenados.forEach(membro => {
-                    const tr = document.createElement('tr');
-                    let statusOperacionalHtml = `<span class="status-dot-offline"></span> <span style="color:#64748b;">Offline</span>`;
+                    const card = document.createElement('div');
+                    card.className = 'admin-card-item';
+
+                    let statusBadgeHtml = `<span style="background: rgba(100, 116, 139, 0.2); border: 1px solid #64748b; color: #94a3b8; font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 700;">⚪ OFFLINE</span>`;
                     const isOnline = usuariosOnlineSocket.some(u => u.nickname.toLowerCase() === membro.nickname.toLowerCase());
 
                     if (membro.emPlantao) {
-                        statusOperacionalHtml = `<span class="status-dot-plantao"></span> <b style="color:#eab308;">Em Plantão</b>`;
+                        statusBadgeHtml = `<span style="background: rgba(234, 179, 8, 0.2); border: 1px solid #eab308; color: #fde047; font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 700;">🟡 EM PLANTÃO</span>`;
                     } else if (membro.status !== 'ativo') {
-                        statusOperacionalHtml = `<span class="status-dot-pendente"></span> <b style="color:#eab308;">Pendente</b>`;
+                        statusBadgeHtml = `<span style="background: rgba(234, 179, 8, 0.25); border: 1px solid #eab308; color: #fde047; font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 700;">⏳ PENDENTE</span>`;
                     } else if (isOnline) {
-                        statusOperacionalHtml = `<span class="status-dot-online"></span> <b style="color:#22c55e;">Online</b>`;
+                        statusBadgeHtml = `<span style="background: rgba(34, 197, 94, 0.2); border: 1px solid #22c55e; color: #86efac; font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 700;">🟢 ONLINE</span>`;
                     }
 
-                    tr.innerHTML = `
-                        <td><span class="nickname-link" onclick="abrirMenuAcoesMembro('${membro._id}', '${membro.nickname}', '${membro.cargo || 'Privado'}', ${membro.emPlantao}, '${membro.status}')">${membro.nickname}</span></td>
-                        <td>${membro.cargo || 'Privado'}</td>
-                        <td>${statusOperacionalHtml}</td>
-                        <td style="color: #38bdf8; font-size: 12px;">${membro.ultimoPlantao || 'Nenhum plantão'}</td>
+                    const cargoLimpo = (membro.cargo || 'privado').toLowerCase().replace(/[^a-z0-9-]/g, '');
+                    const badgeCargo = `<span class="badge-cargo-${cargoLimpo}" style="font-size: 11px; padding: 3px 8px;">${membro.cargo || 'Privado'}</span>`;
+
+                    card.innerHTML = `
+                        <div class="admin-card-header">
+                            <span class="nickname-link" onclick="abrirMenuAcoesMembro('${membro._id}', '${membro.nickname}', '${membro.cargo || 'Privado'}', ${membro.emPlantao}, '${membro.status}')">
+                                🪖 ${membro.nickname}
+                            </span>
+                            <div style="display: flex; gap: 6px; align-items: center;">
+                                ${badgeCargo}
+                                ${statusBadgeHtml}
+                            </div>
+                        </div>
+
+                        <div style="background: rgba(7, 13, 22, 0.6); padding: 8px 12px; border-radius: 8px; font-size: 12px; color: #cbd5e1; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="color: #94a3b8;">Plantão:</span>
+                            <span style="color: #38bdf8; font-weight: 600;">${membro.ultimoPlantao || 'Nenhum plantão'}</span>
+                        </div>
+
+                        <button class="btn-action btn-promover" style="width: 100%; margin: 0; padding: 8px; font-size: 12px;" onclick="abrirMenuAcoesMembro('${membro._id}', '${membro.nickname}', '${membro.cargo || 'Privado'}', ${membro.emPlantao}, '${membro.status}')">
+                            ⚙️ Gerenciar Operacional
+                        </button>
                     `;
-                    tabela.appendChild(tr);
+                    container.appendChild(card);
                 });
             } else {
-                tabela.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #94a3b8;">Nenhum membro encontrado.</td></tr>`;
+                container.innerHTML = `<p style="color: #94a3b8; font-size: 13px; grid-column: 1/-1; text-align: center; padding: 20px;">Nenhum membro encontrado.</p>`;
             }
         }
 
