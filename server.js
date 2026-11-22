@@ -530,24 +530,89 @@ app.put('/api/membro/atualizar-avatar', async (req, res) => {
 
 app.put('/api/membro/atualizar-perfil', async (req, res) => {
     try {
-        const { nickname, telefone, avatar } = req.body;
-        if (!nickname) return res.status(400).json({ success: false, message: 'Nickname obrigatório.' });
+        if (mongoose.connection.readyState !== 1) {
+            return res.status(503).json({ success: false, message: 'Conexão com a base de dados indisponível no momento. Tente novamente em instantes.' });
+        }
+
+        const { nickname, novoNickname, telefone, avatar } = req.body;
+        if (!nickname) return res.status(400).json({ success: false, message: 'Nickname atual obrigatório.' });
+
+        const membro = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') });
+        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
         const updateData = {};
+        let mudouNickname = false;
+        let nicknameFinal = membro.nickname;
+
+        if (novoNickname !== undefined && novoNickname.trim() !== '') {
+            const nickLimpo = novoNickname.trim();
+            const regexNickname = /^[a-zA-Z0-9_.\-\s]{2,30}$/;
+            if (!regexNickname.test(nickLimpo)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'O novo nome deve conter entre 2 e 30 caracteres válidos (letras, números, espaços, hífens, pontos ou underlines).'
+                });
+            }
+
+            if (nickLimpo.toLowerCase() !== membro.nickname.toLowerCase()) {
+                const jaExiste = await User.findOne({
+                    _id: { $ne: membro._id },
+                    nickname: new RegExp('^' + nickLimpo + '$', 'i')
+                }).lean();
+
+                if (jaExiste) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Este novo nome/nickname já está em uso por outro membro da tropa.'
+                    });
+                }
+
+                updateData.nickname = nickLimpo;
+                nicknameFinal = nickLimpo;
+                mudouNickname = true;
+            }
+        }
+
         if (telefone !== undefined) {
             updateData.telefone = telefone;
-            await registarLogAdmin(nickname, 'Atualizou Telemóvel / WhatsApp', `Operacional ${nickname} definiu o número de telemóvel: ${telefone}`);
+            if (telefone.trim() !== '') {
+                await registarLogAdmin(nicknameFinal, 'Atualizou Telemóvel / WhatsApp', `Operacional ${nicknameFinal} definiu o número: ${telefone}`);
+            }
         }
+
         if (avatar !== undefined) updateData.avatar = avatar;
 
-        await User.updateOne(
-            { nickname: new RegExp('^' + nickname.trim() + '$', 'i') },
-            { $set: updateData }
-        );
+        if (Object.keys(updateData).length > 0) {
+            await User.updateOne({ _id: membro._id }, { $set: updateData });
+        }
 
-        res.json({ success: true, message: 'Perfil atualizado com sucesso!' });
+        if (mudouNickname) {
+            // Sincroniza o nickname desnormalizado nos registros de BatePonto do membro
+            try {
+                await BatePonto.updateMany(
+                    { usuario: membro._id },
+                    { $set: { nickname: nicknameFinal } }
+                );
+            } catch (errBatePonto) {
+                console.warn("Aviso ao atualizar nickname no BatePonto:", errBatePonto.message);
+            }
+
+            await registarLogAdmin(membro.nickname, 'Alteração de Nickname', `Operacional alterou o nome de "${membro.nickname}" para "${nicknameFinal}".`);
+            io.emit('atualizar_status_geral_tropa');
+        }
+
+        res.json({
+            success: true,
+            message: mudouNickname ? `Perfil e nome alterados para "${nicknameFinal}" com sucesso!` : 'Perfil atualizado com sucesso!',
+            novoNickname: nicknameFinal
+        });
     } catch (e) {
-        res.status(500).json({ success: false, message: 'Erro ao atualizar perfil.' });
+        console.error("Erro ao atualizar perfil:", e);
+        const ehErroBanco = e.name === 'MongoServerSelectionError' || e.name === 'MongoNetworkError' || e.name === 'MongooseError';
+        res.status(ehErroBanco ? 503 : 500).json({
+            success: false,
+            message: ehErroBanco ? 'Falha na conexão com o banco de dados MongoDB.' : 'Erro ao atualizar perfil.'
+        });
     }
 });
 

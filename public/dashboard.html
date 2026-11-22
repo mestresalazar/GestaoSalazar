@@ -645,6 +645,11 @@
             </div>
 
             <div style="margin-bottom: 14px; text-align: left;">
+                <label style="font-size: 12px; color: #94a3b8; font-weight: 500;">Nome / Nickname no Jogo:</label>
+                <input type="text" id="inputNicknamePerfil" placeholder="Ex: Salazar_Recruta" style="width: 100%; padding: 10px 12px; background: rgba(7, 13, 22, 0.85); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 13px; margin-top: 6px; outline: none;">
+            </div>
+
+            <div style="margin-bottom: 14px; text-align: left;">
                 <label style="font-size: 12px; color: #94a3b8; font-weight: 500;">Alterar Foto de Avatar:</label>
                 <input type="file" id="inputFotoAvatar" accept="image/*" onchange="converterAvatarLocal(this)" style="width: 100%; padding: 8px; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 12px; margin-top: 6px;">
             </div>
@@ -655,7 +660,7 @@
             </div>
 
             <div style="background: rgba(7, 13, 22, 0.75); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 16px; text-align: left; font-size: 13px; display: flex; flex-direction: column; gap: 8px;">
-                <p><b>Nickname:</b> <span id="perfilNickname" style="color: #38bdf8;">-</span></p>
+                <p><b>Nickname Registado:</b> <span id="perfilNickname" style="color: #38bdf8;">-</span></p>
                 <p><b>Cargo Atual:</b> <span id="perfilCargo">-</span></p>
                 <p><b>⏱️ Horas Acumuladas:</b> <span id="perfilTotalHoras" style="color: #22c55e; font-weight: bold;">-</span></p>
                 <p><b>⏳ Tempo na Organização:</b> <span id="perfilTempoGestao" style="color: #eab308; font-weight: bold;">-</span></p>
@@ -827,6 +832,8 @@
                 if (data.success) {
                     const p = data.perfil;
                     document.getElementById('perfilNickname').innerText = p.nickname;
+                    const inputNick = document.getElementById('inputNicknamePerfil');
+                    if (inputNick) inputNick.value = p.nickname || user.nickname;
                     document.getElementById('inputTelefonePerfil').value = p.telefone || '';
                     telefoneMembroAtualCache = p.telefone || '';
 
@@ -853,24 +860,64 @@
         function fecharPerfilModal() { document.getElementById('modalPerfil').style.display = 'none'; }
 
         async function salvarPerfilCompleto() {
+            const inputNick = document.getElementById('inputNicknamePerfil');
+            const novoNickname = inputNick ? inputNick.value.trim() : user.nickname;
             const telefoneNovo = document.getElementById('inputTelefonePerfil').value.trim();
+
+            if (!novoNickname) {
+                mostrarModalCustomizado('Atenção', 'O nome/nickname não pode ficar em branco.');
+                return;
+            }
+
             if (!telefoneNovo) {
                 mostrarModalCustomizado('Atenção', 'O número de telemóvel/WhatsApp é obrigatório.');
                 return;
             }
+
             try {
                 const res = await fetch('/api/membro/atualizar-perfil', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nickname: user.nickname, telefone: telefoneNovo })
+                    body: JSON.stringify({
+                        nickname: user.nickname,
+                        novoNickname: novoNickname,
+                        telefone: telefoneNovo
+                    })
                 });
                 const data = await res.json();
                 if (data.success) {
+                    const nickAnterior = user.nickname;
+                    const nickAtualizado = data.novoNickname || novoNickname;
+
                     telefoneMembroAtualCache = telefoneNovo;
-                    mostrarModalCustomizado('Sucesso', 'Perfil atualizado com sucesso!');
+
+                    if (nickAtualizado !== nickAnterior) {
+                        // Migra caches de localStorage vinculados ao nickname antigo
+                        const saldoAntigo = localStorage.getItem(`carteira_saldo_${nickAnterior}`);
+                        if (saldoAntigo !== null) {
+                            localStorage.setItem(`carteira_saldo_${nickAtualizado}`, saldoAntigo);
+                        }
+
+                        const cicloAtual = obterDataCicloOperacional();
+                        const missoesAntigas = localStorage.getItem(`missoes_ciclo_${nickAnterior}_${cicloAtual}`);
+                        if (missoesAntigas !== null) {
+                            localStorage.setItem(`missoes_ciclo_${nickAtualizado}_${cicloAtual}`, missoesAntigas);
+                        }
+
+                        user.nickname = nickAtualizado;
+                        localStorage.setItem('user', JSON.stringify(user));
+                        atualizarBadgeUsuarioUI();
+                    }
+
+                    mostrarModalCustomizado('Sucesso', data.message || 'Perfil atualizado com sucesso!');
                     fecharPerfilModal();
+                    sincronizarCarteiraEMissoes();
+                } else {
+                    mostrarModalCustomizado('Erro', escapeHTML(data.message || 'Erro ao atualizar perfil.'));
                 }
-            } catch (e) {}
+            } catch (e) {
+                mostrarModalCustomizado('Erro', 'Erro de conexão ao salvar perfil.');
+            }
         }
 
         function converterAvatarLocal(input) {
