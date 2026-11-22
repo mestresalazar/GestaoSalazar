@@ -17,6 +17,7 @@ const BatePontoSchema = new mongoose.Schema({
   duracao: { type: String, default: '00:00:00' },
   segundosTotais: { type: Number, default: 0 },
   fotoComprovante: { type: String, default: '' },
+  emAndamento: { type: Boolean, default: false },
   dataRegistro: { type: Date, default: Date.now }
 });
 

@@ -1259,8 +1259,18 @@
             const filtrados = cacheFiscalizacaoMembros.filter(u => (u.nickname || '').toLowerCase().includes(busca));
             if (filtrados.length > 0) {
                 filtrados.forEach(u => {
-                    const mins = u.inicioPlantao ? Math.floor((Date.now() - new Date(u.inicioPlantao).getTime()) / 60000) : 0;
-                    container.innerHTML += `<div style="padding: 8px; margin-bottom: 6px; background: rgba(30, 41, 59, 0.8); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;"><span>🪖 <b>${escapeHTML(u.nickname)}</b> <span style="color:#38bdf8;">(${escapeHTML(u.cargo)})</span> • <span style="color:#eab308;">${mins}m</span></span><span class="status-badge status-ativo" style="font-size:10px;">EM PLANTÃO</span></div>`;
+                    let totalSegundosMembro = u.segundosAcumulados || 0;
+                    if (u.estadoTurno === 'ativo' && u.inicioPlantao) {
+                        const decorrido = Math.floor((Date.now() - new Date(u.inicioPlantao).getTime()) / 1000);
+                        if (decorrido > 0) totalSegundosMembro += decorrido;
+                    }
+                    const mins = Math.floor(totalSegundosMembro / 60);
+                    const estaPausado = u.estadoTurno === 'pausado';
+                    const badgeHtml = estaPausado
+                        ? '<span class="status-badge" style="background:#eab308; color:#000; font-size:10px;">PAUSADO</span>'
+                        : '<span class="status-badge status-ativo" style="font-size:10px;">EM PLANTÃO</span>';
+
+                    container.innerHTML += `<div style="padding: 8px; margin-bottom: 6px; background: rgba(30, 41, 59, 0.8); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;"><span>🪖 <b>${escapeHTML(u.nickname)}</b> <span style="color:#38bdf8;">(${escapeHTML(u.cargo)})</span> • <span style="color:#eab308;">${mins}m</span></span>${badgeHtml}</div>`;
                 });
             } else { container.innerHTML = '<span style="color: #94a3b8; font-size:12px;">Nenhum operacional em plantão.</span>'; }
         }
@@ -1451,7 +1461,11 @@
         }
 
         function calcularSegundosTotais() {
-            return (estadoTurno === 'ativo' && timestampInicioServer) ? segundosAcumuladosBase + Math.floor((Date.now() - timestampInicioServer) / 1000) : segundosAcumuladosBase;
+            if (estadoTurno === 'ativo' && timestampInicioServer) {
+                const decorrido = Math.floor((Date.now() - timestampInicioServer) / 1000);
+                return segundosAcumuladosBase + (decorrido > 0 ? decorrido : 0);
+            }
+            return segundosAcumuladosBase;
         }
 
         function atualizarDisplayTimer() {
@@ -1473,7 +1487,9 @@
                 if (data.success && data.membro) {
                     estadoTurno = data.membro.estadoTurno || 'parado';
                     segundosAcumuladosBase = data.membro.segundosAcumulados || 0;
-                    timestampInicioServer = data.membro.inicioPlantao ? new Date(data.membro.inicioPlantao).getTime() : null;
+                    timestampInicioServer = (estadoTurno === 'ativo' && data.membro.inicioPlantao)
+                        ? new Date(data.membro.inicioPlantao).getTime()
+                        : null;
                     if (estadoTurno === 'ativo' || estadoTurno === 'pausado') {
                         fotoComprovanteBase64 = data.membro.fotoComprovanteAtiva || '';
                     } else {
@@ -1594,13 +1610,15 @@
                 timestampInicioServer = null;
                 estadoTurno = 'pausado';
                 clearInterval(timerInterval);
+                atualizarDisplayTimer();
                 await fetch('/api/membro/status-plantao', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         nickname: user.nickname,
-                        emPlantao: false,
+                        emPlantao: true,
                         estadoTurno: 'pausado',
+                        inicioPlantao: null,
                         segundosAcumulados: segundosAcumuladosBase,
                         fotoComprovanteAtiva: fotoComprovanteBase64
                     })

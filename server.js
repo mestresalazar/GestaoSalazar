@@ -225,11 +225,14 @@ async function verificarFechamentoAutomaticoTurnos() {
         const minuto = agoraBrasil.getUTCMinutes();
 
         if (hora === 2 && minuto >= 5 && minuto <= 7) {
-            const membrosEmPlantao = await User.find({ emPlantao: true }, 'nickname cargo segundosAcumulados inicioPlantao fotoComprovanteAtiva');
+            const membrosEmPlantao = await User.find(
+                { $or: [{ emPlantao: true }, { estadoTurno: { $in: ['ativo', 'pausado'] } }] },
+                'nickname cargo estadoTurno segundosAcumulados inicioPlantao fotoComprovanteAtiva'
+            );
 
             for (const membro of membrosEmPlantao) {
                 let segundosTotais = membro.segundosAcumulados || 0;
-                if (membro.inicioPlantao) {
+                if (membro.estadoTurno === 'ativo' && membro.inicioPlantao) {
                     const inicio = new Date(membro.inicioPlantao);
                     const agora = new Date();
                     const segundosDecorridos = Math.floor((agora - inicio) / 1000);
@@ -266,17 +269,25 @@ async function verificarFechamentoAutomaticoTurnos() {
                         }
                     );
 
-                    // Regista o fechamento no modelo BatePonto (Etapa 3)
+                    // Regista o fechamento no modelo BatePonto (Etapa 3) acumulando se já existir
                     const dataCiclo = obterDataCicloBrasil();
+                    const pontoExistente = await BatePonto.findOne({ usuario: membro._id, data: dataCiclo, etapa: 3 });
+                    let segundosFinaisPonto = segundosTotais;
+                    if (pontoExistente && pontoExistente.segundosTotais) {
+                        segundosFinaisPonto += pontoExistente.segundosTotais;
+                    }
+                    const duracaoPonto = converterSegundosParaDuracao(segundosFinaisPonto);
+
                     await BatePonto.findOneAndUpdate(
                         { usuario: membro._id, data: dataCiclo, etapa: 3 },
                         {
                             $set: {
                                 nickname: membro.nickname,
                                 status: 'presente',
-                                duracao: duracaoFormatada,
-                                segundosTotais: segundosTotais,
+                                duracao: duracaoPonto,
+                                segundosTotais: segundosFinaisPonto,
                                 fotoComprovante: comprovanteFinal,
+                                emAndamento: false,
                                 dataRegistro: new Date()
                             }
                         },
@@ -618,16 +629,11 @@ app.put('/api/membro/status-plantao', async (req, res) => {
         );
         if (!membroAtual) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
-        // Só bloqueia novo início se já estiver com plantão ativo e não for pausa/atualização
-        if (emPlantao && estadoTurno === 'ativo' && membroAtual.emPlantao && membroAtual.estadoTurno === 'ativo' && !inicioPlantao) {
-            return res.status(400).json({
-                success: false,
-                message: 'Já possui um turno ativo no momento! Termine o turno atual antes de iniciar outro.'
-            });
-        }
+        const estadoTurnoDestino = estadoTurno || (emPlantao ? 'ativo' : 'parado');
+        const ehNovoTurno = (membroAtual.estadoTurno === 'parado' || !membroAtual.estadoTurno) && estadoTurnoDestino === 'ativo';
 
-        // Ao INICIAR um plantão novo (não estava em plantão ativo), valida a janela regulamentar de Brasília (17h às 02h)
-        if (emPlantao && (!membroAtual.emPlantao || membroAtual.estadoTurno === 'parado')) {
+        // Ao INICIAR um novo plantão (vindo de parado), valida a janela regulamentar de Brasília (17h às 02h)
+        if (ehNovoTurno) {
             const agoraBrasil = obterDataEmBrasil(Date.now());
             const hora = agoraBrasil.getUTCHours();
             const minuto = agoraBrasil.getUTCMinutes();
@@ -645,18 +651,28 @@ app.put('/api/membro/status-plantao', async (req, res) => {
         }
 
         const updateData = {
-            emPlantao: !!emPlantao,
-            estadoTurno: estadoTurno || (emPlantao ? 'ativo' : 'parado')
+            estadoTurno: estadoTurnoDestino
         };
 
-        if (!emPlantao && estadoTurno === 'parado') {
+        if (estadoTurnoDestino === 'parado') {
+            updateData.emPlantao = false;
             updateData.inicioPlantao = null;
             updateData.segundosAcumulados = 0;
             updateData.fotoComprovanteAtiva = '';
-        } else {
-            if (inicioPlantao !== undefined) {
-                updateData.inicioPlantao = inicioPlantao ? new Date(inicioPlantao) : null;
-            } else if (!membroAtual.inicioPlantao && updateData.estadoTurno === 'ativo') {
+        } else if (estadoTurnoDestino === 'pausado') {
+            updateData.emPlantao = true;
+            updateData.inicioPlantao = null; // Interrompe o relógio contínuo, mantendo segundos acumulados intactos
+            if (segundosAcumulados !== undefined) {
+                updateData.segundosAcumulados = Math.max(0, parseInt(segundosAcumulados, 10) || 0);
+            }
+            if (fotoComprovanteAtiva !== undefined) {
+                updateData.fotoComprovanteAtiva = fotoComprovanteAtiva;
+            }
+        } else if (estadoTurnoDestino === 'ativo') {
+            updateData.emPlantao = true;
+            if (inicioPlantao) {
+                updateData.inicioPlantao = new Date(inicioPlantao);
+            } else if (!membroAtual.inicioPlantao) {
                 updateData.inicioPlantao = new Date();
             }
 
@@ -673,6 +689,34 @@ app.put('/api/membro/status-plantao', async (req, res) => {
             { _id: membroAtual._id },
             { $set: updateData }
         );
+
+        // Ao dar check-in, registra a presença na etapa no BatePonto imediatamente
+        if (ehNovoTurno) {
+            try {
+                const dataInicioRef = updateData.inicioPlantao || new Date();
+                const etapaDeterminada = obterEtapaHorarioBrasilia(dataInicioRef) || 1;
+                const dataCiclo = obterDataCicloBrasil(dataInicioRef.getTime());
+                await BatePonto.findOneAndUpdate(
+                    { usuario: membroAtual._id, data: dataCiclo, etapa: etapaDeterminada },
+                    {
+                        $set: {
+                            nickname: membroAtual.nickname,
+                            status: 'presente',
+                            fotoComprovante: updateData.fotoComprovanteAtiva || membroAtual.fotoComprovanteAtiva || '',
+                            emAndamento: true,
+                            dataRegistro: new Date()
+                        },
+                        $setOnInsert: {
+                            duracao: '00:00:00',
+                            segundosTotais: 0
+                        }
+                    },
+                    { upsert: true, new: true }
+                );
+            } catch (errBatePonto) {
+                console.error("Aviso ao persistir check-in no BatePonto:", errBatePonto.message);
+            }
+        }
 
         io.emit('atualizar_estado_turno_usuario', { nickname: String(nickname).toLowerCase().trim() });
         io.emit('atualizar_status_geral_tropa');
@@ -696,22 +740,26 @@ app.post('/api/membro/turno', async (req, res) => {
 
         const membroDoc = await User.findOne(
             { nickname: new RegExp('^' + String(nickname).trim() + '$', 'i') },
-            '_id nickname cargo inicioPlantao segundosAcumulados fotoComprovanteAtiva'
+            '_id nickname cargo estadoTurno inicioPlantao segundosAcumulados fotoComprovanteAtiva'
         );
         if (!membroDoc) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
         let segundosFinais = parseInt(segundosTotais, 10) || 0;
-        if (segundosFinais <= 0 && duracao) {
-            segundosFinais = converterDuracaoParaSegundos(duracao);
+
+        // Calcula tempo real acumulado com base no estado salvo no servidor
+        let segundosBanco = Number(membroDoc.segundosAcumulados || 0);
+        if (membroDoc.estadoTurno === 'ativo' && membroDoc.inicioPlantao) {
+            const diffBanco = Math.floor((Date.now() - new Date(membroDoc.inicioPlantao).getTime()) / 1000);
+            if (diffBanco > 0) segundosBanco += diffBanco;
         }
 
-        if (segundosFinais <= 0) {
-            let calc = Number(membroDoc.segundosAcumulados || 0);
-            if (membroDoc.inicioPlantao) {
-                const diff = Math.floor((Date.now() - new Date(membroDoc.inicioPlantao).getTime()) / 1000);
-                if (diff > 0) calc += diff;
-            }
-            segundosFinais = calc;
+        // Se o valor do servidor for mais completo ou o cliente não enviou, utiliza o tempo real
+        if (segundosFinais <= 0 || (segundosBanco > 0 && segundosBanco > segundosFinais)) {
+            segundosFinais = segundosBanco;
+        }
+
+        if (segundosFinais <= 0 && duracao) {
+            segundosFinais = converterDuracaoParaSegundos(duracao);
         }
 
         if (segundosFinais < 5) {
@@ -744,21 +792,29 @@ app.post('/api/membro/turno', async (req, res) => {
             }
         );
 
-        // 2. Persiste e atualiza no modelo BatePonto se estiver em etapa regulamentar
+        // 2. Persiste e acumula no modelo BatePonto na etapa regulamentar
         const dataInicioRef = membroDoc.inicioPlantao ? new Date(membroDoc.inicioPlantao) : new Date();
         const etapaDeterminada = obterEtapaHorarioBrasilia(dataInicioRef) || obterEtapaHorarioBrasilia(new Date()) || 1;
         const dataCiclo = obterDataCicloBrasil(dataInicioRef.getTime());
 
         try {
+            const pontoExistente = await BatePonto.findOne({ usuario: membroDoc._id, data: dataCiclo, etapa: etapaDeterminada });
+            let segundosTotaisEtapa = segundosFinais;
+            if (pontoExistente && pontoExistente.segundosTotais) {
+                segundosTotaisEtapa += pontoExistente.segundosTotais;
+            }
+            const duracaoEtapaFormatada = converterSegundosParaDuracao(segundosTotaisEtapa);
+
             await BatePonto.findOneAndUpdate(
                 { usuario: membroDoc._id, data: dataCiclo, etapa: etapaDeterminada },
                 {
                     $set: {
                         nickname: membroDoc.nickname,
                         status: 'presente',
-                        duracao: duracaoFormatada,
-                        segundosTotais: segundosFinais,
+                        duracao: duracaoEtapaFormatada,
+                        segundosTotais: segundosTotaisEtapa,
                         fotoComprovante: comprovanteFinal,
+                        emAndamento: false,
                         dataRegistro: new Date()
                     }
                 },
@@ -1025,7 +1081,10 @@ app.get(['/api/membro/em-plantao', '/api/membro/em-plantao/:nickname'], async (r
     try {
         let nickname = req.params.nickname || req.query.nickname;
         if (!nickname) {
-            const membrosAtivos = await User.find({ emPlantao: true }, 'nickname cargo inicioPlantao fotoComprovanteAtiva').lean();
+            const membrosAtivos = await User.find(
+                { $or: [{ emPlantao: true }, { estadoTurno: { $in: ['ativo', 'pausado'] } }] },
+                'nickname cargo emPlantao estadoTurno inicioPlantao segundosAcumulados fotoComprovanteAtiva'
+            ).lean();
             return res.json({
                 success: true,
                 emPlantao: membrosAtivos,
