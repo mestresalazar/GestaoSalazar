@@ -938,15 +938,14 @@
             }
         }
 
-        // Horário de Brasília (UTC-3) consistente
+        // Horário America/Recife (UTC-3) consistente
         function obterDataCicloOperacional() {
-            const agoraBrasil = new Date(Date.now() - (3 * 3600 * 1000));
-            const hora = agoraBrasil.getUTCHours();
-            const min = agoraBrasil.getUTCMinutes();
-            if (hora < 2 || (hora === 2 && min <= 15)) {
-                agoraBrasil.setUTCDate(agoraBrasil.getUTCDate() - 1);
+            const agoraRecife = new Date(Date.now() - (3 * 3600 * 1000));
+            const hora = agoraRecife.getUTCHours();
+            if (hora < 2) {
+                agoraRecife.setUTCDate(agoraRecife.getUTCDate() - 1);
             }
-            return agoraBrasil.toISOString().split('T')[0];
+            return agoraRecife.toISOString().split('T')[0];
         }
 
         function comprimirImagemBase64(file, callback) {
@@ -1308,7 +1307,15 @@
                 filtrados.forEach(u => {
                     let totalSegundosMembro = u.segundosAcumulados || 0;
                     if (u.estadoTurno === 'ativo' && u.inicioPlantao) {
-                        const decorrido = Math.floor((Date.now() - new Date(u.inicioPlantao).getTime()) / 1000);
+                        const inicioMs = new Date(u.inicioPlantao).getTime();
+                        const inicioRecife = new Date(inicioMs - (3 * 3600 * 1000));
+                        const ano = inicioRecife.getUTCFullYear();
+                        const mes = inicioRecife.getUTCMonth();
+                        const dia = inicioRecife.getUTCDate();
+                        const diaLimite = inicioRecife.getUTCHours() >= 17 ? dia + 1 : dia;
+                        const limite02hMs = Date.UTC(ano, mes, diaLimite, 5, 0, 0, 0); // 05:00 UTC = 02:00 America/Recife
+                        const fimValido = Math.min(Date.now(), limite02hMs);
+                        const decorrido = Math.floor((fimValido - inicioMs) / 1000);
                         if (decorrido > 0) totalSegundosMembro += decorrido;
                     }
                     const mins = Math.floor(totalSegundosMembro / 60);
@@ -1478,10 +1485,9 @@
         function obterInfoEtapaHorarioBrasilia() {
             const agoraBrasil = new Date(Date.now() - (3 * 3600 * 1000));
             const hora = agoraBrasil.getUTCHours();
-            const min = agoraBrasil.getUTCMinutes();
             if (hora >= 17 && hora < 20) return { etapa: 1, nome: 'Etapa 1 (17h - 20h)' };
             if (hora >= 20 && hora < 23) return { etapa: 2, nome: 'Etapa 2 (20h - 23h)' };
-            if (hora === 23 || hora === 0 || hora === 1 || (hora === 2 && min <= 15)) return { etapa: 3, nome: 'Etapa 3 (23h - 02h)' };
+            if (hora === 23 || hora === 0 || hora === 1) return { etapa: 3, nome: 'Etapa 3 (23h - 02h)' };
             return { etapa: null, nome: 'Fora do Horário Regulamentar (17h - 02h)' };
         }
 
@@ -1510,7 +1516,17 @@
 
         function calcularSegundosTotais() {
             if (estadoTurno === 'ativo' && timestampInicioServer) {
-                const decorrido = Math.floor((Date.now() - timestampInicioServer) / 1000);
+                // Teto estrito às 02:00:00 (America/Recife = UTC-3)
+                const inicioRecife = new Date(timestampInicioServer - (3 * 3600 * 1000));
+                const ano = inicioRecife.getUTCFullYear();
+                const mes = inicioRecife.getUTCMonth();
+                const dia = inicioRecife.getUTCDate();
+                const diaLimite = inicioRecife.getUTCHours() >= 17 ? dia + 1 : dia;
+                const limite02hMs = Date.UTC(ano, mes, diaLimite, 5, 0, 0, 0); // 05:00 UTC = 02:00 Recife
+
+                const agora = Date.now();
+                const fimEfetivo = Math.min(agora, limite02hMs);
+                const decorrido = Math.floor((fimEfetivo - timestampInicioServer) / 1000);
                 return segundosAcumuladosBase + (decorrido > 0 ? decorrido : 0);
             }
             return segundosAcumuladosBase;

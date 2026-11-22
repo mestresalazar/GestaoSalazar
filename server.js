@@ -96,79 +96,102 @@ function converterSegundosParaDuracao(segundosTotais) {
   return `${horas}:${minutos}:${segundos}`;
 }
 
-// Helper consistente para horário de Brasília (UTC-3), independente do fuso do servidor
+// Helper oficial para o fuso horário regulamentar da organização: America/Recife (UTC-3)
+function obterComponentesRecife(dateObj = new Date()) {
+    const d = new Date(dateObj);
+    const formatador = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Recife',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    });
+    const partes = formatador.formatToParts(d);
+    const mapa = {};
+    for (const p of partes) mapa[p.type] = p.value;
+    return {
+        ano: parseInt(mapa.year, 10),
+        mes: parseInt(mapa.month, 10),
+        dia: parseInt(mapa.day, 10),
+        hora: parseInt(mapa.hour === '24' ? '0' : mapa.hour, 10),
+        minuto: parseInt(mapa.minute, 10),
+        segundo: parseInt(mapa.second, 10)
+    };
+}
+
 function obterDataEmBrasil(timestamp = Date.now()) {
     return new Date(Number(timestamp) - (3 * 3600 * 1000));
 }
 
-function horaBrasiliaEstaNaJanelaTurno(dateObj) {
-    const dBrasil = obterDataEmBrasil(dateObj);
-    const hora = dBrasil.getUTCHours();
-    const minuto = dBrasil.getUTCMinutes();
-    // 17:00 às 23:59
+function horaRecifeEstaNaJanelaTurno(dateObj = new Date()) {
+    const comp = obterComponentesRecife(dateObj);
+    const hora = comp.hora;
+    const minuto = comp.minuto;
+    // Janela regulamentar: 17:00:00 até 02:00:00 (atravessando a meia-noite em America/Recife)
     if (hora >= 17 && hora <= 23) return true;
-    // 00:00 às 01:59
     if (hora >= 0 && hora < 2) return true;
-    // Tolerância até 02:15 para turnos da Etapa 3
-    if (hora === 2 && minuto <= 15) return true;
+    if (hora === 2 && minuto === 0 && comp.segundo === 0) return true;
     return false;
 }
 
+const horaBrasiliaEstaNaJanelaTurno = horaRecifeEstaNaJanelaTurno;
+
 function obterEtapaHorarioBrasilia(dateObj = new Date()) {
-    const dBrasil = obterDataEmBrasil(dateObj);
-    const hora = dBrasil.getUTCHours();
-    const minuto = dBrasil.getUTCMinutes();
+    const comp = obterComponentesRecife(dateObj);
+    const hora = comp.hora;
+    const minuto = comp.minuto;
     // Etapa 1: 17h às 20h
     if (hora >= 17 && hora < 20) return 1;
     // Etapa 2: 20h às 23h
     if (hora >= 20 && hora < 23) return 2;
-    // Etapa 3: 23h às 02h (com tolerância até 02:15)
-    if (hora === 23 || hora === 0 || hora === 1 || (hora === 2 && minuto <= 15)) return 3;
+    // Etapa 3: 23h às 02h (sem contabilizar após 02:00)
+    if (hora === 23 || hora === 0 || hora === 1 || (hora === 2 && minuto === 0)) return 3;
     return null;
 }
 
 function obterDataCicloBrasil(timestamp = Date.now()) {
-    const agoraBrasil = obterDataEmBrasil(timestamp);
-    const hora = agoraBrasil.getUTCHours();
-    const min = agoraBrasil.getUTCMinutes();
-    // Ciclo diário de plantão vai das 17h até às 02h (com tolerância até 02:15)
-    if (hora < 2 || (hora === 2 && min <= 15)) {
-        agoraBrasil.setUTCDate(agoraBrasil.getUTCDate() - 1);
+    const comp = obterComponentesRecife(new Date(timestamp));
+    const d = new Date(Date.UTC(comp.ano, comp.mes - 1, comp.dia, 12, 0, 0, 0));
+    // Ciclo diário de plantão vai das 17h até às 02h
+    if (comp.hora < 2 || (comp.hora === 2 && comp.minuto === 0 && comp.segundo === 0)) {
+        d.setUTCDate(d.getUTCDate() - 1);
     }
-    return agoraBrasil.toISOString().split('T')[0];
+    return d.toISOString().split('T')[0];
 }
 
-function calcularSegundosValidosNoHorario(inicioTimestamp, fimTimestamp) {
+// Retorna o timestamp exato do encerramento regulamentar (02:00:00 America/Recife = 05:00:00 UTC)
+function obterTimestampLimite02hRecife(inicioMs) {
+    const comp = obterComponentesRecife(new Date(inicioMs));
+    let ano = comp.ano;
+    let mes = comp.mes;
+    let dia = comp.dia;
+
+    // Se o turno começou entre 17:00 e 23:59, as 02:00 ocorrem no dia seguinte
+    if (comp.hora >= 17) {
+        return new Date(Date.UTC(ano, mes - 1, dia + 1, 5, 0, 0, 0)).getTime();
+    } else if (comp.hora < 2) {
+        // Se começou entre 00:00 e 01:59, as 02:00 ocorrem no mesmo dia
+        return new Date(Date.UTC(ano, mes - 1, dia, 5, 0, 0, 0)).getTime();
+    } else {
+        // Fora do horário (>= 02:00), o limite de 02:00 do ciclo anterior já expirou
+        return new Date(Date.UTC(ano, mes - 1, dia, 5, 0, 0, 0)).getTime();
+    }
+}
+
+function calcularSegundosValidosNoHorario(inicioTimestamp, fimTimestamp = Date.now()) {
     const inicioMs = new Date(inicioTimestamp).getTime();
     const fimMs = new Date(fimTimestamp).getTime();
     if (isNaN(inicioMs) || isNaN(fimMs) || fimMs <= inicioMs) return 0;
 
-    // Trabalha em timestamps UTC deslocados em -3h para alinhar exatamente às 17:00 e 02:00 de Brasília
-    const offsetMs = 3 * 3600 * 1000;
-    const inicioBrt = new Date(inicioMs - offsetMs);
+    const limite02hMs = obterTimestampLimite02hRecife(inicioMs);
+    // Trava estrita: nenhum segundo após as 02:00:00 de America/Recife é contabilizado
+    const fimValidoMs = Math.min(fimMs, limite02hMs);
 
-    const janelaInicioBrt = new Date(Date.UTC(
-        inicioBrt.getUTCFullYear(),
-        inicioBrt.getUTCMonth(),
-        inicioBrt.getUTCDate(),
-        17, 0, 0, 0
-    ));
-
-    if (inicioBrt.getUTCHours() < 2 || (inicioBrt.getUTCHours() === 2 && inicioBrt.getUTCMinutes() <= 15)) {
-        janelaInicioBrt.setUTCDate(janelaInicioBrt.getUTCDate() - 1);
-    }
-
-    const janelaFimBrt = new Date(janelaInicioBrt.getTime() + (9 * 3600 * 1000) + (15 * 60 * 1000)); // 17:00 até 02:15 (+9h15m)
-
-    const janelaInicioRealMs = janelaInicioBrt.getTime() + offsetMs;
-    const janelaFimRealMs = janelaFimBrt.getTime() + offsetMs;
-
-    const inicioValido = Math.max(inicioMs, janelaInicioRealMs);
-    const fimValido = Math.min(fimMs, janelaFimRealMs);
-
-    if (fimValido <= inicioValido) return 0;
-
-    return Math.floor((fimValido - inicioValido) / 1000);
+    if (fimValidoMs <= inicioMs) return 0;
+    return Math.floor((fimValidoMs - inicioMs) / 1000);
 }
 
 function turnoEstaNoHorarioPermitido(t) {
@@ -232,34 +255,36 @@ app.post('/api/admin/whatsapp-link', async (req, res) => {
     }
 });
 
-// --- VERIFICAÇÃO AUTOMÁTICA DE FECHO DE TURNO ÀS 02:05 (BRASÍLIA) ---
+// --- ENCERRAMENTO AUTOMÁTICO DE TURNOS ÀS 02:05 (FUSO AMERICA/RECIFE) ---
 async function verificarFechamentoAutomaticoTurnos() {
     try {
         if (mongoose.connection.readyState !== 1) return;
-        const agoraBrasil = obterDataEmBrasil(Date.now());
-        const hora = agoraBrasil.getUTCHours();
-        const minuto = agoraBrasil.getUTCMinutes();
+        const comp = obterComponentesRecife(new Date());
 
-        if (hora === 2 && minuto >= 5 && minuto <= 7) {
+        // Dispara rigorosamente na faixa das 02:05 em America/Recife
+        if (comp.hora === 2 && comp.minuto >= 5 && comp.minuto <= 7) {
             const membrosEmPlantao = await User.find(
                 { $or: [{ emPlantao: true }, { estadoTurno: { $in: ['ativo', 'pausado'] } }] },
                 'nickname cargo estadoTurno segundosAcumulados inicioPlantao fotoComprovanteAtiva'
             );
 
             for (const membro of membrosEmPlantao) {
-                let segundosTotais = membro.segundosAcumulados || 0;
+                let segundosTotais = Number(membro.segundosAcumulados || 0);
                 if (membro.estadoTurno === 'ativo' && membro.inicioPlantao) {
-                    const inicio = new Date(membro.inicioPlantao);
-                    const agora = new Date();
-                    const segundosDecorridos = Math.floor((agora - inicio) / 1000);
-                    if (segundosDecorridos > 0) segundosTotais += segundosDecorridos;
+                    // Contabiliza apenas os segundos até as 02:00:00 exatas (sem computar após 02:00)
+                    const decorridoValido = calcularSegundosValidosNoHorario(membro.inicioPlantao, Date.now());
+                    if (decorridoValido > 0) segundosTotais += decorridoValido;
                 }
+
+                const refInicio = membro.inicioPlantao ? new Date(membro.inicioPlantao).getTime() : (Date.now() - (60 * 60 * 1000));
+                const limite02hMs = obterTimestampLimite02hRecife(refInicio);
+                const dataCiclo = obterDataCicloBrasil(limite02hMs - 1000);
 
                 if (segundosTotais >= 5) {
                     const duracaoFormatada = converterSegundosParaDuracao(segundosTotais);
-                    const comprovanteFinal = membro.fotoComprovanteAtiva || 'Fechamento Automático (Limite 02:05)';
+                    const comprovanteFinal = membro.fotoComprovanteAtiva || 'Fechamento Automático (Limite 02:00)';
                     const novoTurno = {
-                        data: new Date(),
+                        data: new Date(limite02hMs),
                         duracao: duracaoFormatada,
                         fotoComprovante: comprovanteFinal
                     };
@@ -271,7 +296,7 @@ async function verificarFechamentoAutomaticoTurnos() {
                                 historicoTurnos: novoTurno,
                                 caixaEntrada: {
                                     titulo: '⏱️ Turno Finalizado Automaticamente',
-                                    mensagem: `O teu plantão foi encerrado e salvo automaticamente pelo sistema devido ao atingimento do horário limite (02:05). Duração: <b>${duracaoFormatada}</b>.`,
+                                    mensagem: `O teu plantão foi encerrado e consolidado automaticamente pelo sistema às 02:05 (limite regulamentar 02:00 America/Recife). Duração computada: <b>${duracaoFormatada}</b>.`,
                                     data: new Date()
                                 }
                             },
@@ -285,11 +310,10 @@ async function verificarFechamentoAutomaticoTurnos() {
                         }
                     );
 
-                    // Regista o fechamento no modelo BatePonto (Etapa 3) acumulando se já existir
-                    const dataCiclo = obterDataCicloBrasil();
+                    // Regista o encerramento no modelo BatePonto (Etapa 3: 23h às 02h) sem duplicação de segundos
                     const pontoExistente = await BatePonto.findOne({ usuario: membro._id, data: dataCiclo, etapa: 3 });
                     let segundosFinaisPonto = segundosTotais;
-                    if (pontoExistente && pontoExistente.segundosTotais) {
+                    if (pontoExistente && pontoExistente.segundosTotais && !pontoExistente.emAndamento) {
                         segundosFinaisPonto += pontoExistente.segundosTotais;
                     }
                     const duracaoPonto = converterSegundosParaDuracao(segundosFinaisPonto);
@@ -311,7 +335,22 @@ async function verificarFechamentoAutomaticoTurnos() {
                     );
 
                     io.emit('atualizar_estado_turno_usuario', { nickname: membro.nickname.toLowerCase() });
-                    await registarLogAdmin(membro.nickname, 'Fechamento Automático', `Turno encerrado às 02:05. Duração salva: ${duracaoFormatada}`);
+                    await registarLogAdmin(membro.nickname, 'Fechamento Automático', `Turno encerrado e consolidado às 02:05 (limite 02:00). Duração válida: ${duracaoFormatada}`);
+                } else {
+                    // Turno sem tempo válido mínimo, apenas reseta estado sem poluir histórico
+                    await User.updateOne(
+                        { _id: membro._id },
+                        {
+                            $set: {
+                                emPlantao: false,
+                                estadoTurno: 'parado',
+                                inicioPlantao: null,
+                                segundosAcumulados: 0,
+                                fotoComprovanteAtiva: ''
+                            }
+                        }
+                    );
+                    io.emit('atualizar_estado_turno_usuario', { nickname: membro.nickname.toLowerCase() });
                 }
             }
             if (membrosEmPlantao.length > 0) {
@@ -732,20 +771,19 @@ app.put('/api/membro/status-plantao', async (req, res) => {
         const estadoTurnoDestino = estadoTurno || (emPlantao ? 'ativo' : 'parado');
         const ehNovoTurno = (membroAtual.estadoTurno === 'parado' || !membroAtual.estadoTurno) && estadoTurnoDestino === 'ativo';
 
-        // Ao INICIAR um novo plantão (vindo de parado), valida a janela regulamentar de Brasília (17h às 02h)
+        // Ao INICIAR um novo plantão (vindo de parado), valida a janela regulamentar America/Recife (17h às 02h)
         if (ehNovoTurno) {
-            const agoraBrasil = obterDataEmBrasil(Date.now());
-            const hora = agoraBrasil.getUTCHours();
-            const minuto = agoraBrasil.getUTCMinutes();
+            const comp = obterComponentesRecife(new Date());
+            const hora = comp.hora;
             const cargo = membroAtual.cargo || '';
             const ehMestre = String(nickname).toLowerCase().trim() === 'mestre' || cargo === 'General' || cargo === 'Coronel All';
 
-            const dentroDoHorario = (hora >= 17 && hora <= 23) || (hora >= 0 && hora < 2) || (hora === 2 && minuto <= 15);
+            const dentroDoHorario = (hora >= 17 && hora <= 23) || (hora >= 0 && hora < 2);
 
             if (!ehMestre && !dentroDoHorario) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Plantões só podem ser iniciados no horário regulamentar: das 17:00 até às 02:00 da madrugada!'
+                    message: 'Plantões só podem ser iniciados no horário regulamentar: das 17:00 até às 02:00 (America/Recife)!'
                 });
             }
         }
@@ -754,10 +792,10 @@ app.put('/api/membro/status-plantao', async (req, res) => {
             estadoTurno: estadoTurnoDestino
         };
 
-        // Consolida os segundos acumulados reais considerando o tempo corrido no servidor e/ou enviado pelo cliente
+        // Consolida os segundos acumulados reais respeitando rigorosamente o teto das 02:00
         let segundosConsolidados = Number(membroAtual.segundosAcumulados || 0);
         if (membroAtual.estadoTurno === 'ativo' && membroAtual.inicioPlantao) {
-            const diffBanco = Math.floor((Date.now() - new Date(membroAtual.inicioPlantao).getTime()) / 1000);
+            const diffBanco = calcularSegundosValidosNoHorario(membroAtual.inicioPlantao, Date.now());
             if (diffBanco > 0) segundosConsolidados += diffBanco;
         }
         if (segundosAcumulados !== undefined) {
@@ -901,10 +939,10 @@ app.post('/api/membro/turno', async (req, res) => {
 
         let segundosFinais = parseInt(segundosTotais, 10) || 0;
 
-        // Calcula tempo real acumulado com base no estado salvo no servidor
+        // Calcula tempo real acumulado com base no estado salvo no servidor, limitado estritamente até 02:00:00
         let segundosBanco = Number(membroDoc.segundosAcumulados || 0);
         if (membroDoc.estadoTurno === 'ativo' && membroDoc.inicioPlantao) {
-            const diffBanco = Math.floor((Date.now() - new Date(membroDoc.inicioPlantao).getTime()) / 1000);
+            const diffBanco = calcularSegundosValidosNoHorario(membroDoc.inicioPlantao, Date.now());
             if (diffBanco > 0) segundosBanco += diffBanco;
         }
 
@@ -955,7 +993,7 @@ app.post('/api/membro/turno', async (req, res) => {
         try {
             const pontoExistente = await BatePonto.findOne({ usuario: membroDoc._id, data: dataCiclo, etapa: etapaDeterminada });
             let segundosTotaisEtapa = segundosFinais;
-            if (pontoExistente && pontoExistente.segundosTotais) {
+            if (pontoExistente && pontoExistente.segundosTotais && !pontoExistente.emAndamento) {
                 segundosTotaisEtapa += pontoExistente.segundosTotais;
             }
             const duracaoEtapaFormatada = converterSegundosParaDuracao(segundosTotaisEtapa);
