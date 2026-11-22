@@ -691,7 +691,7 @@
                 <span class="icon">👤</span>
                 <span>Meu Perfil</span>
             </button>
-            <button class="drawer-nav-item" id="btnGrupoWhatsappNav" style="display: none; color: #4ade80;" onclick="abrirGrupoWhatsapp(); alternarSideDrawer(false);">
+            <button class="drawer-nav-item" id="btnGrupoWhatsappNav" style="color: #4ade80;" onclick="abrirGrupoWhatsapp(); alternarSideDrawer(false);">
                 <span class="icon">📱</span>
                 <span>Grupo WhatsApp</span>
             </button>
@@ -1221,38 +1221,53 @@
     </div>
 
     <div id="modalPerfil">
-        <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 90%; max-width: 450px; border-radius: 16px; padding: 28px; border: 1px solid rgba(56, 189, 248, 0.4); text-align: center; max-height: 85vh; overflow-y: auto; -webkit-overflow-scrolling: touch;">
-            <button class="close-modal" onclick="fecharPerfilModal()">X</button>
-            <h3 style="color: #38bdf8; margin-bottom: 20px;">👤 Perfil do Operacional</h3>
+        <div style="background: linear-gradient(160deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 92%; max-width: 440px; border-radius: 20px; padding: 22px 20px; border: 1px solid rgba(56, 189, 248, 0.35); text-align: center; max-height: 90vh; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; box-shadow: 0 12px 35px rgba(0,0,0,0.85);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid rgba(56, 189, 248, 0.2); padding-bottom: 10px;">
+                <h3 style="color: #38bdf8; font-size: 17px; margin: 0; font-weight: 800; border: none; padding: 0;">👤 Perfil do Operacional</h3>
+                <button class="close-modal" onclick="fecharPerfilModal()" style="margin: 0; padding: 4px 10px; font-size: 13px;">✕</button>
+            </div>
 
-            <div id="avatarContainer">
-                <div class="avatar-preview" id="imgAvatarVisualizar">🛡️</div>
+            <div style="position: relative; width: 88px; height: 88px; margin: 0 auto 12px auto;">
+                <div class="avatar-preview" id="imgAvatarVisualizar" style="margin: 0; width: 88px; height: 88px;">🛡️</div>
+                <label for="inputFotoAvatar" style="position: absolute; bottom: -4px; right: -4px; background: #38bdf8; color: #000; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.6);" title="Alterar Foto">📷</label>
+                <input type="file" id="inputFotoAvatar" accept="image/*" onchange="converterAvatarLocal(this)" style="display: none;">
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <span id="perfilCargoBadge" style="font-size: 11px; padding: 3px 10px; border-radius: 6px; font-weight: 700; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);">SOLDADO</span>
+            </div>
+
+            <div style="margin-bottom: 12px; text-align: left;">
+                <label style="font-size: 12px; color: #cbd5e1; font-weight: 600; display: block; margin-bottom: 4px;">Nome / Nickname no Jogo:</label>
+                <input type="text" id="inputNicknamePerfil" placeholder="Ex: Salazar_Recruta" style="width: 100%; padding: 11px 12px; background: rgba(7, 13, 22, 0.85); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 13px; outline: none;">
             </div>
 
             <div style="margin-bottom: 14px; text-align: left;">
-                <label style="font-size: 12px; color: #94a3b8; font-weight: 500;">Nome / Nickname no Jogo:</label>
-                <input type="text" id="inputNicknamePerfil" placeholder="Ex: Salazar_Recruta" style="width: 100%; padding: 10px 12px; background: rgba(7, 13, 22, 0.85); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 13px; margin-top: 6px; outline: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <label style="font-size: 12px; color: #4ade80; font-weight: 600;">📱 Número do WhatsApp (Obrigatório para o Grupo):</label>
+                </div>
+                <input type="tel" id="inputTelefonePerfil" placeholder="Ex: +55 (81) 99920-0148" style="width: 100%; padding: 11px 12px; background: rgba(7, 13, 22, 0.85); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 10px; color: white; font-size: 13px; outline: none; box-shadow: inset 0 1px 4px rgba(0,0,0,0.6);">
+                <span style="font-size: 11px; color: #94a3b8; display: block; margin-top: 3px;">Cadastre o seu número para aceder ao grupo da tropa.</span>
             </div>
 
-            <div style="margin-bottom: 14px; text-align: left;">
-                <label style="font-size: 12px; color: #94a3b8; font-weight: 500;">Alterar Foto de Avatar:</label>
-                <input type="file" id="inputFotoAvatar" accept="image/*" onchange="converterAvatarLocal(this)" style="width: 100%; padding: 8px; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 12px; margin-top: 6px;">
+            <div style="background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 12px; padding: 12px 14px; text-align: left; font-size: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px;">
+                <div>
+                    <span style="color: #94a3b8; display: block; font-size: 11px;">⏱️ Horas Acumuladas:</span>
+                    <b id="perfilTotalHoras" style="color: #22c55e; font-size: 13px;">00:00:00</b>
+                </div>
+                <div>
+                    <span style="color: #94a3b8; display: block; font-size: 11px;">⏳ Tempo na Tropa:</span>
+                    <b id="perfilTempoGestao" style="color: #eab308; font-size: 13px;">-</b>
+                </div>
+                <div style="grid-column: 1/-1; border-top: 1px solid rgba(56, 189, 248, 0.1); padding-top: 6px;">
+                    <span style="color: #94a3b8; display: block; font-size: 11px;">📌 Último Plantão:</span>
+                    <span id="perfilUltimoPlantao" style="color: #cbd5e1;">-</span>
+                </div>
             </div>
 
-            <div style="margin-bottom: 18px; text-align: left;">
-                <label style="font-size: 12px; color: #94a3b8; font-weight: 500;">Número de Telemóvel / WhatsApp:</label>
-                <input type="text" id="inputTelefonePerfil" placeholder="Ex: +55 81 99920-0148" style="width: 100%; padding: 10px 12px; background: rgba(7, 13, 22, 0.85); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 13px; margin-top: 6px; outline: none;">
-            </div>
-
-            <div style="background: rgba(7, 13, 22, 0.75); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 16px; text-align: left; font-size: 13px; display: flex; flex-direction: column; gap: 8px;">
-                <p><b>Nickname Registado:</b> <span id="perfilNickname" style="color: #38bdf8;">-</span></p>
-                <p><b>Cargo Atual:</b> <span id="perfilCargo">-</span></p>
-                <p><b>⏱️ Horas Acumuladas:</b> <span id="perfilTotalHoras" style="color: #22c55e; font-weight: bold;">-</span></p>
-                <p><b>⏳ Tempo na Organização:</b> <span id="perfilTempoGestao" style="color: #eab308; font-weight: bold;">-</span></p>
-                <p><b>📌 Último Turno:</b> <span id="perfilUltimoPlantao">-</span></p>
-            </div>
-
-            <button class="btn-action" style="background: linear-gradient(135deg, #16a34a, #15803d); margin-top: 22px;" onclick="salvarPerfilCompleto()">Guardar & Fechar</button>
+            <button id="btnSalvarPerfil" class="btn-action" style="background: linear-gradient(135deg, #16a34a, #15803d); margin-top: 0; padding: 12px; font-weight: 700; border-radius: 10px;" onclick="salvarPerfilCompleto()">
+                💾 Guardar Dados
+            </button>
         </div>
     </div>
 
@@ -1551,12 +1566,12 @@
                 const data = await res.json();
                 if (data.success && data.link) {
                     linkGrupoWhatsappGlobal = data.link;
-                    document.getElementById('btnGrupoWhatsappNav').style.display = 'inline-block';
                 }
             } catch (e) {}
 
             try {
-                const resPerfil = await fetch(`/api/membro/perfil/${encodeURIComponent(user.nickname)}`);
+                const ident = user._id || user.nickname;
+                const resPerfil = await fetch(`/api/membro/perfil/${encodeURIComponent(ident)}?_=${Date.now()}`);
                 const dataPerfil = await resPerfil.json();
                 if (dataPerfil.success && dataPerfil.perfil) {
                     telefoneMembroAtualCache = dataPerfil.perfil.telefone || '';
@@ -1577,7 +1592,8 @@
 
         async function abrirGrupoWhatsapp() {
             try {
-                const res = await fetch(`/api/membro/perfil/${encodeURIComponent(user.nickname)}`);
+                const ident = user._id || user.nickname;
+                const res = await fetch(`/api/membro/perfil/${encodeURIComponent(ident)}?_=${Date.now()}`);
                 const data = await res.json();
                 if (data.success && data.perfil) {
                     telefoneMembroAtualCache = data.perfil.telefone || '';
@@ -1586,43 +1602,53 @@
 
             if (!telefoneMembroAtualCache || telefoneMembroAtualCache.trim() === '') {
                 mostrarModalCustomizado(
-                    '⚠️ Contacto Obrigatório',
-                    'Para entrar no Grupo do WhatsApp, deve primeiro registar o seu número no seu <b>Perfil</b>.',
+                    '📱 Número do WhatsApp Obrigatório',
+                    'Para aceder ao Grupo da Tropa, cadastre primeiro o seu <b>número do WhatsApp</b>.',
                     'alerta',
-                    () => { abrirPerfilModal(); }
+                    () => {
+                        abrirPerfilModal();
+                        setTimeout(() => {
+                            const inp = document.getElementById('inputTelefonePerfil');
+                            if (inp) inp.focus();
+                        }, 300);
+                    }
                 );
                 return;
             }
 
-            if (linkGrupoWhatsappGlobal) {
+            if (linkGrupoWhatsappGlobal && linkGrupoWhatsappGlobal.trim() !== '') {
                 const novaJanela = window.open(linkGrupoWhatsappGlobal, '_blank', 'noopener,noreferrer');
                 if (!novaJanela) {
                     window.location.href = linkGrupoWhatsappGlobal;
                 }
             } else {
-                mostrarModalCustomizado('Aviso', 'O link do grupo do WhatsApp ainda não foi configurado.');
+                mostrarModalCustomizado('Grupo WhatsApp', 'O seu número de WhatsApp já está registado com sucesso! O Comando enviará o convite direto ou configurará o link em instantes.');
             }
         }
 
         async function abrirPerfilModal() {
             document.getElementById('modalPerfil').style.display = 'flex';
+            const inputNick = document.getElementById('inputNicknamePerfil');
+            if (inputNick) inputNick.value = user.nickname || '';
+
             try {
-                const res = await fetch(`/api/membro/perfil/${encodeURIComponent(user.nickname)}`);
+                const ident = user._id || user.nickname;
+                const res = await fetch(`/api/membro/perfil/${encodeURIComponent(ident)}?_=${Date.now()}`);
                 const data = await res.json();
-                if (data.success) {
+                if (data.success && data.perfil) {
                     const p = data.perfil;
-                    document.getElementById('perfilNickname').innerText = p.nickname;
-                    const inputNick = document.getElementById('inputNicknamePerfil');
                     if (inputNick) inputNick.value = p.nickname || user.nickname;
                     document.getElementById('inputTelefonePerfil').value = p.telefone || '';
                     telefoneMembroAtualCache = p.telefone || '';
 
-                    const cargoClass = `badge-cargo-${(p.cargo || 'soldado').toLowerCase().replace(/[^a-z0-9-]/g, '')}`;
-                    document.getElementById('perfilCargo').innerHTML = `<span class="${cargoClass}">${escapeHTML(p.cargo)}</span>`;
+                    const badgeCargo = document.getElementById('perfilCargoBadge');
+                    if (badgeCargo) {
+                        badgeCargo.innerText = (p.cargo || user.cargo || 'Privado').toUpperCase();
+                    }
 
-                    document.getElementById('perfilTotalHoras').innerText = p.totalHoras;
-                    document.getElementById('perfilTempoGestao').innerText = p.tempoGestao;
-                    document.getElementById('perfilUltimoPlantao').innerText = p.ultimoPlantao;
+                    document.getElementById('perfilTotalHoras').innerText = p.totalHoras || '00:00:00';
+                    document.getElementById('perfilTempoGestao').innerText = p.tempoGestao || '-';
+                    document.getElementById('perfilUltimoPlantao').innerText = p.ultimoPlantao || 'Nenhum plantão';
 
                     const avatarDiv = document.getElementById('imgAvatarVisualizar');
                     if (p.avatar) {
@@ -1658,8 +1684,14 @@
             }
 
             if (!telefoneNovo) {
-                mostrarModalCustomizado('Atenção', 'O número de telemóvel/WhatsApp é obrigatório.');
+                mostrarModalCustomizado('Atenção', 'O número do WhatsApp é obrigatório para cadastro e acesso ao grupo da tropa.');
                 return;
+            }
+
+            const btn = document.getElementById('btnSalvarPerfil');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = 'A guardar...';
             }
 
             try {
@@ -1667,6 +1699,7 @@
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        id: user._id || user.id,
                         nickname: user.nickname,
                         novoNickname: novoNickname,
                         telefone: telefoneNovo
@@ -1680,7 +1713,6 @@
                     telefoneMembroAtualCache = telefoneNovo;
 
                     if (nickAtualizado !== nickAnterior) {
-                        // Migra caches de localStorage vinculados ao nickname antigo
                         const saldoAntigo = localStorage.getItem(`carteira_saldo_${nickAnterior}`);
                         if (saldoAntigo !== null) {
                             localStorage.setItem(`carteira_saldo_${nickAtualizado}`, saldoAntigo);
@@ -1693,18 +1725,37 @@
                         }
 
                         user.nickname = nickAtualizado;
-                        localStorage.setItem('user', JSON.stringify(user));
-                        atualizarBadgeUsuarioUI();
                     }
 
-                    mostrarModalCustomizado('Sucesso', data.message || 'Perfil atualizado com sucesso!');
+                    user.telefone = telefoneNovo;
+                    localStorage.setItem('user', JSON.stringify(user));
+                    atualizarBadgeUsuarioUI();
+
                     fecharPerfilModal();
+                    mostrarModalCustomizado(
+                        'Perfil Atualizado!',
+                        `Dados salvos com sucesso! Número do WhatsApp registado: <b>${escapeHTML(telefoneNovo)}</b>.`,
+                        'alerta',
+                        () => {
+                            if (linkGrupoWhatsappGlobal && linkGrupoWhatsappGlobal.trim() !== '') {
+                                const abrir = window.confirm('Deseja abrir o grupo do WhatsApp agora?');
+                                if (abrir) {
+                                    window.open(linkGrupoWhatsappGlobal, '_blank', 'noopener,noreferrer');
+                                }
+                            }
+                        }
+                    );
                     sincronizarCarteiraEMissoes();
                 } else {
                     mostrarModalCustomizado('Erro', escapeHTML(data.message || 'Erro ao atualizar perfil.'));
                 }
             } catch (e) {
                 mostrarModalCustomizado('Erro', 'Erro de conexão ao salvar perfil.');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = '💾 Guardar Dados';
+                }
             }
         }
 
@@ -1717,10 +1768,22 @@
                     img.style.cssText = 'width: 100%; height: 100%; border-radius: 50%; object-fit: cover;';
                     avatarDiv.replaceChildren(img);
 
+                    const drawerAv = document.getElementById('drawerAvatarMini');
+                    if (drawerAv) {
+                        const imgMini = document.createElement('img');
+                        imgMini.src = base64Avatar;
+                        imgMini.style.cssText = 'width: 100%; height: 100%; border-radius: 50%; object-fit: cover;';
+                        drawerAv.replaceChildren(imgMini);
+                    }
+
                     await fetch('/api/membro/atualizar-perfil', {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ nickname: user.nickname, avatar: base64Avatar })
+                        body: JSON.stringify({
+                            id: user._id || user.id,
+                            nickname: user.nickname,
+                            avatar: base64Avatar
+                        })
                     });
                 });
             }

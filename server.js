@@ -95,6 +95,10 @@ function converterDuracaoParaSegundos(duracaoStr) {
   return (parseInt(partes[0], 10) * 3600) + (parseInt(partes[1], 10) * 60) + parseInt(partes[2], 10);
 }
 
+function escaparRegex(str) {
+    return String(str || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function converterSegundosParaDuracao(segundosTotais) {
   const segundosSeguros = Math.max(0, parseInt(segundosTotais, 10) || 0);
   const horas = String(Math.floor(segundosSeguros / 3600)).padStart(2, '0');
@@ -642,8 +646,16 @@ app.post('/api/auth/register', async (req, res) => {
 
 app.get('/api/membro/perfil/:nickname', async (req, res) => {
     try {
+        const parametro = decodeURIComponent(req.params.nickname || '').trim();
+        if (!parametro) return res.status(400).json({ success: false, message: 'Identificador do membro não informado.' });
+
+        let query = { nickname: new RegExp('^' + escaparRegex(parametro) + '$', 'i') };
+        if (parametro.match(/^[0-9a-fA-F]{24}$/)) {
+            query = { $or: [{ _id: parametro }, { nickname: new RegExp('^' + escaparRegex(parametro) + '$', 'i') }] };
+        }
+
         const membro = await User.findOne(
-            { nickname: new RegExp('^' + req.params.nickname + '$', 'i') },
+            query,
             'nickname cargo status avatar telefone historicoTurnos.duracao historicoTurnos.data'
         ).lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
@@ -704,10 +716,22 @@ app.put('/api/membro/atualizar-perfil', async (req, res) => {
             return res.status(503).json({ success: false, message: 'Conexão com a base de dados indisponível no momento. Tente novamente em instantes.' });
         }
 
-        const { nickname, novoNickname, telefone, avatar } = req.body;
-        if (!nickname) return res.status(400).json({ success: false, message: 'Nickname atual obrigatório.' });
+        const { id, userId, nickname, novoNickname, telefone, avatar } = req.body;
+        const nickAtual = String(nickname || '').trim();
 
-        const membro = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') });
+        let query = null;
+        const idValido = id || userId;
+        if (idValido && String(idValido).match(/^[0-9a-fA-F]{24}$/)) {
+            query = { _id: idValido };
+        } else if (nickAtual) {
+            query = { nickname: new RegExp('^' + escaparRegex(nickAtual) + '$', 'i') };
+        }
+
+        if (!query) {
+            return res.status(400).json({ success: false, message: 'Identificação do membro não fornecida.' });
+        }
+
+        const membro = await User.findOne(query);
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
         const updateData = {};
