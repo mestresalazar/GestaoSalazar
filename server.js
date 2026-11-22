@@ -856,7 +856,12 @@ async function verificarFechamentoAutomaticoTurnos() {
                             url: '/dashboard.html'
                         });
 
-                        io.emit('atualizar_estado_turno_usuario', { nickname: membro.nickname.toLowerCase() });
+                        io.emit('atualizar_estado_turno_usuario', {
+                            nickname: membro.nickname.toLowerCase(),
+                            estadoTurno: 'parado',
+                            motivo: 'expirado_5m',
+                            duracaoFormatada
+                        });
                         await registarLogAdmin(membro.nickname, 'Fim de Turno (Expirado 5m)', `Turno encerrado por não envio do print da ${horasCompletadas}ª hora em 5 minutos. Duração salva: ${duracaoFormatada}`);
                     }
                 }
@@ -946,7 +951,12 @@ async function verificarFechamentoAutomaticoTurnos() {
                         { upsert: true, returnDocument: 'after' }
                     );
 
-                    io.emit('atualizar_estado_turno_usuario', { nickname: membro.nickname.toLowerCase() });
+                    io.emit('atualizar_estado_turno_usuario', {
+                        nickname: membro.nickname.toLowerCase(),
+                        estadoTurno: 'parado',
+                        motivo: 'fechamento_0205',
+                        duracaoFormatada
+                    });
                     await registarLogAdmin(membro.nickname, 'Fechamento Automático', `Turno encerrado e consolidado às 02:05 (limite 02:00). Duração válida: ${duracaoFormatada}`);
                 } else {
                     // Turno sem tempo válido mínimo, apenas reseta estado sem poluir histórico
@@ -962,7 +972,11 @@ async function verificarFechamentoAutomaticoTurnos() {
                             }
                         }
                     );
-                    io.emit('atualizar_estado_turno_usuario', { nickname: membro.nickname.toLowerCase() });
+                    io.emit('atualizar_estado_turno_usuario', {
+                        nickname: membro.nickname.toLowerCase(),
+                        estadoTurno: 'parado',
+                        motivo: 'descartado_curto'
+                    });
                 }
             }
             if (membrosEmPlantao.length > 0) {

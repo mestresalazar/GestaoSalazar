@@ -3147,6 +3147,27 @@
 
         socket.on('atualizar_estado_turno_usuario', (dados) => {
             if (dados && dados.nickname && dados.nickname.toLowerCase() === user.nickname.toLowerCase()) {
+                if (dados.estadoTurno === 'parado') {
+                    estadoTurno = 'parado';
+                    timestampInicioServer = null;
+                    segundosAcumuladosBase = 0;
+                    if (timerInterval) clearInterval(timerInterval);
+                    document.getElementById('timerDisplay').innerText = '00:00:00';
+                    document.getElementById('btnCheckin').disabled = false;
+                    document.getElementById('btnPausar').style.display = 'none';
+                    document.getElementById('btnCheckout').disabled = false;
+
+                    const boxH = document.getElementById('boxVerificacaoHora');
+                    if (boxH) boxH.style.display = 'none';
+                    if (timerExpiracaoVerificacao) {
+                        clearInterval(timerExpiracaoVerificacao);
+                        timerExpiracaoVerificacao = null;
+                    }
+
+                    atualizarEtapaTurnoUI();
+                    sincronizarCarteiraEMissoes();
+                    atualizarFiscalizacaoServidor();
+                }
                 restaurarEstadoTurno();
             }
         });
@@ -3474,6 +3495,25 @@
             const duracaoTxt = document.getElementById('timerDisplay').innerText;
             const comprovanteExpirado = `Fechamento Automático (Falta de Confirmação em 5 min na ${horaNumero}ª hora)`;
 
+            // Congela o cronômetro e atualiza o estado visual no ato
+            estadoTurno = 'parado';
+            timestampInicioServer = null;
+            segundosAcumuladosBase = 0;
+            document.getElementById('timerDisplay').innerText = '00:00:00';
+            document.getElementById('btnCheckin').disabled = false;
+            document.getElementById('btnPausar').style.display = 'none';
+            document.getElementById('btnCheckout').disabled = false;
+
+            const boxH = document.getElementById('boxVerificacaoHora');
+            if (boxH) boxH.style.display = 'none';
+            if (timerExpiracaoVerificacao) {
+                clearInterval(timerExpiracaoVerificacao);
+                timerExpiracaoVerificacao = null;
+            }
+
+            limparPrintTurnoLocal();
+            atualizarEtapaTurnoUI();
+
             try {
                 await fetch('/api/membro/turno', {
                     method: 'POST',
@@ -3486,16 +3526,7 @@
                     })
                 });
 
-                limparPrintTurnoLocal();
-                estadoTurno = 'parado';
-                timestampInicioServer = null;
-                segundosAcumuladosBase = 0;
-                document.getElementById('timerDisplay').innerText = '00:00:00';
-                document.getElementById('btnCheckin').disabled = false;
-                document.getElementById('btnPausar').style.display = 'none';
-                document.getElementById('btnCheckout').disabled = false;
                 processandoCheckout = false;
-                atualizarEtapaTurnoUI();
                 sincronizarCarteiraEMissoes();
                 atualizarFiscalizacaoServidor();
 
@@ -3506,7 +3537,13 @@
                 );
             } catch (e) {
                 processandoCheckout = false;
-                window.location.reload();
+                sincronizarCarteiraEMissoes();
+                atualizarFiscalizacaoServidor();
+                mostrarModalCustomizado(
+                    'Turno Encerrado',
+                    `O teu plantão foi encerrado por tempo de verificação expirado. Tempo registrado: <b>${duracaoTxt}</b>.`,
+                    'alerta'
+                );
             }
         }
 
@@ -3592,6 +3629,13 @@
                 document.getElementById('btnPausar').style.display = 'none';
                 document.getElementById('btnCheckout').disabled = false;
                 if (timerInterval) clearInterval(timerInterval);
+                document.getElementById('timerDisplay').innerText = '00:00:00';
+                const boxH = document.getElementById('boxVerificacaoHora');
+                if (boxH) boxH.style.display = 'none';
+                if (timerExpiracaoVerificacao) {
+                    clearInterval(timerExpiracaoVerificacao);
+                    timerExpiracaoVerificacao = null;
+                }
             }
 
             atualizarEtapaTurnoUI();
@@ -3746,18 +3790,43 @@
                         processandoCheckout = true;
                         clearInterval(timerInterval);
                         limparPrintTurnoLocal();
-                        await fetch('/api/membro/status-plantao', {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                nickname: user.nickname,
-                                emPlantao: false,
-                                estadoTurno: 'parado',
-                                segundosAcumulados: 0,
-                                fotoComprovanteAtiva: ''
-                            })
-                        });
-                        window.location.reload();
+
+                        // Atualiza a interface de imediato sem recarregar a tela
+                        estadoTurno = 'parado';
+                        timestampInicioServer = null;
+                        segundosAcumuladosBase = 0;
+                        document.getElementById('timerDisplay').innerText = '00:00:00';
+                        document.getElementById('btnCheckin').disabled = false;
+                        document.getElementById('btnPausar').style.display = 'none';
+                        document.getElementById('btnCheckout').disabled = false;
+
+                        const boxH = document.getElementById('boxVerificacaoHora');
+                        if (boxH) boxH.style.display = 'none';
+                        if (timerExpiracaoVerificacao) {
+                            clearInterval(timerExpiracaoVerificacao);
+                            timerExpiracaoVerificacao = null;
+                        }
+
+                        atualizarEtapaTurnoUI();
+
+                        try {
+                            await fetch('/api/membro/status-plantao', {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    nickname: user.nickname,
+                                    emPlantao: false,
+                                    estadoTurno: 'parado',
+                                    segundosAcumulados: 0,
+                                    fotoComprovanteAtiva: ''
+                                })
+                            });
+                        } catch (e) {}
+
+                        processandoCheckout = false;
+                        sincronizarCarteiraEMissoes();
+                        atualizarFiscalizacaoServidor();
+                        mostrarModalCustomizado('Plantão Descartado', 'O plantão de duração inferior a 30 minutos foi descartado com sucesso.');
                     }
                 );
                 return;
