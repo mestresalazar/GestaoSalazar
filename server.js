@@ -1119,6 +1119,78 @@ app.put('/api/admin/membro/carteira/resetar/:id', async (req, res) => {
     }
 });
 
+// --- ROTAS DE CONFIGURAÇÃO DE HORAS PARA PROVAS (SARGENTO, TENENTE, MAJOR) ---
+async function obterConfigHorasProvas() {
+    let config = await ConfigSorteio.collection.findOne({ chave: 'config_provas_horas' });
+    if (!config) {
+        return { sargento: 10, tenente: 30, major: 50 };
+    }
+    return {
+        sargento: typeof config.sargento === 'number' ? config.sargento : 10,
+        tenente: typeof config.tenente === 'number' ? config.tenente : 30,
+        major: typeof config.major === 'number' ? config.major : 50
+    };
+}
+
+app.get('/api/admin/config/provas-horas', async (req, res) => {
+    try {
+        const horas = await obterConfigHorasProvas();
+        res.json({ success: true, ...horas });
+    } catch (e) {
+        console.error("Erro ao buscar configuração de horas das provas:", e);
+        res.json({ success: true, sargento: 10, tenente: 30, major: 50 });
+    }
+});
+
+app.post('/api/admin/config/provas-horas', async (req, res) => {
+    try {
+        const { adminNickname, sargento, tenente, major } = req.body;
+
+        const valSarg = Math.max(1, parseInt(sargento, 10) || 10);
+        const valTen = Math.max(1, parseInt(tenente, 10) || 30);
+        const valMaj = Math.max(1, parseInt(major, 10) || 50);
+
+        if (adminNickname) {
+            const adminUser = await User.findOne({ nickname: new RegExp('^' + adminNickname + '$', 'i') }, 'role cargo').lean();
+            const cargoAdmin = adminUser ? (adminUser.cargo || '') : '';
+            const ehAdminValido = adminUser && (adminUser.role === 'admin' || cargoAdmin === 'General' || cargoAdmin === 'Coronel All');
+            if (!ehAdminValido) {
+                return res.status(403).json({ success: false, message: 'Acesso negado. Apenas o Comando Superior pode alterar as horas das provas.' });
+            }
+        }
+
+        await ConfigSorteio.collection.updateOne(
+            { chave: 'config_provas_horas' },
+            {
+                $set: {
+                    chave: 'config_provas_horas',
+                    sargento: valSarg,
+                    tenente: valTen,
+                    major: valMaj,
+                    atualizadoPor: adminNickname || 'Comando',
+                    data: new Date()
+                }
+            },
+            { upsert: true }
+        );
+
+        await registarLogAdmin(
+            adminNickname || 'Comando',
+            'Configurou Horas de Exame',
+            `Horas exigidas: Sargento (${valSarg}h), Tenente (${valTen}h), Major (${valMaj}h)`
+        );
+
+        res.json({
+            success: true,
+            message: 'Horas mínimas para exames salvas com sucesso!',
+            horas: { sargento: valSarg, tenente: valTen, major: valMaj }
+        });
+    } catch (e) {
+        console.error("Erro ao salvar horas das provas:", e);
+        res.status(500).json({ success: false, message: 'Erro ao salvar horas de provas.' });
+    }
+});
+
 // --- ROTAS DE CONFIGURAÇÃO DE PREMIAÇÃO DA TROPA (1º, 2º E 3º LUGAR) ---
 app.get('/api/admin/config/premiacao-tropa', async (req, res) => {
     try {
@@ -1763,19 +1835,20 @@ app.get('/api/membro/provas/status/:nickname', async (req, res) => {
         const totalSegundos = turnosValidos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
         const totalHoras = totalSegundos / 3600;
 
+        const configHoras = await obterConfigHorasProvas();
         const cargoAtual = membro.cargo || 'Privado';
         let provaDisponivelPara = null;
         let horasNecessarias = 0;
 
         if (cargoAtual === 'Soldado' || cargoAtual === 'Privado') {
-            horasNecessarias = 10;
-            if (totalHoras >= 10) provaDisponivelPara = 'Sargento';
+            horasNecessarias = configHoras.sargento;
+            if (totalHoras >= configHoras.sargento) provaDisponivelPara = 'Sargento';
         } else if (cargoAtual === 'Sargento') {
-            horasNecessarias = 25;
-            if (totalHoras >= 25) provaDisponivelPara = 'Tenente';
+            horasNecessarias = configHoras.tenente;
+            if (totalHoras >= configHoras.tenente) provaDisponivelPara = 'Tenente';
         } else if (cargoAtual === 'Tenente') {
-            horasNecessarias = 50;
-            if (totalHoras >= 50) provaDisponivelPara = 'Major';
+            horasNecessarias = configHoras.major;
+            if (totalHoras >= configHoras.major) provaDisponivelPara = 'Major';
         }
 
         const horasFaltando = Math.max(0, (horasNecessarias - totalHoras).toFixed(1));
@@ -1791,15 +1864,30 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
         const membro = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, '_id cargo').lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
-        let gabarito = { q1: 'a', q2: 'b', q3: 'b' };
+        // Gabaritos oficiais com dificuldade progressiva por cargo conforme regras do EB
+        let gabarito = {};
+        if (cargoAlvo === 'Sargento') {
+            // Nível Básico: Autorização prévia, proibição de famílias, proibição teaser/cassetete (FAIL - 4.22)
+            gabarito = { q1: 'b', q2: 'a', q3: 'b' };
+        } else if (cargoAlvo === 'Tenente') {
+            // Nível Intermediário: Antecedência de 24h, horários terça/quinta com pausa 22h-23h, spawn/redores (AAP - 4.17)
+            gabarito = { q1: 'c', q2: 'b', q3: 'c', q4: 'a' };
+        } else if (cargoAlvo === 'Major') {
+            // Nível Avançado: Pacificação sábado vs dom/seg, inatividade 24h/12h às 00h, roubo de maleta e INA - 4.21
+            gabarito = { q1: 'a', q2: 'c', q3: 'b', q4: 'c' };
+        } else {
+            gabarito = { q1: 'a', q2: 'b', q3: 'b' };
+        }
+
+        let totalPerguntas = Object.keys(gabarito).length;
         let acertos = 0;
-        let totalPerguntas = 3;
+        for (const [chave, respEsperada] of Object.entries(gabarito)) {
+            if (respostas && String(respostas[chave]).toLowerCase() === respEsperada) {
+                acertos++;
+            }
+        }
 
-        if (respostas && respostas.q1 === gabarito.q1) acertos++;
-        if (respostas && respostas.q2 === gabarito.q2) acertos++;
-        if (respostas && respostas.q3 === gabarito.q3) acertos++;
-
-        const aprovado = (acertos / totalPerguntas) >= 0.7;
+        const aprovado = (acertos / totalPerguntas) >= 0.75;
 
         if (aprovado) {
             await User.updateOne(

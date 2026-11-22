@@ -452,6 +452,27 @@
                     </div>
                 </div>
 
+                <!-- CONFIGURAR HORAS EXIGIDAS PARA PROVAS (SARGENTO, TENENTE, MAJOR) -->
+                <div class="card" style="border: 2px dashed #a855f7; background: linear-gradient(145deg, rgba(168, 85, 247, 0.05), rgba(15, 23, 42, 0.85));">
+                    <h3 style="color: #c084fc; border-color: rgba(168, 85, 247, 0.3);">🎓 Horas Exigidas para Exames de Patente</h3>
+                    <p style="color: #e2e8f0; margin-bottom: 12px; font-size: 13px;">Defina o total de horas de plantão necessárias para desbloquear os exames oficiais:</p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 12px;">
+                        <div>
+                            <label style="font-size: 11px; color: #38bdf8; font-weight: bold; display: block; margin-bottom: 4px;">Sargento (Horas)</label>
+                            <input type="number" id="inputHorasSargento" placeholder="10" min="1" class="search-input-box" style="margin-bottom: 0;">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; color: #f59e0b; font-weight: bold; display: block; margin-bottom: 4px;">Tenente (Horas)</label>
+                            <input type="number" id="inputHorasTenente" placeholder="30" min="1" class="search-input-box" style="margin-bottom: 0;">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; color: #ef4444; font-weight: bold; display: block; margin-bottom: 4px;">Major (Horas)</label>
+                            <input type="number" id="inputHorasMajor" placeholder="50" min="1" class="search-input-box" style="margin-bottom: 0;">
+                        </div>
+                    </div>
+                    <button class="btn-action" style="background: linear-gradient(135deg, #a855f7, #7e22ce); color: #fff; width: 100%; padding: 11px; font-weight: bold; border-radius: 10px;" onclick="salvarHorasProvasAdmin()">💾 Salvar Horas de Prova</button>
+                </div>
+
                 <!-- CONFIGURAR VALORES DE PREMIAÇÃO DA TROPA (1º, 2º E 3º LUGAR) -->
                 <div class="card" style="border: 2px dashed #eab308; background: linear-gradient(145deg, rgba(234, 179, 8, 0.05), rgba(15, 23, 42, 0.85));">
                     <h3 style="color: #fde047; border-color: rgba(234, 179, 8, 0.3);">🏆 Premiação da Tropa (17h às 02h)</h3>
@@ -808,6 +829,7 @@
         }
         carregarValorMissaoAdmin();
         carregarPremiacaoAdmin();
+        carregarHorasProvasAdmin();
 
         async function carregarListaCarteirasAdmin() {
             try {
@@ -863,6 +885,56 @@
                 });
             } else {
                 tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #94a3b8; padding: 15px;">Nenhum registo encontrado.</td></tr>`;
+            }
+        }
+
+        async function carregarHorasProvasAdmin() {
+            try {
+                const res = await fetch('/api/admin/config/provas-horas');
+                const data = await res.json();
+                if (data.success) {
+                    const elS = document.getElementById('inputHorasSargento');
+                    const elT = document.getElementById('inputHorasTenente');
+                    const elM = document.getElementById('inputHorasMajor');
+                    if (elS) elS.value = data.sargento !== undefined ? data.sargento : 10;
+                    if (elT) elT.value = data.tenente !== undefined ? data.tenente : 30;
+                    if (elM) elM.value = data.major !== undefined ? data.major : 50;
+                }
+            } catch (e) {
+                console.error("Erro ao carregar horas de provas:", e);
+            }
+        }
+
+        async function salvarHorasProvasAdmin() {
+            const sargento = document.getElementById('inputHorasSargento')?.value;
+            const tenente = document.getElementById('inputHorasTenente')?.value;
+            const major = document.getElementById('inputHorasMajor')?.value;
+
+            if (!sargento || !tenente || !major) {
+                mostrarModalCustomizado('Atenção', 'Preencha as horas exigidas para todos os três exames.');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/admin/config/provas-horas', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        adminNickname: user.nickname,
+                        sargento,
+                        tenente,
+                        major
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    mostrarModalCustomizado('Sucesso', data.message || 'Horas de prova salvas com sucesso!');
+                    carregarLogsAdmin();
+                } else {
+                    mostrarModalCustomizado('Erro', data.message || 'Erro ao salvar horas de prova.');
+                }
+            } catch (e) {
+                mostrarModalCustomizado('Erro', 'Erro de conexão ao salvar configuração.');
             }
         }
 

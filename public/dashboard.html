@@ -1537,30 +1537,141 @@
 
         function abrirModalProva() {
             document.getElementById('modalProva').style.display = 'flex';
-            document.getElementById('tituloModalProva').innerText = `Exame Oficial para ${cargoDestinoAtual}`;
+            document.getElementById('tituloModalProva').innerText = `Exame Oficial de Patente: ${cargoDestinoAtual}`;
             const c = document.getElementById('conteudoPerguntasProva');
-            c.innerHTML = `
-                <div style="margin-bottom: 16px;"><label>1. Qual o canal padrão de rádio para operações?</label><br><input type="radio" name="q1" value="a" required> A) Canal Geral / Tático<br><input type="radio" name="q1" value="b"> B) Chat privado</div>
-                <div style="margin-bottom: 16px;"><label>2. Como proceder ao ver invasor na base?</label><br><input type="radio" name="q2" value="a" required> A) Fugir<br><input type="radio" name="q2" value="b"> B) Alertar via rádio e acionar comando</div>
-                <div style="margin-bottom: 16px;"><label>3. Postura perante Oficial Superior?</label><br><input type="radio" name="q3" value="a" required> A) Ignorar<br><input type="radio" name="q3" value="b"> B) Respeito absoluto e continência</div>
-            `;
+
+            if (cargoDestinoAtual === 'Sargento') {
+                // Nível Básico (Soldado -> Sargento)
+                c.innerHTML = `
+                    <p style="font-size: 12px; color: #38bdf8; margin-bottom: 14px; font-weight: 600;">Nível Básico — Procedimentos Essenciais & Punições Elementares</p>
+                    
+                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">1. Famílias podem realizar invasão às dependências do Exército Brasileiro?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q1" value="a" required> A) Sim, desde que avisem com 30 minutos de antecedência.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q1" value="b"> B) Não, é terminantemente proibido famílias invadirem o Exército Brasileiro.</label>
+                        <label style="display: block;"><input type="radio" name="q1" value="c"> C) Sim, se possuírem mais de 15 membros online.</label>
+                    </div>
+
+                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">2. Qual é a punição prevista para o uso de teaser ou cassetete em invasões ou pacificações?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q2" value="a" required> A) 60 minutos de prisão administrativa por antijogo (FAIL - 4.22).</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q2" value="b"> B) Apenas advertência verbal da moderação.</label>
+                        <label style="display: block;"><input type="radio" name="q2" value="c"> C) Não há punição, o uso de equipamento não letal é livre.</label>
+                    </div>
+
+                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">3. Qual é a exigência para que uma ação de conflito ou pacificação seja considerada legítima?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q3" value="a" required> A) Basta haver trocação de tiros no local sem história prévia.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q3" value="b"> B) Autorização oficial e RP prévio comprovado com história, contexto e evidências claras.</label>
+                        <label style="display: block;"><input type="radio" name="q3" value="c"> C) Apenas ter o mesmo número de integrantes dos dois lados.</label>
+                    </div>
+                `;
+            } else if (cargoDestinoAtual === 'Tenente') {
+                // Nível Intermediário (Sargento -> Tenente)
+                c.innerHTML = `
+                    <p style="font-size: 12px; color: #f59e0b; margin-bottom: 14px; font-weight: 600;">Nível Intermediário — Cronograma Tático, Antecedência e Conduta em Invasão</p>
+
+                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">1. Com quanta antecedência uma ação de Pacificação deve ser agendada formalmente?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q1" value="a" required> A) Mínimo de 2 horas antes da operação.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q1" value="b"> B) Mínimo de 12 horas antes da operação.</label>
+                        <label style="display: block;"><input type="radio" name="q1" value="c"> C) Mínimo de 24 horas de antecedência, com data, horário e organizações envolvidas.</label>
+                    </div>
+
+                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">2. Quais são os dias e horários em que são permitidas invasões de facções e máfias ao Exército Brasileiro?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q2" value="a" required> A) Qualquer dia das 17h às 02h da madrugada.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q2" value="b"> B) Terça (Facções Verdes e Roxos, 17h às 00h) e Quinta (Máfias, 19h às 00h com pausa obrigatória das 22h às 23h).</label>
+                        <label style="display: block;"><input type="radio" name="q2" value="c"> C) Apenas nos fins de semana a partir das 21h.</label>
+                    </div>
+
+                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">3. Qual é a punição para quem renascer no spawn após o início da invasão, vier da rua ou sofrer crash e sair do spawn?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q3" value="a" required> A) Advertência escrita no perfil.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q3" value="b"> B) Banimento definitivo da organização.</label>
+                        <label style="display: block;"><input type="radio" name="q3" value="c"> C) 60 minutos de cadeia administrativa (AAP - 4.17).</label>
+                    </div>
+
+                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">4. Se uma facção ou organização aliada intervir ou prestar ajuda durante a invasão ou pacificação:</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q4" value="a" required> A) É expressamente proibido e acarreta 1/3 de aviso para a facção infratora.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q4" value="b"> B) É permitido caso haja desvantagem numérica comprovada.</label>
+                        <label style="display: block;"><input type="radio" name="q4" value="c"> C) É permitido somente se o apoio for logístico ou com viaturas.</label>
+                    </div>
+                `;
+            } else if (cargoDestinoAtual === 'Major') {
+                // Nível Avançado (Tenente -> Major)
+                c.innerHTML = `
+                    <p style="font-size: 12px; color: #ef4444; margin-bottom: 14px; font-weight: 600;">Nível Avançado — Comando Estratégico, Inatividades, Maletas e Sanções Severas</p>
+
+                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">1. De acordo com o cronograma, em quais dias e horários ocorrem as Pacificações do EB às Máfias e às Facções?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q1" value="a" required> A) Sábado às máfias (21h às 22h); Domingo e Segunda às facções (21h às 00h, com EB e PF).</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q1" value="b"> B) Quarta e Sexta-feira das 20h às 23h.</label>
+                        <label style="display: block;"><input type="radio" name="q1" value="c"> C) Exclusivamente aos domingos após o encerramento do CRM livre.</label>
+                    </div>
+
+                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">2. Quais são os períodos de inatividade e o efetivo policial mínimo nas ações de Polícia x Facção x Exército x Máfia?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q2" value="a" required> A) Inatividade de 6h e mínimo de 5 policiais.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q2" value="b"> B) Inatividade de 48h para todos e mínimo de 8 policiais.</label>
+                        <label style="display: block;"><input type="radio" name="q2" value="c"> C) Derrota deixa a facção inativa por 24h e a máfia por 12h (a contar das 00:00), exigindo mínimo de 10 policiais.</label>
+                    </div>
+
+                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">3. O que acontece se uma família roubar maleta durante ação de máfia no EB e conquistar a máfia aproveitando a ausência da outra?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q3" value="a" required> A) A conquista é validada sem restrições por ser uma jogada estratégica.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q3" value="b"> B) A família sofre reset da máfia conquistada + 1 aviso, e a máfia anterior tem sua posse restituída.</label>
+                        <label style="display: block;"><input type="radio" name="q3" value="c"> C) Apenas a maleta é confiscada, mantendo o controle territorial.</label>
+                    </div>
+
+                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">4. Qual é a penalidade aplicada a uma ação de pacificação ou invasão conduzida de forma irregular (sem autorização prévia obrigatória)?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q4" value="a" required> A) Redução de saldo na carteira digital dos envolvidos.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q4" value="b"> B) Apenas o cancelamento da ação sem penalidade individual.</label>
+                        <label style="display: block;"><input type="radio" name="q4" value="c"> C) Cancelamento imediato da ação e punição de Banimento por 5 dias (INA - 4.21).</label>
+                    </div>
+                `;
+            } else {
+                c.innerHTML = `
+                    <div style="margin-bottom: 16px;"><label>1. Qual o canal padrão de rádio para operações?</label><br><input type="radio" name="q1" value="a" required> A) Canal Geral / Tático<br><input type="radio" name="q1" value="b"> B) Chat privado</div>
+                    <div style="margin-bottom: 16px;"><label>2. Como proceder ao ver invasor na base?</label><br><input type="radio" name="q2" value="a" required> A) Fugir<br><input type="radio" name="q2" value="b"> B) Alertar via rádio e acionar comando</div>
+                    <div style="margin-bottom: 16px;"><label>3. Postura perante Oficial Superior?</label><br><input type="radio" name="q3" value="a" required> A) Ignorar<br><input type="radio" name="q3" value="b"> B) Respeito absoluto e continência</div>
+                `;
+            }
         }
         function fecharModalProva() { document.getElementById('modalProva').style.display = 'none'; }
 
         async function enviarProva(event) {
             event.preventDefault();
             const f = new FormData(event.target);
+            const respostasObj = {};
+            for (const [chave, valor] of f.entries()) {
+                respostasObj[chave] = valor;
+            }
+
             try {
                 const res = await fetch('/api/membro/provas/submeter', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nickname: user.nickname, cargoAlvo: cargoDestinoAtual, respostas: { q1: f.get('q1'), q2: f.get('q2'), q3: f.get('q3') } })
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nickname: user.nickname,
+                        cargoAlvo: cargoDestinoAtual,
+                        respostas: respostasObj
+                    })
                 });
                 const data = await res.json();
                 fecharModalProva();
                 mostrarModalCustomizado(data.aprovado ? 'Parabéns!' : 'Resultado', escapeHTML(data.message), 'alerta', () => {
-                    if (data.aprovado) { user.cargo = cargoDestinoAtual; localStorage.setItem('user', JSON.stringify(user)); window.location.reload(); }
+                    if (data.aprovado) {
+                        user.cargo = cargoDestinoAtual;
+                        localStorage.setItem('user', JSON.stringify(user));
+                        window.location.reload();
+                    }
                 });
-            } catch (e) {}
+            } catch (e) {
+                mostrarModalCustomizado('Erro', 'Falha na conexão ao submeter o exame.');
+            }
         }
 
         async function carregarCaixaEntrada() {
