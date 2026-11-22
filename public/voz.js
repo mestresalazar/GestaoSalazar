@@ -4,95 +4,188 @@
 
 let localStream = null;
 let peerConnections = {};
-let iceCandidateQueues = {}; // Fila temporária para candidatos ICE
+let iceCandidateQueues = {};
 let isMuted = false;
 let socketVoz = null;
-let salaVozAtual = null;
+let salaVozAtual = 'sala_geral_salazar';
+let conectadoNaCall = false;
 
 const rtcConfig = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun.services.mozilla.com' }
     ]
 };
 
+function obterSocketVoz() {
+    if (!socketVoz) {
+        if (typeof socket !== 'undefined' && socket) {
+            socketVoz = socket;
+        } else if (typeof io !== 'undefined') {
+            socketVoz = io();
+        }
+    }
+    return socketVoz;
+}
+
+// Inicializa a escuta para exibir quem está na call antes mesmo do usuário entrar
+function inicializarEscutaVozGlobal() {
+    const s = obterSocketVoz();
+    if (!s) return;
+
+    s.off('utilizadores_no_voz', tratarEventoUtilizadoresNoVoz);
+    s.on('utilizadores_no_voz', tratarEventoUtilizadoresNoVoz);
+
+    // Consulta inicial via API REST
+    consultarParticipantesVoz();
+}
+
+function tratarEventoUtilizadoresNoVoz(payload) {
+    let usuarios = [];
+    if (Array.isArray(payload)) {
+        usuarios = payload;
+    } else if (payload && Array.isArray(payload.usuarios)) {
+        usuarios = payload.usuarios;
+    }
+    atualizarListaVisualVoz(usuarios);
+
+    // Se estiver conectado na call, sincroniza as conexões WebRTC
+    if (conectadoNaCall && localStream) {
+        const s = obterSocketVoz();
+        gerenciarConexoesWebRTC(usuarios, s);
+    }
+}
+
+async function consultarParticipantesVoz(salaId = 'sala_geral_salazar') {
+    try {
+        const res = await fetch(`/api/voz/participantes/${encodeURIComponent(salaId)}?_=${Date.now()}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.usuarios)) {
+            atualizarListaVisualVoz(data.usuarios);
+        }
+    } catch (e) {
+        console.warn("Aviso ao carregar participantes de voz:", e);
+    }
+}
+
 async function entrarCanalVoz(salaId, nickname, cargo) {
-    salaVozAtual = salaId;
+    salaVozAtual = salaId || 'sala_geral_salazar';
     const statusEl = document.getElementById('painel-voz-status');
-    if (statusEl) statusEl.innerText = 'Estado: A conectar ao canal de voz...';
+    if (statusEl) statusEl.innerText = 'Estado: A solicitar microfone...';
+
+    const s = obterSocketVoz();
+    if (!s) {
+        if (statusEl) statusEl.innerText = 'Estado: Erro ao conectar ao servidor de rádio.';
+        return;
+    }
 
     try {
         if (!localStream) {
-            localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            localStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                },
+                video: false
+            });
         }
-        
-        if (!socketVoz) {
-            socketVoz = io();
+
+        conectadoNaCall = true;
+        isMuted = false;
+        localStream.getAudioTracks().forEach(track => { track.enabled = true; });
+
+        const btnMute = document.getElementById('btn-mute-audio');
+        if (btnMute) {
+            btnMute.innerText = 'Mutar 🎙️';
+            btnMute.style.background = '#5865f2';
         }
-
-        socketVoz.emit('entrar_canal_voz', { salaId, nickname, cargo });
-
-        socketVoz.off('utilizadores_no_voz');
-        socketVoz.on('utilizadores_no_voz', (usuarios) => {
-            atualizarListaVisualVoz(usuarios);
-            gerenciarConexoesWebRTC(usuarios, socketVoz);
-        });
-
-        socketVoz.off('sinal_WebRTC');
-        socketVoz.on('sinal_WebRTC', async ({ from, signal }) => {
-            if (!peerConnections[from]) {
-                peerConnections[from] = criarPeerConnection(from, socketVoz);
-            }
-            const pc = peerConnections[from];
-
-            try {
-                if (signal.type) {
-                    const collision = signal.type === 'offer' && (pc.signalingState !== 'stable');
-                    if (collision) return;
-
-                    await pc.setRemoteDescription(new RTCSessionDescription(signal));
-                    
-                    // Processa candidatos ICE acumulados na fila para este peer
-                    if (iceCandidateQueues[from] && iceCandidateQueues[from].length > 0) {
-                        for (const candidate of iceCandidateQueues[from]) {
-                            await pc.addIceCandidate(new RTCIceCandidate(candidate));
-                        }
-                        iceCandidateQueues[from] = [];
-                    }
-
-                    if (signal.type === 'offer') {
-                        const answer = await pc.createAnswer();
-                        await pc.setLocalDescription(answer);
-                        socketVoz.emit('sinal_WebRTC', { to: from, signal: pc.localDescription });
-                    }
-                } else if (signal.candidate) {
-                    // Se a descrição remota ainda não foi definida, guarda na fila
-                    if (!pc.remoteDescription || !pc.remoteDescription.type) {
-                        if (!iceCandidateQueues[from]) iceCandidateQueues[from] = [];
-                        iceCandidateQueues[from].push(signal);
-                    } else {
-                        await pc.addIceCandidate(new RTCIceCandidate(signal));
-                    }
-                }
-            } catch (err) {
-                console.error("Erro no sinal WebRTC:", err);
-            }
-        });
-
-        socketVoz.off('forcar_mute_servidor');
-        socketVoz.on('forcar_mute_servidor', ({ mutado }) => {
-            if (localStream) {
-                localStream.getAudioTracks()[0].enabled = !mutado;
-                isMuted = mutado;
-                const btnMute = document.getElementById('btn-mute-audio');
-                if (btnMute) btnMute.innerText = mutado ? 'Desmutado 🎙️ (Mutado pelo ADM)' : 'Mutar 🎙️';
-            }
-        });
 
         if (statusEl) statusEl.innerText = 'Estado: Conectado ao Canal de Voz 🔊';
+
+        // Registra listeners de WebRTC no socket
+        s.off('sinal_WebRTC', tratarSinalWebRTC);
+        s.on('sinal_WebRTC', tratarSinalWebRTC);
+
+        s.off('forcar_mute_servidor');
+        s.on('forcar_mute_servidor', ({ mutado }) => {
+            if (localStream) {
+                localStream.getAudioTracks().forEach(t => { t.enabled = !mutado; });
+                isMuted = mutado;
+                if (btnMute) {
+                    btnMute.innerText = mutado ? 'Desmutar 🎙️ (Mutado pelo ADM)' : 'Mutar 🎙️';
+                    btnMute.style.background = mutado ? '#da373c' : '#5865f2';
+                }
+            }
+        });
+
+        s.emit('entrar_canal_voz', { salaId: salaVozAtual, nickname, cargo });
     } catch (e) {
         console.error('Erro ao aceder ao microfone:', e);
-        if (statusEl) statusEl.innerText = 'Estado: Erro ao aceder ao microfone (Permissão negada)';
+        conectadoNaCall = false;
+        if (statusEl) {
+            statusEl.innerText = 'Estado: Erro ao aceder ao microfone (Verifique permissões)';
+        }
+    }
+}
+
+async function tratarSinalWebRTC({ from, signal }) {
+    if (!conectadoNaCall || !localStream) return;
+    const s = obterSocketVoz();
+
+    if (!peerConnections[from]) {
+        peerConnections[from] = criarPeerConnection(from, s);
+    }
+    const pc = peerConnections[from];
+
+    try {
+        if (signal.type) {
+            // Se já temos uma offer em andamento (colisão), resolvemos comparando IDs (polite peer)
+            if (signal.type === 'offer' && pc.signalingState !== 'stable') {
+                if (s.id < from) {
+                    return; // Peer impolite ignora nova offer durante colisão
+                }
+                await Promise.all([
+                    pc.setLocalDescription({ type: 'rollback' }).catch(() => {}),
+                    pc.setRemoteDescription(new RTCSessionDescription(signal))
+                ]);
+            } else {
+                await pc.setRemoteDescription(new RTCSessionDescription(signal));
+            }
+
+            // Drena candidatos ICE que chegaram antes da descrição remota
+            if (iceCandidateQueues[from] && iceCandidateQueues[from].length > 0) {
+                for (const candidate of iceCandidateQueues[from]) {
+                    try {
+                        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                    } catch (candErr) {
+                        console.warn("Erro ao adicionar ICE drenado:", candErr);
+                    }
+                }
+                iceCandidateQueues[from] = [];
+            }
+
+            if (signal.type === 'offer') {
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                s.emit('sinal_WebRTC', { to: from, signal: pc.localDescription });
+            }
+        } else if (signal.candidate) {
+            if (!pc.remoteDescription || !pc.remoteDescription.type) {
+                if (!iceCandidateQueues[from]) iceCandidateQueues[from] = [];
+                iceCandidateQueues[from].push(signal);
+            } else {
+                try {
+                    await pc.addIceCandidate(new RTCIceCandidate(signal));
+                } catch (candErr) {
+                    console.warn("Erro ao adicionar ICE candidate:", candErr);
+                }
+            }
+        }
+    } catch (err) {
+        console.error("Erro no processamento do sinal WebRTC:", err);
     }
 }
 
@@ -107,13 +200,23 @@ function atualizarListaVisualVoz(usuarios) {
 
     grid.innerHTML = '';
     usuarios.forEach(u => {
-        const cargoClass = `badge-cargo-${(u.cargo || 'soldado').toLowerCase()}`;
+        const cargoLimpo = (u.cargo || 'soldado').toLowerCase().replace(/[^a-z0-9-]/g, '');
+        const cargoClass = `badge-cargo-${cargoLimpo}`;
+        const nickEscape = String(u.nickname || 'Operacional')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        const cargoEscape = String(u.cargo || 'Privado')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
         grid.innerHTML += `
             <div style="background: rgba(30, 41, 59, 0.9); border: 1px solid rgba(88, 101, 242, 0.4); padding: 8px 12px; border-radius: 10px; display: flex; align-items: center; gap: 10px;">
                 <div style="width: 32px; height: 32px; background: #5865f2; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff; font-size: 14px;">🔊</div>
                 <div>
-                    <div style="font-size: 13px; font-weight: bold; color: #fff;">${u.nickname}</div>
-                    <span class="${cargoClass}" style="font-size: 10px; padding: 2px 6px;">${u.cargo}</span>
+                    <div style="font-size: 13px; font-weight: bold; color: #fff;">${nickEscape}</div>
+                    <span class="${cargoClass}" style="font-size: 10px; padding: 2px 6px;">${cargoEscape}</span>
                 </div>
             </div>
         `;
@@ -121,16 +224,29 @@ function atualizarListaVisualVoz(usuarios) {
 }
 
 function gerenciarConexoesWebRTC(usuarios, socket) {
+    if (!socket || !socket.id) return;
+
+    // Remove conexões de usuários que saíram
+    const idsPresentes = new Set(usuarios.map(u => u.id));
+    Object.keys(peerConnections).forEach(id => {
+        if (!idsPresentes.has(id)) {
+            fecharConexaoPeer(id);
+        }
+    });
+
+    // Inicia oferta apenas se o nosso socket.id for "menor" lexicograficamente (evita ofertas duplicadas cruzadas)
     usuarios.forEach(u => {
         if (u.id !== socket.id && !peerConnections[u.id]) {
             const pc = criarPeerConnection(u.id, socket);
             peerConnections[u.id] = pc;
-            
-            pc.createOffer().then(offer => {
-                return pc.setLocalDescription(offer);
-            }).then(() => {
-                socket.emit('sinal_WebRTC', { to: u.id, signal: pc.localDescription });
-            }).catch(err => console.error("Erro ao criar offer:", err));
+
+            if (socket.id < u.id) {
+                pc.createOffer().then(offer => {
+                    return pc.setLocalDescription(offer);
+                }).then(() => {
+                    socket.emit('sinal_WebRTC', { to: u.id, signal: pc.localDescription });
+                }).catch(err => console.error("Erro ao criar offer WebRTC:", err));
+            }
         }
     });
 }
@@ -139,34 +255,73 @@ function criarPeerConnection(targetId, socket) {
     const pc = new RTCPeerConnection(rtcConfig);
 
     if (localStream) {
-        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+        localStream.getTracks().forEach(track => {
+            pc.addTrack(track, localStream);
+        });
     }
 
     pc.onicecandidate = event => {
-        if (event.candidate) {
+        if (event.candidate && socket) {
             socket.emit('sinal_WebRTC', { to: targetId, signal: event.candidate });
         }
     };
 
     pc.ontrack = event => {
+        const streamRemoto = event.streams && event.streams[0] ? event.streams[0] : new MediaStream([event.track]);
         let audioElement = document.getElementById(`audio_${targetId}`);
         if (!audioElement) {
             audioElement = document.createElement('audio');
             audioElement.id = `audio_${targetId}`;
             audioElement.autoplay = true;
+            audioElement.playsInline = true;
+            audioElement.volume = 1.0;
+            audioElement.style.display = 'none';
             document.body.appendChild(audioElement);
         }
-        audioElement.srcObject = event.streams[0];
-        audioElement.play().catch(err => console.log("Aguardando interação para reproduzir áudio remoto:", err));
+        audioElement.srcObject = streamRemoto;
+        const playProm = audioElement.play();
+        if (playProm !== undefined) {
+            playProm.catch(() => {
+                // Se o navegador bloquear autoplay sem interação, tenta no primeiro clique da página
+                const desbloquearAudio = () => {
+                    audioElement.play().catch(() => {});
+                    window.removeEventListener('click', desbloquearAudio);
+                };
+                window.addEventListener('click', desbloquearAudio, { once: true });
+            });
+        }
+    };
+
+    pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+            fecharConexaoPeer(targetId);
+        }
     };
 
     return pc;
 }
 
+function fecharConexaoPeer(targetId) {
+    if (peerConnections[targetId]) {
+        try {
+            peerConnections[targetId].close();
+        } catch (e) {}
+        delete peerConnections[targetId];
+    }
+    delete iceCandidateQueues[targetId];
+    const el = document.getElementById(`audio_${targetId}`);
+    if (el) {
+        el.srcObject = null;
+        el.remove();
+    }
+}
+
 function alternarMuteMicrofone() {
     if (!localStream) return;
     isMuted = !isMuted;
-    localStream.getAudioTracks()[0].enabled = !isMuted;
+    localStream.getAudioTracks().forEach(track => {
+        track.enabled = !isMuted;
+    });
     const btn = document.getElementById('btn-mute-audio');
     if (btn) {
         btn.innerText = isMuted ? 'Desmutar 🎙️' : 'Mutar 🎙️';
@@ -175,23 +330,38 @@ function alternarMuteMicrofone() {
 }
 
 function sairCanalVoz() {
-    if (socketVoz) {
-        socketVoz.emit('sair_canal_voz');
+    const s = obterSocketVoz();
+    if (s) {
+        s.emit('sair_canal_voz');
     }
+    conectadoNaCall = false;
+
     if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
         localStream = null;
     }
+
     Object.keys(peerConnections).forEach(id => {
-        peerConnections[id].close();
-        delete peerConnections[id];
+        fecharConexaoPeer(id);
     });
     iceCandidateQueues = {};
-    document.querySelectorAll('audio[id^="audio_"]').forEach(el => el.remove());
 
     const statusEl = document.getElementById('painel-voz-status');
     if (statusEl) statusEl.innerText = 'Estado: Desconectado do Voz';
 
-    const grid = document.getElementById('avatares-falando-grid');
-    if (grid) grid.innerHTML = '<span style="color: #94a3b8; font-size: 13px;">Nenhum operacional conectado no voz no momento.</span>';
+    const btnMute = document.getElementById('btn-mute-audio');
+    if (btnMute) {
+        btnMute.innerText = 'Mutar 🎙️';
+        btnMute.style.background = '#5865f2';
+    }
+
+    // Consulta e atualiza lista visual remanescente
+    consultarParticipantesVoz(salaVozAtual);
+}
+
+// Inicializa a escuta assim que o script é carregado
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', inicializarEscutaVozGlobal);
+} else {
+    inicializarEscutaVozGlobal();
 }

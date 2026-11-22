@@ -2174,18 +2174,24 @@ io.on('connection', (socket) => {
   socket.on('chat_mensagem', (data) => { io.to(data.salaId).emit('receber_mensagem', data); });
 
   socket.on('entrar_canal_voz', (data) => {
-    let salaVozId = (data && data.salaId) ? data.salaId : 'canal_voz_geral';
+    let salaVozId = (data && data.salaId) ? data.salaId : 'sala_geral_salazar';
     socket.join(salaVozId);
     socket.nicknameVoz = (data && data.nickname) ? data.nickname : 'Operacional';
     socket.cargoVoz = (data && data.cargo) ? data.cargo : 'Privado';
     socket.salaVozId = salaVozId;
 
-    io.to(salaVozId).emit('utilizadores_no_voz', obterUtilizadoresVoz(salaVozId));
+    const lista = obterUtilizadoresVoz(salaVozId);
+    io.emit('utilizadores_no_voz', { salaId: salaVozId, usuarios: lista });
+  });
+
+  socket.on('obter_participantes_voz', (data) => {
+    let salaVozId = (data && data.salaId) ? data.salaId : 'sala_geral_salazar';
+    socket.emit('utilizadores_no_voz', { salaId: salaVozId, usuarios: obterUtilizadoresVoz(salaVozId) });
   });
 
   socket.on('sinal_WebRTC', (data) => {
     if (data && data.to) {
-      socket.to(data.to).emit('sinal_WebRTC', { from: socket.id, signal: data.signal });
+      io.to(data.to).emit('sinal_WebRTC', { from: socket.id, signal: data.signal });
     }
   });
 
@@ -2195,9 +2201,12 @@ io.on('connection', (socket) => {
 
   socket.on('sair_canal_voz', () => {
     if (socket.salaVozId) {
-      socket.leave(socket.salaVozId);
-      io.to(socket.salaVozId).emit('utilizadores_no_voz', obterUtilizadoresVoz(socket.salaVozId));
+      const sala = socket.salaVozId;
+      socket.leave(sala);
       socket.salaVozId = null;
+      socket.nicknameVoz = null;
+      socket.cargoVoz = null;
+      io.emit('utilizadores_no_voz', { salaId: sala, usuarios: obterUtilizadoresVoz(sala) });
     }
   });
 
@@ -2209,8 +2218,12 @@ io.on('connection', (socket) => {
     }
 
     if (socket.salaVozId) {
-      socket.leave(socket.salaVozId);
-      io.to(socket.salaVozId).emit('utilizadores_no_voz', obterUtilizadoresVoz(socket.salaVozId));
+      const sala = socket.salaVozId;
+      socket.leave(sala);
+      socket.salaVozId = null;
+      socket.nicknameVoz = null;
+      socket.cargoVoz = null;
+      io.emit('utilizadores_no_voz', { salaId: sala, usuarios: obterUtilizadoresVoz(sala) });
     }
   });
 });
@@ -2223,11 +2236,17 @@ function obterUtilizadoresVoz(salaVozId) {
   for (const socketId of socketsNaSala) {
       const s = io.sockets.sockets.get(socketId);
       if (s && s.nicknameVoz) {
-          lista.push({ id: s.id, nickname: s.nicknameVoz, cargo: s.cargoVoz });
+          lista.push({ id: s.id, nickname: s.nicknameVoz, cargo: s.cargoVoz || 'Privado' });
       }
   }
   return lista;
 }
+
+// Endpoint para consulta imediata de quem está no canal de voz sem depender de eventos passados
+app.get('/api/voz/participantes/:salaId', (req, res) => {
+  const salaId = req.params.salaId || 'sala_geral_salazar';
+  res.json({ success: true, salaId, usuarios: obterUtilizadoresVoz(salaId) });
+});
 
 async function atualizarEstadoOperacional(salaId) {
   const conexõesNaSala = Object.values(usuariosOnline).filter(u => u.salaId === salaId);

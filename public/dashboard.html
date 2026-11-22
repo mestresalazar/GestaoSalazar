@@ -1739,6 +1739,9 @@
             carregarCaixaEntrada();
             atualizarFiscalizacaoServidor();
             carregarPremiacaoTropaUI();
+            if (typeof consultarParticipantesVoz === 'function') {
+                consultarParticipantesVoz('sala_geral_salazar');
+            }
         });
 
         socket.on('atualizar_premiacao_tropa', (dados) => {
