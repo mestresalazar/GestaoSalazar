@@ -94,9 +94,24 @@ function gerarSvgIconeSalazar(tamanho = 512) {
 </svg>`;
 }
 
-// Rota segura para servir o GIF da Glock com suporte a espaços e caracteres especiais
+// Rota segura para servir o GIF da Glock com suporte a caminhos diretos, espaços e aliases
 app.get(['/mac-glock.gif', '/assets/mac-glock.gif', '/glock.gif'], (req, res) => {
     const fs = require('fs');
+    const directPaths = [
+        path.join(__dirname, 'public', 'mac-glock.gif'),
+        path.join(__dirname, 'public', 'assets', 'mac-glock.gif'),
+        path.join(__dirname, 'assets', 'mac-glock.gif'),
+        path.join(__dirname, 'mac-glock.gif')
+    ];
+
+    for (const directPath of directPaths) {
+        if (fs.existsSync(directPath)) {
+            res.setHeader('Content-Type', 'image/gif');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            return res.sendFile(directPath);
+        }
+    }
+
     const possibleDirs = [
         path.join(__dirname, 'public'),
         path.join(__dirname, 'public', 'assets'),
@@ -105,19 +120,22 @@ app.get(['/mac-glock.gif', '/assets/mac-glock.gif', '/glock.gif'], (req, res) =>
     ];
     for (const dir of possibleDirs) {
         if (fs.existsSync(dir)) {
-            const files = fs.readdirSync(dir);
-            const found = files.find(f => f.toLowerCase().includes('mac') && f.toLowerCase().includes('glock') && f.toLowerCase().endsWith('.gif'));
-            if (found) {
-                res.setHeader('Content-Type', 'image/gif');
-                res.setHeader('Cache-Control', 'public, max-age=86400');
-                return res.sendFile(path.join(dir, found));
-            }
+            try {
+                const files = fs.readdirSync(dir);
+                const found = files.find(f => (f.toLowerCase().includes('glock') || f.toLowerCase().includes('mac')) && f.toLowerCase().endsWith('.gif'));
+                if (found) {
+                    res.setHeader('Content-Type', 'image/gif');
+                    res.setHeader('Cache-Control', 'public, max-age=86400');
+                    return res.sendFile(path.join(dir, found));
+                }
+            } catch (e) {}
         }
     }
-    // Fallback caso o arquivo ainda não tenha sido colocado na pasta
+
+    // Fallback caso o arquivo ainda não esteja pronto
     const fallbackIcon = path.join(__dirname, 'public', 'icons', 'icon-192.png');
     if (fs.existsSync(fallbackIcon)) {
-        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Content-Type', 'image/svg+xml');
         return res.sendFile(fallbackIcon);
     }
     res.status(404).send('GIF não encontrado');

@@ -707,7 +707,7 @@
     <!-- SPLASH SCREEN TÁTICA COM O GIF DA GLOCK -->
     <div id="splashScreenDashboard" style="position: fixed; inset: 0; background: #07090f; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 99999; transition: opacity 0.4s ease, visibility 0.4s ease;">
         <div style="width: 130px; height: 130px; border-radius: 24px; overflow: hidden; border: 2px solid #ef4444; box-shadow: 0 0 30px rgba(239, 68, 68, 0.5); background: #07090f; margin-bottom: 18px; display: flex; align-items: center; justify-content: center;">
-            <img src="/mac-glock.gif" alt="Salazar Glock" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='/icons/icon-192.png'">
+            <img src="/mac-glock.gif" alt="Salazar Glock" style="width: 100%; height: 100%; object-fit: cover;" onerror="tratarFallbackGlock(this)">
         </div>
         <h2 style="color: #ef4444; font-size: 19px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;">Gestão Salazar</h2>
         <p style="color: #94a3b8; font-size: 11px; margin-top: 6px; letter-spacing: 1.5px; font-weight: 600;">SINCRONIZANDO PAINEL OPERACIONAL...</p>
@@ -1518,6 +1518,21 @@
     <script src="/voz.js"></script>
 
     <script>
+        function tratarFallbackGlock(imgEl) {
+            if (!imgEl) return;
+            const tentativas = parseInt(imgEl.dataset.fallbackTentativa || '0', 10);
+            if (tentativas === 0) {
+                imgEl.dataset.fallbackTentativa = '1';
+                imgEl.src = '/assets/mac-glock.gif';
+            } else if (tentativas === 1) {
+                imgEl.dataset.fallbackTentativa = '2';
+                imgEl.src = './mac-glock.gif';
+            } else {
+                imgEl.onerror = null;
+                imgEl.src = '/icons/icon-192.png';
+            }
+        }
+
         // Transição suave de splash screen
         window.addEventListener('load', () => {
             const splash = document.getElementById('splashScreenDashboard');
