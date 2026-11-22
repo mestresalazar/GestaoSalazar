@@ -3081,7 +3081,7 @@
             const titulo = (dados && dados.titulo) ? `🚨 AÇÃO: ${dados.titulo}` : '🚨 ALERTA GERAL DE AÇÃO!';
             const desc = (dados && dados.descricao) ? dados.descricao : 'Nova convocação urgente do Comando! Apresente-se imediatamente.';
 
-            // Dispara notificação nativa com tag estável (evita som/pop-up repetido com push)
+            // Dispara notificação nativa coletiva com tag estável
             dispararNotificacaoNativa(titulo, {
                 body: desc,
                 url: '/dashboard.html',
@@ -3091,6 +3091,27 @@
             // Alerta visual imediato no modal do painel
             mostrarModalCustomizado(titulo, escapeHTML(desc), 'alerta');
             carregarCaixaEntrada();
+        });
+
+        // Listener para notificações individuais com escopo restrito ao membro logado
+        socket.on('notificacao_individual', (dados) => {
+            if (!dados || !dados.nickname) return;
+            const souEu = dados.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim();
+            if (!souEu) return;
+
+            const tagId = dados.tag || ('indiv_' + Date.now());
+            const titulo = dados.titulo || 'Notificação Operacional';
+            const desc = dados.mensagem || '';
+
+            dispararNotificacaoNativa(titulo, {
+                body: desc.replace(/<[^>]*>?/gm, ''),
+                url: '/dashboard.html',
+                tag: tagId
+            });
+
+            mostrarModalCustomizado(titulo, desc);
+            carregarCaixaEntrada();
+            sincronizarCarteiraEMissoes();
         });
 
         socket.on('atualizar_premiacao_tropa', (dados) => {

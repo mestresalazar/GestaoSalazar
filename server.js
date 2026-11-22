@@ -358,49 +358,48 @@ app.get('/api/db-status', (req, res) => {
 // --- ROTINA ATÔMICA DE PURGA PARA ELIMINAR O LIMITE DE 16MB DO MONGODB (CODE 10334) ---
 async function limparDocumentoUsuarioSobrecarga(userId) {
     try {
-        // 1. Limpeza direta e rápida via update sem carregar 16MB na memória
-        await User.updateOne(
-            { _id: userId },
-            {
-                $set: {
-                    fotoComprovanteAtiva: '',
-                    comprovantesTurnoAtivo: []
-                },
-                $push: {
-                    caixaEntrada: { $each: [], $slice: -20 },
-                    historicoTurnos: { $each: [], $slice: -40 },
-                    historicoMissoes: { $each: [], $slice: -20 }
-                }
-            }
-        );
+        const usuario = await User.findById(userId, 'historicoTurnos historicoMissoes caixaEntrada comprovantesTurnoAtivo').lean();
+        if (!usuario) return;
 
-        // 2. Remove base64 pesados de turnos e missões antigas já arquivadas
-        const usuario = await User.findById(userId, 'historicoTurnos historicoMissoes').lean();
-        if (usuario) {
-            const updateSet = {};
-            if (Array.isArray(usuario.historicoTurnos) && usuario.historicoTurnos.length > 0) {
-                updateSet.historicoTurnos = usuario.historicoTurnos.slice(-40).map((t, idx, arr) => {
-                    const ehRecente = idx >= arr.length - 6;
-                    return {
-                        ...t,
-                        fotoComprovante: (ehRecente && t.fotoComprovante && t.fotoComprovante.length < 250000) ? t.fotoComprovante : (t.fotoComprovante ? 'Comprovante arquivado' : ''),
-                        comprovantesVerificacao: ehRecente ? (t.comprovantesVerificacao || []).slice(-3) : []
-                    };
-                });
-            }
-            if (Array.isArray(usuario.historicoMissoes) && usuario.historicoMissoes.length > 0) {
-                updateSet.historicoMissoes = usuario.historicoMissoes.slice(-20).map((m, idx, arr) => {
-                    const ehRecente = idx >= arr.length - 4;
-                    return {
-                        ...m,
-                        comprovante: (ehRecente && m.comprovante && m.comprovante.length < 250000) ? m.comprovante : (m.comprovante ? 'Comprovante arquivado' : '')
-                    };
-                });
-            }
-            if (Object.keys(updateSet).length > 0) {
-                await User.updateOne({ _id: userId }, { $set: updateSet });
-            }
+        const updateSet = {};
+
+        // 1. Poda notificações antigas
+        if (Array.isArray(usuario.caixaEntrada) && usuario.caixaEntrada.length > 20) {
+            updateSet.caixaEntrada = usuario.caixaEntrada.slice(-20);
         }
+
+        // 2. Remove base64 pesados de turnos antigos (mantém imagem apenas nos 4 mais recentes)
+        if (Array.isArray(usuario.historicoTurnos) && usuario.historicoTurnos.length > 0) {
+            updateSet.historicoTurnos = usuario.historicoTurnos.slice(-35).map((t, idx, arr) => {
+                const ehMuitoRecente = idx >= arr.length - 4;
+                return {
+                    data: t.data || new Date(),
+                    duracao: t.duracao || '00:00:00',
+                    manual: !!t.manual,
+                    fotoComprovante: (ehMuitoRecente && t.fotoComprovante && t.fotoComprovante.length < 200000) ? t.fotoComprovante : (t.fotoComprovante ? 'Comprovante arquivado' : ''),
+                    comprovantesVerificacao: (ehMuitoRecente && Array.isArray(t.comprovantesVerificacao)) ? t.comprovantesVerificacao.slice(-3) : []
+                };
+            });
+        }
+
+        // 3. Remove base64 pesados de missões antigas
+        if (Array.isArray(usuario.historicoMissoes) && usuario.historicoMissoes.length > 0) {
+            updateSet.historicoMissoes = usuario.historicoMissoes.slice(-15).map((m, idx, arr) => {
+                const ehRecente = idx >= arr.length - 3;
+                return {
+                    data: m.data || new Date(),
+                    ciclo: m.ciclo || 'Atual',
+                    motivo: m.motivo || 'Missão',
+                    comprovante: (ehRecente && m.comprovante && m.comprovante.length < 200000) ? m.comprovante : (m.comprovante ? 'Comprovante arquivado' : '')
+                };
+            });
+        }
+
+        if (Array.isArray(usuario.comprovantesTurnoAtivo) && usuario.comprovantesTurnoAtivo.length > 6) {
+            updateSet.comprovantesTurnoAtivo = usuario.comprovantesTurnoAtivo.slice(-6);
+        }
+
+        await User.updateOne({ _id: userId }, { $set: updateSet });
     } catch (errLimpeza) {
         console.error("Aviso ao executar purga atômica:", errLimpeza.message);
         try {
@@ -415,6 +414,67 @@ async function limparDocumentoUsuarioSobrecarga(userId) {
                 }
             );
         } catch (e) {}
+    }
+}
+
+// --- SISTEMA UNIFICADO DE NOTIFICAÇÃO INDIVIDUAL COM ESCOPO ESTRITO ---
+async function enviarNotificacaoMembro(membroIdOuNick, { titulo, mensagem, tag, url }) {
+    try {
+        let query = { _id: membroIdOuNick };
+        if (!String(membroIdOuNick).match(/^[0-9a-fA-F]{24}$/)) {
+            query = { nickname: new RegExp('^' + escaparRegex(String(membroIdOuNick).trim()) + '$', 'i') };
+        }
+
+        const membro = await User.findOne(query, '_id nickname pushSubscription').lean();
+        if (!membro) return;
+
+        const notifObj = {
+            titulo: titulo || 'Notificação Operacional',
+            mensagem: mensagem || '',
+            data: new Date()
+        };
+
+        // Salva na caixa de entrada individual do membro com histórico controlado
+        await User.updateOne(
+            { _id: membro._id },
+            {
+                $push: {
+                    caixaEntrada: {
+                        $each: [notifObj],
+                        $slice: -25
+                    }
+                }
+            }
+        );
+
+        const tagFinal = tag || ('notif_' + Date.now());
+
+        // Dispara Web Push exclusivo para este membro se possuir subscrição ativa
+        if (membro.pushSubscription && membro.pushSubscription.endpoint) {
+            const pushPayload = JSON.stringify({
+                id: tagFinal,
+                tag: tagFinal,
+                title: notifObj.titulo,
+                body: notifObj.mensagem.replace(/<[^>]*>?/gm, ''),
+                url: url || '/dashboard.html'
+            });
+
+            webpush.sendNotification(membro.pushSubscription, pushPayload).catch(async (err) => {
+                if (err.statusCode === 410 || err.statusCode === 404) {
+                    await User.updateOne({ _id: membro._id }, { $unset: { pushSubscription: 1 } });
+                }
+            });
+        }
+
+        // Emite evento em tempo real via Socket.IO para o cliente do membro
+        io.emit('notificacao_individual', {
+            nickname: membro.nickname.toLowerCase().trim(),
+            titulo: notifObj.titulo,
+            mensagem: notifObj.mensagem,
+            tag: tagFinal
+        });
+    } catch (e) {
+        console.error("Erro ao enviar notificação individual ao membro:", e);
     }
 }
 
@@ -670,19 +730,13 @@ app.put('/api/admin/justificativa/:id/status', async (req, res) => {
 
         await justificativa.save();
 
-        // Envia notificação na caixa de entrada do membro
-        await User.updateOne(
-            { nickname: new RegExp('^' + justificativa.nickname + '$', 'i') },
-            {
-                $push: {
-                    caixaEntrada: {
-                        titulo: `📝 Justificativa ${novoStatus.toUpperCase()}`,
-                        mensagem: `A tua justificativa de ausência ("${justificativa.motivo}") foi marcada como <b>${novoStatus.toUpperCase()}</b> por ${adminNickname || 'Comando'}.${respostaComando ? `<br>Observação: ${respostaComando}` : ''}`,
-                        data: new Date()
-                    }
-                }
-            }
-        );
+        // Envia notificação exclusiva para o autor da justificativa
+        await enviarNotificacaoMembro(justificativa.nickname, {
+            titulo: `📝 Justificativa ${novoStatus.toUpperCase()}`,
+            mensagem: `A tua justificativa ("${justificativa.motivo}") foi marcada como <b>${novoStatus.toUpperCase()}</b> por ${adminNickname || 'Comando'}.${respostaComando ? `<br>Observação: ${respostaComando}` : ''}`,
+            tag: 'justificativa_' + justificativa._id,
+            url: '/dashboard.html'
+        });
 
         await registarLogAdmin(
             adminNickname || 'Comando',
@@ -782,15 +836,7 @@ async function verificarFechamentoAutomaticoTurnos() {
                             { _id: membro._id },
                             {
                                 $push: {
-                                    historicoTurnos: { $each: [novoTurno], $slice: -50 },
-                                    caixaEntrada: {
-                                        $each: [{
-                                            titulo: '⏱️ Turno Finalizado por Falta de Confirmação',
-                                            mensagem: `O teu plantão foi encerrado automaticamente pois o print de verificação da ${horasCompletadas}ª hora não foi enviado dentro do prazo de 5 minutos. Duração computada: <b>${duracaoFormatada}</b>.`,
-                                            data: new Date()
-                                        }],
-                                        $slice: -25
-                                    }
+                                    historicoTurnos: { $each: [novoTurno], $slice: -35 }
                                 },
                                 $set: {
                                     emPlantao: false,
@@ -802,6 +848,13 @@ async function verificarFechamentoAutomaticoTurnos() {
                                 }
                             }
                         );
+
+                        await enviarNotificacaoMembro(membro._id, {
+                            titulo: '⏱️ Turno Finalizado por Falta de Confirmação',
+                            mensagem: `O teu plantão foi encerrado automaticamente pois o print da ${horasCompletadas}ª hora não foi enviado dentro do prazo de 5 minutos. Duração salva: <b>${duracaoFormatada}</b>.`,
+                            tag: 'turno_expirado_' + Date.now(),
+                            url: '/dashboard.html'
+                        });
 
                         io.emit('atualizar_estado_turno_usuario', { nickname: membro.nickname.toLowerCase() });
                         await registarLogAdmin(membro.nickname, 'Fim de Turno (Expirado 5m)', `Turno encerrado por não envio do print da ${horasCompletadas}ª hora em 5 minutos. Duração salva: ${duracaoFormatada}`);
@@ -1500,11 +1553,11 @@ app.put('/api/membro/status-plantao', async (req, res) => {
                 { $set: updateData }
             );
         } catch (errUpdate) {
-            // Se estourar os 16MB (código 10334 ou BSONObj size), executa expurgo agressivo e conclui
+            // Se estourar os 16MB (código 10334 ou BSONObj size), executa expurgo atômico e conclui imediatamente sem travar
             if (errUpdate.code === 10334 || String(errUpdate.message).includes('16793600') || String(errUpdate.message).includes('BSONObj size')) {
-                console.warn(`[Documento > 16MB] Purga atômica executada para ${membroAtual.nickname}...`);
+                console.warn(`[Documento > 16MB] Purga imediata executada para ${membroAtual.nickname}...`);
                 await limparDocumentoUsuarioSobrecarga(membroAtual._id);
-                if (updateData.fotoComprovanteAtiva && updateData.fotoComprovanteAtiva.length > 300000) {
+                if (updateData.fotoComprovanteAtiva && updateData.fotoComprovanteAtiva.length > 150000) {
                     updateData.fotoComprovanteAtiva = 'Comprovante consolidado';
                 }
                 await User.updateOne(
@@ -1871,17 +1924,16 @@ app.put('/api/admin/membro/carteira/resetar/:id', async (req, res) => {
 
         await User.updateOne(
             { _id: id },
-            {
-                $set: { carteiraSaldo: 0 },
-                $push: {
-                    caixaEntrada: {
-                        titulo: '💰 Pagamento Efetuado!',
-                        mensagem: `O Comando efetuou o pagamento do seu saldo acumulado de <b>R$ ${saldoPago.toLocaleString('pt-BR')}</b>. A carteira foi reiniciada para R$ 0,00.`,
-                        data: new Date()
-                    }
-                }
-            }
+            { $set: { carteiraSaldo: 0 } }
         );
+
+        // Notificação individual exclusiva de pagamento para o membro beneficiado
+        await enviarNotificacaoMembro(membro._id, {
+            titulo: '💰 Pagamento de Saldo Efetuado!',
+            mensagem: `O Comando efetuou o pagamento do seu saldo acumulado de <b>R$ ${saldoPago.toLocaleString('pt-BR')}</b>. A carteira foi reiniciada para R$ 0,00.`,
+            tag: 'pagamento_carteira_' + Date.now(),
+            url: '/dashboard.html'
+        });
 
         io.emit('atualizar_status_geral_tropa');
         await registarLogAdmin(adminNickname || 'Comando', 'Pagamento de Carteira', `Efetuado pagamento de R$ ${saldoPago} para ${membro.nickname} e saldo zerado.`);
@@ -2360,6 +2412,14 @@ app.put('/api/admin/membro/:id', async (req, res) => {
             const acaoStr = cargoAniPrecedencia(cargo, membroAntigo.cargo) ? 'Promoção de Cargo' : 'Alteração / Rebaixamento de Cargo';
             await User.updateOne({ _id: id }, { $push: { historicoPromocoes: { novoCargo: cargo, cargoAnterior: membroAntigo.cargo, data: new Date() } } });
             await registarLogAdmin(nomeAutor, acaoStr, `Membro ${membro.nickname} alterado de ${membroAntigo.cargo} para ${cargo} por ${nomeAutor}`);
+
+            // Notificação individual exclusiva para o membro promovido/alterado
+            await enviarNotificacaoMembro(membro._id, {
+                titulo: `⭐ ${acaoStr}!`,
+                mensagem: `O teu cargo foi atualizado de <b>${membroAntigo.cargo}</b> para <b>${cargo}</b> por ${nomeAutor}.`,
+                tag: 'promocao_' + Date.now(),
+                url: '/dashboard.html'
+            });
         }
 
         if (status && status !== membroAntigo.status) {
@@ -2672,15 +2732,19 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
                 {
                     $set: { cargo: cargoAlvo, cooldownProvaAte: null },
                     $push: {
-                        historicoPromocoes: { novoCargo: cargoAlvo, cargoAnterior: membro.cargo, data: new Date() },
-                        caixaEntrada: {
-                            titulo: '🎉 Aprovado na Prova!',
-                            mensagem: `Parabéns! Foste aprovado na prova e promovido para <b>${cargoAlvo}</b>!`,
-                            data: new Date()
-                        }
+                        historicoPromocoes: { novoCargo: cargoAlvo, cargoAnterior: membro.cargo, data: new Date() }
                     }
                 }
             );
+
+            // Notificação individual exclusiva de aprovação no exame
+            await enviarNotificacaoMembro(membro._id, {
+                titulo: '🎉 Aprovado no Exame Oficial!',
+                mensagem: `Parabéns! Foste aprovado no exame e promovido a <b>${cargoAlvo}</b>!`,
+                tag: 'aprovado_prova_' + Date.now(),
+                url: '/dashboard.html'
+            });
+
             io.emit('atualizar_status_geral_tropa');
             io.emit('atualizar_cargo_usuario', { nickname: nickname.toLowerCase(), novoCargo: cargoAlvo });
             await registarLogAdmin(nickname, 'Aprovação em Exame', `Membro aprovado em exame e promovido a ${cargoAlvo}.`);
@@ -2689,6 +2753,14 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
             const dataCooldown = new Date();
             dataCooldown.setHours(dataCooldown.getHours() + 24);
             await User.updateOne({ _id: membro._id }, { $set: { cooldownProvaAte: dataCooldown } });
+
+            await enviarNotificacaoMembro(membro._id, {
+                titulo: '📝 Resultado do Exame',
+                mensagem: `Exame finalizado com ${acertos}/${totalPerguntas} acertos. Novo teste disponível em 24h.`,
+                tag: 'resultado_prova_' + Date.now(),
+                url: '/dashboard.html'
+            });
+
             await registarLogAdmin(nickname, 'Reprovação em Exame', `Membro reprovado no exame para ${cargoAlvo}.`);
             res.json({ success: true, aprovado: false, message: `Infelizmente obtiviste ${acertos}/${totalPerguntas} acertos. Cooldown de 24h ativado.` });
         }
