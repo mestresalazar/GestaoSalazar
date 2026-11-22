@@ -6,6 +6,14 @@ self.addEventListener('activate', (event) => {
     event.waitUntil(self.clients.claim());
 });
 
+// Nunca intercepta requisições de API ou WebSockets para garantir comunicação em tempo real
+self.addEventListener('fetch', (event) => {
+    const url = new URL(event.request.url);
+    if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/socket.io/')) {
+        return;
+    }
+});
+
 self.addEventListener('push', function(event) {
     let data = {
         title: '🚨 ALERTA DE AÇÃO - Gestão Salazar',
