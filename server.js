@@ -1158,7 +1158,7 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
     try {
         const membro = await User.findOne(
             { nickname: new RegExp('^' + req.params.nickname + '$', 'i') },
-            'nickname cargo status emPlantao estadoTurno inicioPlantao segundosAcumulados fotoComprovanteAtiva historicoTurnos historicoPromocoes historicoSorteios caixaEntrada'
+            'nickname cargo status emPlantao estadoTurno inicioPlantao segundosAcumulados fotoComprovanteAtiva comprovantesTurnoAtivo historicoTurnos historicoPromocoes historicoSorteios caixaEntrada'
         ).lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
@@ -1177,7 +1177,8 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
                 inicioPlantao: membro.inicioPlantao || null,
                 segundosAcumulados: membro.segundosAcumulados || 0,
                 fotoComprovanteAtiva: membro.fotoComprovanteAtiva || '',
-                ultimoPlantao: ultimoTurno ? `Duração: ${ultimoTurno.duracao} em ${new Date(ultimoTurno.data).toLocaleDateString()}` : 'Nenhum plantão registado'
+                comprovantesTurnoAtivo: membro.comprovantesTurnoAtivo || [],
+                ultimoPlantao: ultimoTurno ? `Duração: ${ultimoTurno.duracao} em ${new Date(ultimoTurno.data).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` : 'Nenhum plantão registado'
             },
             historicoTurnos: membro.historicoTurnos || [],
             historicoPromocoes: membro.historicoPromocoes || [],
@@ -1300,6 +1301,10 @@ app.put('/api/membro/status-plantao', async (req, res) => {
         const updateData = {
             estadoTurno: estadoTurnoDestino
         };
+
+        if (ehNovoTurno) {
+            updateData.comprovantesTurnoAtivo = [];
+        }
 
         // Consolida os segundos acumulados reais respeitando rigorosamente o teto das 02:00
         let segundosConsolidados = Number(membroAtual.segundosAcumulados || 0);

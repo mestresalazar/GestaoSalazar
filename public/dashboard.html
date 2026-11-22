@@ -3358,6 +3358,12 @@
                 return;
             }
 
+            const btnEnviar = document.getElementById('btnEnviarVerificacaoHora');
+            if (btnEnviar) {
+                btnEnviar.disabled = true;
+                btnEnviar.innerText = 'A enviar comprovante...';
+            }
+
             const total = calcularSegundosTotais();
             const horaAtual = Math.floor(total / 3600);
 
@@ -3378,9 +3384,16 @@
                     document.getElementById('boxVerificacaoHora').style.display = 'none';
                     fotoVerificacaoHoraBase64 = '';
                     mostrarModalCustomizado('Verificação Confirmada', `Print de presença da ${horaAtual}ª hora registado no sistema com sucesso!`);
+                } else {
+                    mostrarModalCustomizado('Erro', escapeHTML(data.message || 'Erro ao registrar verificação.'));
                 }
             } catch (e) {
-                mostrarModalCustomizado('Erro', 'Erro ao enviar comprovante de verificação.');
+                mostrarModalCustomizado('Erro', 'Erro de ligação ao enviar comprovante de verificação.');
+            } finally {
+                if (btnEnviar) {
+                    btnEnviar.disabled = false;
+                    btnEnviar.innerText = '✅ Confirmar Print da Hora';
+                }
             }
         }
 
@@ -3437,7 +3450,7 @@
 
         async function restaurarEstadoTurno() {
             try {
-                const res = await fetch(`/api/membro/historico/${encodeURIComponent(user.nickname)}`);
+                const res = await fetch(`/api/membro/historico/${encodeURIComponent(user.nickname)}?_=${Date.now()}`);
                 const data = await res.json();
                 if (data.success && data.membro) {
                     estadoTurno = data.membro.estadoTurno || 'parado';
@@ -3445,10 +3458,22 @@
                     timestampInicioServer = (estadoTurno === 'ativo' && data.membro.inicioPlantao)
                         ? new Date(data.membro.inicioPlantao).getTime()
                         : null;
+
+                    // Restaura as verificações horárias persistidas no banco de dados para não repetir após F5
+                    horasVerificadasLocal.clear();
+                    if (Array.isArray(data.membro.comprovantesTurnoAtivo)) {
+                        data.membro.comprovantesTurnoAtivo.forEach(item => {
+                            if (item.horaNumero) {
+                                horasVerificadasLocal.add(Number(item.horaNumero));
+                            }
+                        });
+                    }
+
                     if (estadoTurno === 'ativo' || estadoTurno === 'pausado') {
                         fotoComprovanteBase64 = data.membro.fotoComprovanteAtiva || '';
                     } else {
                         fotoComprovanteBase64 = '';
+                        horasVerificadasLocal.clear();
                     }
                 }
             } catch (e) {}
