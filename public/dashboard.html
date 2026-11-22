@@ -481,9 +481,11 @@
                     </div>
 
                     <!-- Bloco de Notificações do Turno -->
-                    <div id="boxNotificacaoTurno" style="display: none; margin-bottom: 14px; padding: 10px 14px; border-radius: 10px; font-size: 12px; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
-                        <span id="textoNotificacaoTurno" style="color: #e2e8f0;"></span>
-                        <button id="btnPermitirNotificacaoTurno" onclick="ativarNotificacoesPush(true)" style="background: rgba(34, 197, 94, 0.25); border: 1px solid #22c55e; color: #34d399; font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: 8px; cursor: pointer; transition: all 0.2s;">🔔 Permitir Notificações</button>
+                    <div id="boxNotificacaoTurno" style="display: none; margin-bottom: 14px; padding: 12px 14px; border-radius: 12px; font-size: 12px; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 220px;">
+                            <span id="textoNotificacaoTurno" style="color: #e2e8f0; line-height: 1.5; display: block;"></span>
+                        </div>
+                        <button id="btnPermitirNotificacaoTurno" onclick="tratarCliqueNotificacoes()" style="background: rgba(34, 197, 94, 0.25); border: 1px solid #22c55e; color: #34d399; font-size: 12px; font-weight: 700; padding: 8px 14px; border-radius: 8px; cursor: pointer; transition: all 0.2s;">🔔 Ativar / Verificar Notificações</button>
                     </div>
 
                     <p id="etapaAtual" style="color: #e2e8f0; font-size: 13px;">Etapa: A carregar horário regulamentar...</p>
@@ -1557,6 +1559,16 @@
             }
         }
 
+        function detectarPlataformaNavegador() {
+            const ua = navigator.userAgent || '';
+            const ehIOS = /(iPad|iPhone|iPod)/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            const ehAndroid = /Android/i.test(ua);
+            const ehInApp = /FBAN|FBAV|Instagram|WhatsApp|Line|Twitter|Snapchat/i.test(ua);
+            const ehStandalone = (window.navigator.standalone === true) || window.matchMedia('(display-mode: standalone)').matches;
+
+            return { ehIOS, ehAndroid, ehInApp, ehStandalone };
+        }
+
         async function verificarEstadoPush() {
             const box = document.getElementById('boxNotificacaoTurno');
             const texto = document.getElementById('textoNotificacaoTurno');
@@ -1564,6 +1576,43 @@
             const badgeNav = document.getElementById('statusNotificacoesTurno');
             if (!box) return;
 
+            const { ehIOS, ehInApp, ehStandalone } = detectarPlataformaNavegador();
+
+            // 1. Navegador interno (in-app browser)
+            if (ehInApp) {
+                box.style.display = 'flex';
+                box.style.background = 'rgba(234, 179, 8, 0.12)';
+                box.style.border = '1px solid rgba(234, 179, 8, 0.4)';
+                if (texto) texto.innerHTML = '🌐 <b>Navegador Interno:</b> Para receber alertas e som na tela bloqueada, abra este link diretamente no <b>Chrome</b> ou <b>Safari</b>.';
+                if (btn) {
+                    btn.style.display = 'inline-block';
+                    btn.innerText = 'ℹ️ Como Abrir';
+                    btn.style.background = 'rgba(234, 179, 8, 0.25)';
+                    btn.style.borderColor = '#eab308';
+                    btn.style.color = '#fde047';
+                }
+                if (badgeNav) badgeNav.innerHTML = '<span style="color: #eab308; font-size: 11px;">Abrir no Chrome/Safari ⚠️</span>';
+                return;
+            }
+
+            // 2. iOS/iPhone sem estar na Tela de Início (exigência técnica da Apple para Web Push)
+            if (ehIOS && !ehStandalone) {
+                box.style.display = 'flex';
+                box.style.background = 'rgba(56, 189, 248, 0.1)';
+                box.style.border = '1px solid rgba(56, 189, 248, 0.35)';
+                if (texto) texto.innerHTML = '📱 <b>iPhone / iOS:</b> Para receber notificações de AÇÃO, toque no botão <b>Compartilhar</b> e selecione <b>"Adicionar à Tela de Início"</b>.';
+                if (btn) {
+                    btn.style.display = 'inline-block';
+                    btn.innerText = '📲 Ver Como Ativar no iPhone';
+                    btn.style.background = 'rgba(56, 189, 248, 0.25)';
+                    btn.style.borderColor = '#38bdf8';
+                    btn.style.color = '#38bdf8';
+                }
+                if (badgeNav) badgeNav.innerHTML = '<span style="color: #38bdf8; font-size: 11px;">Adicione à Tela de Início 📲</span>';
+                return;
+            }
+
+            // 3. Suporte nativo à Notification API
             if (!('Notification' in window)) {
                 box.style.display = 'none';
                 if (badgeNav) badgeNav.innerHTML = '';
@@ -1573,9 +1622,15 @@
             if (Notification.permission === 'denied') {
                 box.style.display = 'flex';
                 box.style.background = 'rgba(239, 68, 68, 0.1)';
-                box.style.border = '1px solid rgba(239, 68, 68, 0.3)';
-                if (texto) texto.innerHTML = '⚠️ <b>Notificações bloqueadas</b> no navegador. Para receber alertas de AÇÃO da tropa, autorize nas permissões do site.';
-                if (btn) btn.style.display = 'none';
+                box.style.border = '1px solid rgba(239, 68, 68, 0.35)';
+                if (texto) texto.innerHTML = '⚠️ <b>Notificações bloqueadas</b> no navegador. Toque no botão ao lado para ver como autorizar nas permissões do site.';
+                if (btn) {
+                    btn.style.display = 'inline-block';
+                    btn.innerText = '🔓 Como Desbloquear';
+                    btn.style.background = 'rgba(239, 68, 68, 0.25)';
+                    btn.style.borderColor = '#ef4444';
+                    btn.style.color = '#fca5a5';
+                }
                 if (badgeNav) badgeNav.innerHTML = '<span style="color: #f87171; font-size: 11px;">Bloqueadas 🔕</span>';
             } else if (Notification.permission === 'granted') {
                 box.style.display = 'none';
@@ -1586,15 +1641,53 @@
                 box.style.display = 'flex';
                 box.style.background = 'rgba(234, 179, 8, 0.08)';
                 box.style.border = '1px solid rgba(234, 179, 8, 0.3)';
-                if (texto) texto.innerHTML = 'Receba alarmes de <b>AÇÃO</b> e convocações da tropa no seu dispositivo.';
+                if (texto) texto.innerHTML = 'Receba alarmes de <b>AÇÃO</b> e convocações da tropa diretamente no seu dispositivo.';
                 if (btn) {
                     btn.style.display = 'inline-block';
                     btn.innerText = '🔔 Permitir Notificações';
+                    btn.style.background = 'rgba(34, 197, 94, 0.25)';
+                    btn.style.borderColor = '#22c55e';
+                    btn.style.color = '#34d399';
                 }
                 if (badgeNav) badgeNav.innerHTML = '';
             }
         }
         verificarEstadoPush();
+
+        function tratarCliqueNotificacoes() {
+            const { ehIOS, ehInApp, ehStandalone } = detectarPlataformaNavegador();
+
+            if (ehInApp) {
+                mostrarModalCustomizado(
+                    '🌐 Abrir no Navegador Principal',
+                    'Você está navegando pelo navegador interno de uma rede social (WhatsApp/Instagram).<br><br>Para receber alertas mesmo com a tela bloqueada:<br>1. Toque nos <b>3 pontinhos</b> (ou botão de compartilhar) no canto da tela;<br>2. Selecione <b>"Abrir no Chrome"</b> ou <b>"Abrir no Safari"</b>.'
+                );
+                return;
+            }
+
+            if (ehIOS && !ehStandalone) {
+                mostrarModalCustomizado(
+                    '📱 Notificações no iPhone / iPad',
+                    'Por exigência do sistema iOS da Apple, as notificações Web Push só funcionam quando o site está instalado como aplicativo na Tela de Início:<br><br>' +
+                    '1. No Safari, toque no botão <b>Compartilhar</b> (ícone do quadrado com a seta para cima ⎋);<br>' +
+                    '2. Role para baixo e toque em <b>"Adicionar à Tela de Início"</b> ➕;<br>' +
+                    '3. Abra o ícone do <b>Gestão Salazar</b> na sua tela inicial e ative as notificações por lá!'
+                );
+                return;
+            }
+
+            if ('Notification' in window && Notification.permission === 'denied') {
+                mostrarModalCustomizado(
+                    '🔓 Desbloquear Notificações',
+                    'As notificações estão configuradas como <b>Bloqueadas</b> para este site:<br><br>' +
+                    '• <b>No Celular (Chrome Android):</b> Toque no ícone de ajustes/cadeado 🔒 ao lado da barra de endereço ➔ <b>Permissões</b> ➔ <b>Notificações</b> ➔ Mude para <b>Permitir</b>.<br><br>' +
+                    '• <b>No Computador:</b> Clique no ícone de cadeado 🔒 à esquerda da URL ➔ Ative a chave de <b>Notificações</b> ➔ Recarregue a página.'
+                );
+                return;
+            }
+
+            ativarNotificacoesPush(true);
+        }
 
         async function garantirSubscricaoPushSilenciosa() {
             if (!('serviceWorker' in navigator) || !('PushManager' in window) || Notification.permission !== 'granted') return;
@@ -1635,7 +1728,10 @@
             try {
                 const perm = await Notification.requestPermission();
                 if (perm === 'granted') {
-                    await obterRegistroServiceWorker();
+                    const reg = await obterRegistroServiceWorker();
+                    if (!reg) {
+                        console.warn("Service worker não disponível, mantendo notificações locais.");
+                    }
                     await garantirSubscricaoPushSilenciosa();
                     verificarEstadoPush();
                     if (comFeedbackVisual) {
@@ -1644,11 +1740,16 @@
                 } else if (perm === 'denied') {
                     verificarEstadoPush();
                     if (comFeedbackVisual) {
-                        mostrarModalCustomizado('Bloqueado', 'Você bloqueou as notificações. Para receber os alarmes, autorize nas permissões do navegador.');
+                        tratarCliqueNotificacoes();
                     }
+                } else {
+                    verificarEstadoPush();
                 }
             } catch (e) {
                 console.error("Erro ao solicitar permissão de notificações:", e);
+                if (comFeedbackVisual) {
+                    mostrarModalCustomizado('Aviso', 'Não foi possível solicitar a permissão de notificações: ' + (e.message || e));
+                }
             }
         }
 
