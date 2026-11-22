@@ -5,6 +5,7 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const webpush = require('web-push');
 const path = require('path');
+const mongoose = require('mongoose');
 const conectarDB = require('./config/db');
 const User = require('./models/User');
 const BatePonto = require('./models/BatePonto');
@@ -220,6 +221,7 @@ app.post('/api/admin/whatsapp-link', async (req, res) => {
 // --- VERIFICAÇÃO AUTOMÁTICA DE FECHO DE TURNO ÀS 02:05 (BRASÍLIA) ---
 async function verificarFechamentoAutomaticoTurnos() {
     try {
+        if (mongoose.connection.readyState !== 1) return;
         const agoraBrasil = obterDataEmBrasil(Date.now());
         const hora = agoraBrasil.getUTCHours();
         const minuto = agoraBrasil.getUTCMinutes();
@@ -311,6 +313,7 @@ setInterval(verificarFechamentoAutomaticoTurnos, 60000);
 // --- SISTEMA AUTOMÁTICO DE ALERTA DE INATIVIDADE (+3 DIAS SEM TURNO) ---
 async function verificarInatividadeTropa() {
     try {
+        if (mongoose.connection.readyState !== 1) return;
         const agora = new Date();
         const tresDiasAtras = new Date(agora.getTime() - (3 * 24 * 60 * 60 * 1000));
 
@@ -395,6 +398,10 @@ app.post('/api/auth/login', async (req, res) => {
         const passFinal = senha || password;
         if (!nickname || !passFinal) return res.status(400).json({ success: false, message: 'Preencha os campos.' });
 
+        if (mongoose.connection.readyState !== 1) {
+            return res.status(503).json({ success: false, message: 'Conexão com a base de dados indisponível no momento. Tente novamente em instantes.' });
+        }
+
         const user = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') }, 'nickname password cargo role status').lean();
         if (!user) return res.status(400).json({ success: false, message: 'Utilizador não encontrado.' });
         if (user.password && user.password !== passFinal) {
@@ -407,7 +414,12 @@ app.post('/api/auth/login', async (req, res) => {
         await registarLogAdmin(user.nickname, 'Login no Sistema', `Utilizador ${user.nickname} efetuou login.`);
         res.json({ success: true, message: 'Login bem-sucedido', user: { nickname: user.nickname, cargo: user.cargo, role: user.role, status: user.status } });
     } catch (e) {
-        res.status(500).json({ success: false, message: 'Erro no servidor.' });
+        console.error("Erro no login:", e);
+        const ehErroBanco = e.name === 'MongoServerSelectionError' || e.name === 'MongoNetworkError' || e.name === 'MongooseError';
+        res.status(ehErroBanco ? 503 : 500).json({
+            success: false,
+            message: ehErroBanco ? 'Falha na conexão com a base de dados MongoDB. Tente novamente mais tarde.' : 'Erro no servidor.'
+        });
     }
 });
 
@@ -416,6 +428,10 @@ app.post('/api/auth/register', async (req, res) => {
         const { nickname, senha, password } = req.body;
         const passFinal = senha || password;
         if (!nickname || !passFinal) return res.status(400).json({ success: false, message: 'Preencha o nickname e a senha.' });
+
+        if (mongoose.connection.readyState !== 1) {
+            return res.status(503).json({ success: false, message: 'Conexão com a base de dados indisponível no momento. Tente novamente em instantes.' });
+        }
 
         const userExiste = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') }, '_id').lean();
         if (userExiste) return res.status(400).json({ success: false, message: 'Este nickname já está registado.' });
@@ -431,7 +447,12 @@ app.post('/api/auth/register', async (req, res) => {
         await registarLogAdmin(nickname.trim(), 'Registo de Conta', `Novo registo de conta pendente para ${nickname.trim()}.`);
         res.json({ success: true, message: 'Conta registada com sucesso! Aguarde aprovação.' });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Erro ao registar conta na base de dados.' });
+        console.error("Erro no registro:", error);
+        const ehErroBanco = error.name === 'MongoServerSelectionError' || error.name === 'MongoNetworkError' || error.name === 'MongooseError';
+        res.status(ehErroBanco ? 503 : 500).json({
+            success: false,
+            message: ehErroBanco ? 'Falha na conexão com a base de dados MongoDB ao registar conta.' : 'Erro ao registar conta na base de dados.'
+        });
     }
 });
 
