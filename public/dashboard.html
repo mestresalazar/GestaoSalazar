@@ -1558,59 +1558,41 @@
         }
 
         async function verificarEstadoPush() {
-            const banner = document.getElementById('bannerPush');
-            const btnAtivar = document.getElementById('btnAtivarPush');
-            const texto = document.getElementById('textoBannerPush');
-            if (!banner) return;
+            const box = document.getElementById('boxNotificacaoTurno');
+            const texto = document.getElementById('textoNotificacaoTurno');
+            const btn = document.getElementById('btnPermitirNotificacaoTurno');
+            const badgeNav = document.getElementById('statusNotificacoesTurno');
+            if (!box) return;
 
             if (!('Notification' in window)) {
-                banner.style.display = 'none';
+                box.style.display = 'none';
+                if (badgeNav) badgeNav.innerHTML = '';
                 return;
             }
 
             if (Notification.permission === 'denied') {
-                banner.style.display = 'block';
-                banner.style.borderColor = '#ef4444';
-                if (texto) texto.innerHTML = '⚠️ As notificações estão <b>bloqueadas</b> no seu navegador. Para receber alertas de ação da tropa, acesse as permissões ao lado do endereço do site e escolha <b>Permitir</b>.';
-                if (btnAtivar) btnAtivar.style.display = 'none';
+                box.style.display = 'flex';
+                box.style.background = 'rgba(239, 68, 68, 0.1)';
+                box.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                if (texto) texto.innerHTML = '⚠️ <b>Notificações bloqueadas</b> no navegador. Para receber alertas de AÇÃO da tropa, autorize nas permissões do site.';
+                if (btn) btn.style.display = 'none';
+                if (badgeNav) badgeNav.innerHTML = '<span style="color: #f87171; font-size: 11px;">Bloqueadas 🔕</span>';
             } else if (Notification.permission === 'granted') {
-                banner.style.display = 'none';
+                box.style.display = 'none';
+                if (badgeNav) badgeNav.innerHTML = '<span style="color: #34d399; font-size: 11px; font-weight: 600;">🔔 Notificações ativas ✅</span>';
                 garantirSubscricaoPushSilenciosa();
             } else {
-                // Estado 'default': solicita proativamente a permissão
-                banner.style.display = 'block';
-                banner.style.borderColor = '#eab308';
-                if (btnAtivar) {
-                    btnAtivar.style.display = 'inline-block';
-                    btnAtivar.innerText = '🔔 Permitir Notificações';
+                // Estado 'default': exibe botão visível para permitir
+                box.style.display = 'flex';
+                box.style.background = 'rgba(234, 179, 8, 0.08)';
+                box.style.border = '1px solid rgba(234, 179, 8, 0.3)';
+                if (texto) texto.innerHTML = 'Receba alarmes de <b>AÇÃO</b> e convocações da tropa no seu dispositivo.';
+                if (btn) {
+                    btn.style.display = 'inline-block';
+                    btn.innerText = '🔔 Permitir Notificações';
                 }
-                solicitarPermissaoAutomatica();
+                if (badgeNav) badgeNav.innerHTML = '';
             }
-        }
-
-        function solicitarPermissaoAutomatica() {
-            if (!('Notification' in window) || Notification.permission !== 'default') return;
-
-            // Tenta abrir o prompt diretamente
-            try {
-                const prom = Notification.requestPermission();
-                if (prom && typeof prom.then === 'function') {
-                    prom.then(perm => {
-                        if (perm === 'granted') {
-                            verificarEstadoPush();
-                        }
-                    }).catch(() => {});
-                }
-            } catch (e) {}
-
-            // Caso o navegador bloqueie solicitação sem gesto do usuário, solicita no primeiro clique/toque
-            const solicitarNoPrimeiroGesto = () => {
-                if (Notification.permission === 'default') {
-                    ativarNotificacoesPush(false);
-                }
-            };
-            window.addEventListener('click', solicitarNoPrimeiroGesto, { once: true });
-            window.addEventListener('touchstart', solicitarNoPrimeiroGesto, { once: true });
         }
         verificarEstadoPush();
 
