@@ -3343,6 +3343,7 @@
 
         let horasVerificadasLocal = new Set();
         let fotoVerificacaoHoraBase64 = '';
+        let timerExpiracaoVerificacao = null;
 
         function converterFotoVerificacaoHora(input) {
             if (input.files && input.files[0]) {
@@ -3383,6 +3384,10 @@
                     horasVerificadasLocal.add(horaAtual);
                     document.getElementById('boxVerificacaoHora').style.display = 'none';
                     fotoVerificacaoHoraBase64 = '';
+                    if (timerExpiracaoVerificacao) {
+                        clearInterval(timerExpiracaoVerificacao);
+                        timerExpiracaoVerificacao = null;
+                    }
                     mostrarModalCustomizado('Verificação Confirmada', `Print de presença da ${horaAtual}ª hora registado no sistema com sucesso!`);
                 } else {
                     mostrarModalCustomizado('Erro', escapeHTML(data.message || 'Erro ao registrar verificação.'));
@@ -3401,21 +3406,86 @@
             if (estadoTurno !== 'ativo') {
                 const box = document.getElementById('boxVerificacaoHora');
                 if (box) box.style.display = 'none';
+                if (timerExpiracaoVerificacao) {
+                    clearInterval(timerExpiracaoVerificacao);
+                    timerExpiracaoVerificacao = null;
+                }
                 return;
             }
 
-            // Cada 60 minutos (3600 segundos) de turno exige comprovante
+            // A cada 60 minutos (3600 segundos) de turno exige comprovante com 5 minutos de tolerância
             const horaAtual = Math.floor(totalSegundos / 3600);
             if (horaAtual >= 1 && !horasVerificadasLocal.has(horaAtual)) {
-                const box = document.getElementById('boxVerificacaoHora');
-                if (box && box.style.display === 'none') {
-                    box.style.display = 'block';
-                    document.getElementById('tituloVerificacaoHora').innerText = `📸 Verificação de Presença (${horaAtual}ª Hora de Turno)`;
-                    dispararNotificacaoNativa(`🚨 Verificação de Presença (${horaAtual}h)`, {
-                        body: 'Envie o print do jogo para registrar a sua presença nesta hora de plantão.',
-                        tag: `verificacao_${horaAtual}h`
-                    });
+                const segundosPassadosDaHora = totalSegundos - (horaAtual * 3600);
+                const segundosRestantes5Min = Math.max(0, 300 - segundosPassadosDaHora);
+
+                // Se esgotar os 5 minutos (300 segundos) sem envio, finaliza o turno automaticamente
+                if (segundosRestantes5Min <= 0) {
+                    if (timerExpiracaoVerificacao) {
+                        clearInterval(timerExpiracaoVerificacao);
+                        timerExpiracaoVerificacao = null;
+                    }
+                    document.getElementById('boxVerificacaoHora').style.display = 'none';
+                    encerrarTurnoPorFaltaDeVerificacao(horaAtual, totalSegundos);
+                    return;
                 }
+
+                const box = document.getElementById('boxVerificacaoHora');
+                if (box) {
+                    box.style.display = 'block';
+                    const minRestantes = String(Math.floor(segundosRestantes5Min / 60)).padStart(2, '0');
+                    const segRestantes = String(segundosRestantes5Min % 60).padStart(2, '0');
+                    document.getElementById('tituloVerificacaoHora').innerHTML = `📸 Verificação de Presença (${horaAtual}ª Hora de Turno) • <span style="color: #ef4444; font-weight: 800;">Prazo: ${minRestantes}:${segRestantes}</span>`;
+                }
+            } else {
+                const box = document.getElementById('boxVerificacaoHora');
+                if (box && box.style.display !== 'none') {
+                    box.style.display = 'none';
+                }
+            }
+        }
+
+        async function encerrarTurnoPorFaltaDeVerificacao(horaNumero, totalSegundos) {
+            if (processandoCheckout) return;
+            processandoCheckout = true;
+            clearInterval(timerInterval);
+
+            const duracaoTxt = document.getElementById('timerDisplay').innerText;
+            const comprovanteExpirado = `Fechamento Automático (Falta de Confirmação em 5 min na ${horaNumero}ª hora)`;
+
+            try {
+                await fetch('/api/membro/turno', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nickname: user.nickname,
+                        duracao: duracaoTxt,
+                        segundosTotais: totalSegundos,
+                        fotoComprovante: comprovanteExpirado
+                    })
+                });
+
+                limparPrintTurnoLocal();
+                estadoTurno = 'parado';
+                timestampInicioServer = null;
+                segundosAcumuladosBase = 0;
+                document.getElementById('timerDisplay').innerText = '00:00:00';
+                document.getElementById('btnCheckin').disabled = false;
+                document.getElementById('btnPausar').style.display = 'none';
+                document.getElementById('btnCheckout').disabled = false;
+                processandoCheckout = false;
+                atualizarEtapaTurnoUI();
+                sincronizarCarteiraEMissoes();
+                atualizarFiscalizacaoServidor();
+
+                mostrarModalCustomizado(
+                    'Turno Encerrado Automaticamente',
+                    `O teu plantão foi encerrado pois o print da <b>${horaNumero}ª hora</b> não foi confirmado dentro do prazo de 5 minutos.<br><br>Tempo salvo até a finalização: <b>${duracaoTxt}</b>.`,
+                    'alerta'
+                );
+            } catch (e) {
+                processandoCheckout = false;
+                window.location.reload();
             }
         }
 

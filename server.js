@@ -355,53 +355,66 @@ app.get('/api/db-status', (req, res) => {
     });
 });
 
-// --- ROTINA DE PURGA PARA EVITAR LIMITE DE 16MB DO MONGODB (CODE 10334) ---
+// --- ROTINA ATÔMICA DE PURGA PARA ELIMINAR O LIMITE DE 16MB DO MONGODB (CODE 10334) ---
 async function limparDocumentoUsuarioSobrecarga(userId) {
     try {
-        const usuario = await User.findById(userId, 'historicoTurnos historicoMissoes caixaEntrada comprovantesTurnoAtivo').lean();
-        if (!usuario) return;
+        // 1. Limpeza direta e rápida via update sem carregar 16MB na memória
+        await User.updateOne(
+            { _id: userId },
+            {
+                $set: {
+                    fotoComprovanteAtiva: '',
+                    comprovantesTurnoAtivo: []
+                },
+                $push: {
+                    caixaEntrada: { $each: [], $slice: -20 },
+                    historicoTurnos: { $each: [], $slice: -40 },
+                    historicoMissoes: { $each: [], $slice: -20 }
+                }
+            }
+        );
 
-        const updateLimpeza = {};
-
-        // 1. Limita notificações acumuladas
-        if (Array.isArray(usuario.caixaEntrada) && usuario.caixaEntrada.length > 25) {
-            updateLimpeza.caixaEntrada = usuario.caixaEntrada.slice(-25);
-        }
-
-        // 2. Limpa base64 de comprovantes de turnos antigos (mantém imagem apenas nos 15 mais recentes)
-        if (Array.isArray(usuario.historicoTurnos) && usuario.historicoTurnos.length > 0) {
-            const turnosPodados = usuario.historicoTurnos.slice(-50).map((t, idx, arr) => {
-                const ehRecente = idx >= arr.length - 15;
-                return {
-                    ...t,
-                    fotoComprovante: ehRecente ? (t.fotoComprovante || '') : (t.fotoComprovante ? 'Comprovante arquivado' : ''),
-                    comprovantesVerificacao: ehRecente ? (t.comprovantesVerificacao || []).slice(-4) : []
-                };
-            });
-            updateLimpeza.historicoTurnos = turnosPodados;
-        }
-
-        // 3. Limpa base64 de missões antigas
-        if (Array.isArray(usuario.historicoMissoes) && usuario.historicoMissoes.length > 0) {
-            const missoesPodadas = usuario.historicoMissoes.slice(-25).map((m, idx, arr) => {
-                const ehRecente = idx >= arr.length - 8;
-                return {
-                    ...m,
-                    comprovante: ehRecente ? (m.comprovante || '') : (m.comprovante ? 'Comprovante arquivado' : '')
-                };
-            });
-            updateLimpeza.historicoMissoes = missoesPodadas;
-        }
-
-        if (Array.isArray(usuario.comprovantesTurnoAtivo) && usuario.comprovantesTurnoAtivo.length > 8) {
-            updateLimpeza.comprovantesTurnoAtivo = usuario.comprovantesTurnoAtivo.slice(-8);
-        }
-
-        if (Object.keys(updateLimpeza).length > 0) {
-            await User.updateOne({ _id: userId }, { $set: updateLimpeza });
+        // 2. Remove base64 pesados de turnos e missões antigas já arquivadas
+        const usuario = await User.findById(userId, 'historicoTurnos historicoMissoes').lean();
+        if (usuario) {
+            const updateSet = {};
+            if (Array.isArray(usuario.historicoTurnos) && usuario.historicoTurnos.length > 0) {
+                updateSet.historicoTurnos = usuario.historicoTurnos.slice(-40).map((t, idx, arr) => {
+                    const ehRecente = idx >= arr.length - 6;
+                    return {
+                        ...t,
+                        fotoComprovante: (ehRecente && t.fotoComprovante && t.fotoComprovante.length < 250000) ? t.fotoComprovante : (t.fotoComprovante ? 'Comprovante arquivado' : ''),
+                        comprovantesVerificacao: ehRecente ? (t.comprovantesVerificacao || []).slice(-3) : []
+                    };
+                });
+            }
+            if (Array.isArray(usuario.historicoMissoes) && usuario.historicoMissoes.length > 0) {
+                updateSet.historicoMissoes = usuario.historicoMissoes.slice(-20).map((m, idx, arr) => {
+                    const ehRecente = idx >= arr.length - 4;
+                    return {
+                        ...m,
+                        comprovante: (ehRecente && m.comprovante && m.comprovante.length < 250000) ? m.comprovante : (m.comprovante ? 'Comprovante arquivado' : '')
+                    };
+                });
+            }
+            if (Object.keys(updateSet).length > 0) {
+                await User.updateOne({ _id: userId }, { $set: updateSet });
+            }
         }
     } catch (errLimpeza) {
-        console.error("Aviso ao limpar sobrecarga do usuário:", errLimpeza.message);
+        console.error("Aviso ao executar purga atômica:", errLimpeza.message);
+        try {
+            await User.updateOne(
+                { _id: userId },
+                {
+                    $set: {
+                        fotoComprovanteAtiva: '',
+                        caixaEntrada: [],
+                        comprovantesTurnoAtivo: []
+                    }
+                }
+            );
+        } catch (e) {}
     }
 }
 
@@ -723,13 +736,81 @@ app.post('/api/admin/whatsapp-link', async (req, res) => {
     }
 });
 
-// --- ENCERRAMENTO AUTOMÁTICO DE TURNOS ÀS 02:05 (FUSO OFICIAL AMERICA/SAO_PAULO) ---
+// --- ENCERRAMENTO AUTOMÁTICO DE TURNOS ÀS 02:05 OU POR FALTA DE VERIFICAÇÃO EM 5 MIN ---
 async function verificarFechamentoAutomaticoTurnos() {
     try {
         if (mongoose.connection.readyState !== 1) return;
         const comp = obterComponentesBrasilia(new Date());
+        const agoraMs = Date.now();
 
-        // Dispara rigorosamente na faixa das 02:05 no Horário de Brasília
+        // 1. VERIFICAÇÃO CONTÍNUA: Encerra plantão se a verificação de 1h não for confirmada em 5 minutos (300s)
+        const operacionaisAtivos = await User.find(
+            { estadoTurno: 'ativo', inicioPlantao: { $ne: null } },
+            'nickname cargo estadoTurno segundosAcumulados inicioPlantao fotoComprovanteAtiva comprovantesTurnoAtivo'
+        );
+
+        for (const membro of operacionaisAtivos) {
+            let segundosTotais = Number(membro.segundosAcumulados || 0);
+            if (membro.inicioPlantao) {
+                const decorrido = Math.floor((agoraMs - new Date(membro.inicioPlantao).getTime()) / 1000);
+                if (decorrido > 0) segundosTotais += decorrido;
+            }
+
+            const horasCompletadas = Math.floor(segundosTotais / 3600);
+            if (horasCompletadas >= 1) {
+                const comprovantes = Array.isArray(membro.comprovantesTurnoAtivo) ? membro.comprovantesTurnoAtivo : [];
+                const jaConfirmouHoraAtual = comprovantes.some(c => Number(c.horaNumero) === horasCompletadas);
+
+                if (!jaConfirmouHoraAtual) {
+                    // Calcula o instante exato em que a hora foi completada
+                    const segundosAteHoraCheia = horasCompletadas * 3600;
+                    const segundosPassadosDaHora = segundosTotais - segundosAteHoraCheia;
+
+                    // Se passou mais de 5 minutos (300 segundos) sem o envio do print: encerra automaticamente
+                    if (segundosPassadosDaHora >= 300) {
+                        const duracaoFormatada = converterSegundosParaDuracao(segundosTotais);
+                        const comprovanteFinal = `Fechamento Automático (Falta de Confirmação em 5 min na ${horasCompletadas}ª hora)`;
+
+                        const novoTurno = {
+                            data: new Date(),
+                            duracao: duracaoFormatada,
+                            fotoComprovante: comprovanteFinal,
+                            comprovantesVerificacao: comprovantes
+                        };
+
+                        await User.updateOne(
+                            { _id: membro._id },
+                            {
+                                $push: {
+                                    historicoTurnos: { $each: [novoTurno], $slice: -50 },
+                                    caixaEntrada: {
+                                        $each: [{
+                                            titulo: '⏱️ Turno Finalizado por Falta de Confirmação',
+                                            mensagem: `O teu plantão foi encerrado automaticamente pois o print de verificação da ${horasCompletadas}ª hora não foi enviado dentro do prazo de 5 minutos. Duração computada: <b>${duracaoFormatada}</b>.`,
+                                            data: new Date()
+                                        }],
+                                        $slice: -25
+                                    }
+                                },
+                                $set: {
+                                    emPlantao: false,
+                                    estadoTurno: 'parado',
+                                    inicioPlantao: null,
+                                    segundosAcumulados: 0,
+                                    fotoComprovanteAtiva: '',
+                                    comprovantesTurnoAtivo: []
+                                }
+                            }
+                        );
+
+                        io.emit('atualizar_estado_turno_usuario', { nickname: membro.nickname.toLowerCase() });
+                        await registarLogAdmin(membro.nickname, 'Fim de Turno (Expirado 5m)', `Turno encerrado por não envio do print da ${horasCompletadas}ª hora em 5 minutos. Duração salva: ${duracaoFormatada}`);
+                    }
+                }
+            }
+        }
+
+        // 2. Dispara o fechamento diário regulamentar na faixa das 02:05 no Horário de Brasília
         if (comp.hora === 2 && comp.minuto >= 5 && comp.minuto <= 7) {
             const membrosEmPlantao = await User.find(
                 { $or: [{ emPlantao: true }, { estadoTurno: { $in: ['ativo', 'pausado'] } }] },
@@ -1419,10 +1500,13 @@ app.put('/api/membro/status-plantao', async (req, res) => {
                 { $set: updateData }
             );
         } catch (errUpdate) {
-            // Se estourar os 16MB (código 10334 ou BSONObj size), executa expurgo e retenta
+            // Se estourar os 16MB (código 10334 ou BSONObj size), executa expurgo agressivo e conclui
             if (errUpdate.code === 10334 || String(errUpdate.message).includes('16793600') || String(errUpdate.message).includes('BSONObj size')) {
-                console.warn(`[Documento > 16MB] Purga automática iniciada para o membro ${membroAtual.nickname}...`);
+                console.warn(`[Documento > 16MB] Purga atômica executada para ${membroAtual.nickname}...`);
                 await limparDocumentoUsuarioSobrecarga(membroAtual._id);
+                if (updateData.fotoComprovanteAtiva && updateData.fotoComprovanteAtiva.length > 300000) {
+                    updateData.fotoComprovanteAtiva = 'Comprovante consolidado';
+                }
                 await User.updateOne(
                     { _id: membroAtual._id },
                     { $set: updateData }
