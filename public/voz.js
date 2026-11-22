@@ -9,6 +9,8 @@ let isMuted = false;
 let socketVoz = null;
 let salaVozAtual = 'sala_geral_salazar';
 let conectadoNaCall = false;
+let audioCtxSons = null;
+let idsParticipantesAnteriores = new Set();
 
 const rtcConfig = {
     iceServers: [
@@ -18,6 +20,70 @@ const rtcConfig = {
         { urls: 'stun:stun.services.mozilla.com' }
     ]
 };
+
+// ==========================================
+// EFEITOS SONOROS VIA WEB AUDIO API (SEM ARQUIVOS EXTERNOS)
+// ==========================================
+function obterAudioContextSons() {
+    if (!audioCtxSons) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+            audioCtxSons = new AudioCtx();
+        }
+    }
+    if (audioCtxSons && audioCtxSons.state === 'suspended') {
+        audioCtxSons.resume().catch(() => {});
+    }
+    return audioCtxSons;
+}
+
+function tocarSomTom(frequencias, duracaoNota = 0.1, tipoOnda = 'sine', volumeMax = 0.15) {
+    try {
+        const ctx = obterAudioContextSons();
+        if (!ctx) return;
+
+        let tempoInicio = ctx.currentTime;
+        frequencias.forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+
+            osc.type = tipoOnda;
+            osc.frequency.setValueAtTime(freq, tempoInicio + (idx * duracaoNota));
+
+            gain.gain.setValueAtTime(0.001, tempoInicio + (idx * duracaoNota));
+            gain.gain.exponentialRampToValueAtTime(volumeMax, tempoInicio + (idx * duracaoNota) + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, tempoInicio + ((idx + 1) * duracaoNota));
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.start(tempoInicio + (idx * duracaoNota));
+            osc.stop(tempoInicio + ((idx + 1) * duracaoNota));
+        });
+    } catch (e) {
+        console.warn("Aviso ao reproduzir efeito sonoro de voz:", e);
+    }
+}
+
+function tocarSomConectouCall() {
+    // Tom suave ascendente (estilo Discord join)
+    tocarSomTom([440, 660, 880], 0.09, 'sine', 0.14);
+}
+
+function tocarSomDesconectouCall() {
+    // Tom suave descendente (estilo Discord leave)
+    tocarSomTom([660, 440], 0.1, 'sine', 0.12);
+}
+
+function tocarSomMembroEntrouCall() {
+    // Tom curto e límpido quando outro membro entra
+    tocarSomTom([523.25, 659.25], 0.08, 'triangle', 0.12);
+}
+
+function tocarSomMembroSaiuCall() {
+    // Tom curto quando outro membro sai
+    tocarSomTom([659.25, 493.88], 0.08, 'sine', 0.1);
+}
 
 function obterSocketVoz() {
     if (!socketVoz) {
@@ -51,11 +117,35 @@ function tratarEventoUtilizadoresNoVoz(payload) {
     }
     atualizarListaVisualVoz(usuarios);
 
-    // Se estiver conectado na call, sincroniza as conexões WebRTC
-    if (conectadoNaCall && localStream) {
-        const s = obterSocketVoz();
+    const s = obterSocketVoz();
+    const meuSocketId = s ? s.id : null;
+    const idsAtuais = new Set(usuarios.map(u => u.id));
+
+    // Se estiver conectado na call, toca efeito sonoro quando outros entram ou saem
+    if (conectadoNaCall && meuSocketId) {
+        // Detecta quem entrou (excluindo a si mesmo)
+        for (const u of usuarios) {
+            if (u.id !== meuSocketId && !idsParticipantesAnteriores.has(u.id)) {
+                if (idsParticipantesAnteriores.size > 0) {
+                    tocarSomMembroEntrouCall();
+                }
+                break;
+            }
+        }
+
+        // Detecta quem saiu (excluindo a si mesmo)
+        for (const idAnt of idsParticipantesAnteriores) {
+            if (idAnt !== meuSocketId && !idsAtuais.has(idAnt)) {
+                tocarSomMembroSaiuCall();
+                break;
+            }
+        }
+
         gerenciarConexoesWebRTC(usuarios, s);
     }
+
+    idsParticipantesAnteriores = idsAtuais;
+    atualizarBarraVozPersistente();
 }
 
 async function consultarParticipantesVoz(salaId = 'sala_geral_salazar') {
@@ -97,6 +187,9 @@ async function entrarCanalVoz(salaId, nickname, cargo) {
         isMuted = false;
         localStream.getAudioTracks().forEach(track => { track.enabled = true; });
 
+        // Toca som de entrada na call
+        tocarSomConectouCall();
+
         const btnMute = document.getElementById('btn-mute-audio');
         if (btnMute) {
             btnMute.innerText = 'Mutar 🎙️';
@@ -104,6 +197,7 @@ async function entrarCanalVoz(salaId, nickname, cargo) {
         }
 
         if (statusEl) statusEl.innerText = 'Estado: Conectado ao Canal de Voz 🔊';
+        atualizarBarraVozPersistente();
 
         // Registra listeners de WebRTC no socket
         s.off('sinal_WebRTC', tratarSinalWebRTC);
@@ -118,6 +212,7 @@ async function entrarCanalVoz(salaId, nickname, cargo) {
                     btnMute.innerText = mutado ? 'Desmutar 🎙️ (Mutado pelo ADM)' : 'Mutar 🎙️';
                     btnMute.style.background = mutado ? '#da373c' : '#5865f2';
                 }
+                atualizarBarraVozPersistente();
             }
         });
 
@@ -322,14 +417,21 @@ function alternarMuteMicrofone() {
     localStream.getAudioTracks().forEach(track => {
         track.enabled = !isMuted;
     });
+
     const btn = document.getElementById('btn-mute-audio');
     if (btn) {
         btn.innerText = isMuted ? 'Desmutar 🎙️' : 'Mutar 🎙️';
         btn.style.background = isMuted ? '#da373c' : '#5865f2';
     }
+
+    atualizarBarraVozPersistente();
 }
 
 function sairCanalVoz() {
+    if (conectadoNaCall) {
+        tocarSomDesconectouCall();
+    }
+
     const s = obterSocketVoz();
     if (s) {
         s.emit('sair_canal_voz');
@@ -345,6 +447,7 @@ function sairCanalVoz() {
         fecharConexaoPeer(id);
     });
     iceCandidateQueues = {};
+    idsParticipantesAnteriores.clear();
 
     const statusEl = document.getElementById('painel-voz-status');
     if (statusEl) statusEl.innerText = 'Estado: Desconectado do Voz';
@@ -355,8 +458,37 @@ function sairCanalVoz() {
         btnMute.style.background = '#5865f2';
     }
 
+    atualizarBarraVozPersistente();
+
     // Consulta e atualiza lista visual remanescente
     consultarParticipantesVoz(salaVozAtual);
+}
+
+// Atualiza o indicador persistente de call visível em todas as abas
+function atualizarBarraVozPersistente() {
+    const barra = document.getElementById('barraVozPersistente');
+    if (!barra) return;
+
+    if (!conectadoNaCall) {
+        barra.style.display = 'none';
+        return;
+    }
+
+    barra.style.display = 'flex';
+
+    const btnMuteBarra = document.getElementById('btnMuteBarraPersistente');
+    if (btnMuteBarra) {
+        btnMuteBarra.innerHTML = isMuted ? '🔇 Desmutar' : '🎙️ Mutar';
+        btnMuteBarra.style.background = isMuted ? 'rgba(239, 68, 68, 0.25)' : 'rgba(56, 189, 248, 0.2)';
+        btnMuteBarra.style.borderColor = isMuted ? '#ef4444' : '#38bdf8';
+        btnMuteBarra.style.color = isMuted ? '#fca5a5' : '#38bdf8';
+    }
+
+    const qtdEl = document.getElementById('qtdParticipantesBarraPersistente');
+    if (qtdEl) {
+        const count = idsParticipantesAnteriores.size || 1;
+        qtdEl.innerText = `${count} na call`;
+    }
 }
 
 // Inicializa a escuta assim que o script é carregado
