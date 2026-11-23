@@ -234,34 +234,17 @@ function gerarPngIconeBuffer(tamanho = 192) {
     return finalBuffer;
 }
 
-app.get('/icons/icon-192.png', (req, res) => {
+app.get(['/icons/salazar-shield.svg', '/icons/salazar-logo.svg', '/icons/salazar-s.svg', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png', '/apple-touch-icon.png'], (req, res) => {
     const fs = require('fs');
-    const localFile = path.join(__dirname, 'public', 'icons', 'icon-192.png');
-    if (fs.existsSync(localFile) && fs.statSync(localFile).size > 100) {
+    const localShieldPng = path.join(__dirname, 'public', 'icons', 'salazar-shield.png');
+    if (req.path.endsWith('.png') && fs.existsSync(localShieldPng) && fs.statSync(localShieldPng).size > 1000) {
         res.setHeader('Content-Type', 'image/png');
-        return res.sendFile(localFile);
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        return res.sendFile(localShieldPng);
     }
-    res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-    res.send(gerarPngIconeBuffer(192));
-});
-
-app.get(['/icons/salazar-shield.svg', '/icons/salazar-logo.svg', '/icons/salazar-s.svg'], (req, res) => {
     res.setHeader('Content-Type', 'image/svg+xml');
     res.setHeader('Cache-Control', 'public, max-age=86400');
     res.send(gerarSvgIconeSalazar(512));
-});
-
-app.get(['/icons/icon-512.png', '/icons/apple-touch-icon.png', '/apple-touch-icon.png'], (req, res) => {
-    const fs = require('fs');
-    const localFile = path.join(__dirname, 'public', 'icons', 'icon-512.png');
-    if (fs.existsSync(localFile) && fs.statSync(localFile).size > 100) {
-        res.setHeader('Content-Type', 'image/png');
-        return res.sendFile(localFile);
-    }
-    res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-    res.send(gerarPngIconeBuffer(512));
 });
 
 // Helper para localizar arquivo APK real e válido (maior que 100 KB)
