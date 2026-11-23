@@ -1615,6 +1615,11 @@ app.put('/api/membro/status-plantao', async (req, res) => {
             }
         }
 
+        // Purga preventiva de dados pesados se o documento atual já tiver histórico extenso
+        if (membroAtual.historicoTurnos && membroAtual.historicoTurnos.length > 40) {
+            await limparDocumentoUsuarioSobrecarga(membroAtual._id);
+        }
+
         try {
             await User.updateOne(
                 { _id: membroAtual._id },
@@ -1623,7 +1628,7 @@ app.put('/api/membro/status-plantao', async (req, res) => {
         } catch (errUpdate) {
             // Se estourar os 16MB (código 10334 ou BSONObj size), executa expurgo atômico e conclui imediatamente sem travar
             if (errUpdate.code === 10334 || String(errUpdate.message).includes('16793600') || String(errUpdate.message).includes('BSONObj size')) {
-                console.warn(`[Documento > 16MB] Purga imediata executada para ${membroAtual.nickname}...`);
+                console.warn(`[Documento > 16MB] Purga atômica executada para ${membroAtual.nickname}...`);
                 await limparDocumentoUsuarioSobrecarga(membroAtual._id);
                 if (updateData.fotoComprovanteAtiva && updateData.fotoComprovanteAtiva.length > 150000) {
                     updateData.fotoComprovanteAtiva = 'Comprovante consolidado';
@@ -2711,12 +2716,19 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
 
             for (let j = 0; j < turnos.length; j++) {
                 const t = turnos[j];
-                if (dataCorte && new Date(t.data).getTime() <= dataCorte) continue;
+                if (dataCorte && new Date(t.data).getTime() <= dataCorte) {
+                    continue;
+                }
                 if (turnoEstaNoHorarioPermitido(t)) {
                     let segTurno = t.segundosTotais ? Number(t.segundosTotais) : converterDuracaoParaSegundos(t.duracao);
                     // Trava de integridade no ranking: no máximo 9 horas (32.400s) por turno individual
-                    if (segTurno > 9 * 3600) segTurno = 9 * 3600;
+                    if (segTurno > 9 * 3600) {
+                        console.log(`[RANKING AUDIT] Turno de ${m.nickname} excedeu 9h (${segTurno}s) e foi ajustado para o teto regulamentar de 9h.`);
+                        segTurno = 9 * 3600;
+                    }
                     totalSegundos += segTurno;
+                } else if (!t.manual) {
+                    console.log(`[RANKING AUDIT] Turno de ${m.nickname} em ${t.data} ignorado por estar fora da janela regulamentar de Brasília.`);
                 }
             }
 

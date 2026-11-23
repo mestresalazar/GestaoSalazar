@@ -1378,8 +1378,13 @@
 
     <div id="aba-ranking" class="tab-content">
         <div class="card" style="max-width: 700px; margin: 0 auto;">
-            <h3>🏆 Ranking da Tropa (17h às 02h)</h3>
-            <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Membros com mais horas acumuladas no horário regulamentar.</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(239, 68, 68, 0.2); padding-bottom: 10px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                <h3 style="border: none; margin: 0; padding: 0;">🏆 Ranking da Tropa (17h às 02h)</h3>
+                <button id="btnAtualizarRankingManual" onclick="atualizarRankingBtnClick(this)" style="background: rgba(239, 68, 68, 0.18); border: 1px solid #ef4444; color: #fca5a5; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s;">
+                    🔄 Atualizar Rank
+                </button>
+            </div>
+            <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Membros com mais horas acumuladas no horário regulamentar de Brasília (17h às 02h).</p>
             <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
                 <table>
                     <thead>
@@ -3305,16 +3310,39 @@
 
         async function carregarRanking() {
             try {
-                const res = await fetch('/api/admin/ranking/turnos');
+                const res = await fetch('/api/admin/ranking/turnos?_=' + Date.now());
                 const data = await res.json();
                 const tbody = document.getElementById('tabelaRanking');
+                if (!tbody) return;
                 tbody.innerHTML = '';
-                if (data.success && data.ranking.length > 0) {
+                if (data.success && Array.isArray(data.ranking) && data.ranking.length > 0) {
                     data.ranking.forEach((item, index) => {
                         tbody.innerHTML += `<tr><td><b>${index+1}º</b></td><td>${escapeHTML(item.nickname)}</td><td style="color: #38bdf8; font-weight: bold;">${escapeHTML(item.totalFormatado)}</td></tr>`;
                     });
-                } else { tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8;">Sem registos no horário.</td></tr>`; }
-            } catch (e) {}
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8;">Sem registos no horário regulamentar.</td></tr>`;
+                }
+            } catch (e) {
+                const tbody = document.getElementById('tabelaRanking');
+                if (tbody) tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #f87171;">Erro ao carregar ranking.</td></tr>`;
+            }
+        }
+
+        async function atualizarRankingBtnClick(btn) {
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = 'A atualizar...';
+                btn.style.opacity = '0.7';
+            }
+            await carregarRanking();
+            if (btn) {
+                btn.innerText = 'Atualizado ✅';
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerText = '🔄 Atualizar Rank';
+                    btn.style.opacity = '1';
+                }, 1200);
+            }
         }
         carregarRanking();
 
