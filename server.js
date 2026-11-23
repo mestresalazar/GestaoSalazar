@@ -2363,23 +2363,51 @@ app.get('/api/admin/membro/missoes/:id', async (req, res) => {
 app.get('/api/admin/membro/historico-completo/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        let query = { _id: id };
-        if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-            query = { nickname: new RegExp('^' + decodeURIComponent(id) + '$', 'i') };
+        const paramLimpo = decodeURIComponent(id || '').trim();
+
+        let query = null;
+        if (paramLimpo.match(/^[0-9a-fA-F]{24}$/)) {
+            query = { _id: paramLimpo };
+        } else if (paramLimpo) {
+            query = { nickname: new RegExp('^' + escaparRegex(paramLimpo) + '$', 'i') };
+        }
+
+        if (!query) {
+            return res.status(400).json({ success: false, message: 'Identificador de membro inválido.' });
         }
 
         const membro = await User.findOne(query, 'nickname cargo status historicoTurnos carteiraSaldo').lean();
-        if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+        if (!membro) {
+            return res.status(404).json({ success: false, message: 'Membro não encontrado na base de dados.' });
+        }
+
+        // Sanitização resiliente contra registros antigos ou campos ausentes
+        const turnosSanitizados = (membro.historicoTurnos || []).map((t, idx) => ({
+            _id: t._id ? String(t._id) : `t_${idx}_${Date.now()}`,
+            data: t.data || new Date(),
+            inicioEm: t.inicioEm || t.data || null,
+            fimEm: t.fimEm || t.data || null,
+            duracao: t.duracao || '00:00:00',
+            segundosTotais: typeof t.segundosTotais === 'number' ? t.segundosTotais : 0,
+            motivoEncerramento: t.motivoEncerramento || (t.manual ? 'Injeção Manual' : 'Concluído'),
+            fotoComprovante: t.fotoComprovante || '',
+            comprovantesVerificacao: Array.isArray(t.comprovantesVerificacao) ? t.comprovantesVerificacao : [],
+            manual: !!t.manual
+        }));
 
         res.json({
             success: true,
-            nickname: membro.nickname,
-            cargo: membro.cargo,
+            nickname: membro.nickname || 'Operacional',
+            cargo: membro.cargo || 'Privado',
             status: membro.status || 'Ativo',
-            historicoTurnos: membro.historicoTurnos || []
+            historicoTurnos: turnosSanitizados
         });
     } catch (e) {
-        res.status(500).json({ success: false, message: 'Erro ao carregar histórico completo de turnos.' });
+        console.error(`[ERRO HISTÓRICO ADM] Falha ao carregar histórico do membro ID/Nick "${req.params.id}":`, e);
+        res.status(500).json({
+            success: false,
+            message: 'Erro interno ao processar histórico completo: ' + (e.message || 'Falha no banco.')
+        });
     }
 });
 

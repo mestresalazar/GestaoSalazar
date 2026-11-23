@@ -2042,69 +2042,100 @@
 
         let membroIdAtualModal = null;
 
+        function formatarDataHoraBrtSegura(valorData) {
+            if (!valorData) return '-';
+            const d = new Date(valorData);
+            if (isNaN(d.getTime())) return '-';
+            try {
+                return d.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            } catch (e) {
+                return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            }
+        }
+
+        function formatarDataDiaBrtSegura(valorData) {
+            if (!valorData) return '-';
+            const d = new Date(valorData);
+            if (isNaN(d.getTime())) return '-';
+            try {
+                return d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+            } catch (e) {
+                return d.toLocaleDateString();
+            }
+        }
+
         async function verHistoricoMembro(nickname, id) {
             membroIdAtualModal = id;
             document.getElementById('modalAdminHistorico').style.display = 'flex';
             document.getElementById('tituloModalHistorico').innerText = `📜 Histórico Operacional: ${nickname}`;
             const container = document.getElementById('conteudoAdminHistorico');
-            container.innerHTML = '<p>A carregar dados...</p>';
+            container.innerHTML = '<p style="padding: 15px; color: #94a3b8; text-align: center;">A carregar dados do histórico...</p>';
 
             try {
-                const res = await fetch(`/api/admin/membro/historico-completo/${id}`);
+                const identificador = id || encodeURIComponent(nickname);
+                const res = await fetch(`/api/admin/membro/historico-completo/${identificador}?_=${Date.now()}`);
                 const data = await res.json();
 
-                if (data.success) {
-                    container.innerHTML = `
-                        <div style="background: rgba(7, 13, 22, 0.7); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                            <div><p><b>Operacional:</b> ${data.nickname} | <b>Cargo:</b> ${data.cargo}</p></div>
-                            <button class="btn-action btn-demitir" onclick="resetarTurnosMembro('${membroIdAtualModal}')">🗑️ Resetar TODOS os Turnos</button>
-                        </div>
-                        <div style="background: rgba(7, 13, 22, 0.7); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2);">
-                            <h4 style="color: #38bdf8; margin-bottom: 8px;">🛡️ Auditoria de Turnos e Verificações Horárias (${data.historicoTurnos.length})</h4>
-                            ${data.historicoTurnos.length > 0 ? data.historicoTurnos.slice().reverse().map((t) => {
-                                const dataFimRef = t.fimEm || t.data;
-                                const inicioFormatado = t.inicioEm ? new Date(t.inicioEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-';
-                                const fimFormatado = dataFimRef ? new Date(dataFimRef).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-';
-                                const dataDia = new Date(t.data).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-                                const motivo = t.motivoEncerramento || (t.manual ? 'Injeção Manual' : 'Concluído');
+                if (!res.ok || !data.success) {
+                    throw new Error(data.message || `Erro HTTP ${res.status}`);
+                }
 
-                                return `
-                                <div style="background: rgba(30, 41, 59, 0.6); padding: 12px; border-radius: 10px; margin-bottom: 12px; border: 1px solid rgba(56, 189, 248, 0.25);">
-                                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
-                                        <div>
-                                            <span style="font-size: 14px; font-weight: 800; color: #38bdf8;">⏱️ Duração Real: ${t.duracao}</span>
-                                            <span style="font-size: 11px; color: #94a3b8; display: block; margin-top: 3px;">
-                                                📅 ${dataDia} • <b>Início:</b> ${inicioFormatado} ➔ <b>Fim:</b> ${fimFormatado} (Brasília / America/Sao_Paulo)
-                                            </span>
-                                            <span style="font-size: 11px; color: #eab308; display: block; margin-top: 2px;">
-                                                📌 Status / Encerramento: <b>${escapeHTML(motivo)}</b>
-                                            </span>
-                                        </div>
-                                        <button class="btn-action btn-demitir" style="padding: 5px 10px; font-size: 11px;" onclick="excluirTurnoEspecifico('${id}', '${t._id}', '${nickname}')">🗑️ Apagar</button>
+                const listaTurnos = Array.isArray(data.historicoTurnos) ? data.historicoTurnos : [];
+
+                container.innerHTML = `
+                    <div style="background: rgba(7, 13, 22, 0.7); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <div><p><b>Operacional:</b> ${escapeHTML(data.nickname)} | <b>Cargo:</b> ${escapeHTML(data.cargo)}</p></div>
+                        <button class="btn-action btn-demitir" onclick="resetarTurnosMembro('${membroIdAtualModal}')">🗑️ Resetar TODOS os Turnos</button>
+                    </div>
+                    <div style="background: rgba(7, 13, 22, 0.7); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2);">
+                        <h4 style="color: #38bdf8; margin-bottom: 8px;">🛡️ Auditoria de Turnos e Verificações Horárias (${listaTurnos.length})</h4>
+                        ${listaTurnos.length > 0 ? listaTurnos.slice().reverse().map((t) => {
+                            const inicioFormatado = formatarDataHoraBrtSegura(t.inicioEm || t.data);
+                            const fimFormatado = formatarDataHoraBrtSegura(t.fimEm || t.data);
+                            const dataDia = formatarDataDiaBrtSegura(t.data || t.inicioEm);
+                            const motivo = t.motivoEncerramento || (t.manual ? 'Injeção Manual' : 'Concluído');
+                            const duracaoStr = t.duracao || '00:00:00';
+                            const turnoId = t._id || '';
+
+                            return `
+                            <div style="background: rgba(30, 41, 59, 0.6); padding: 12px; border-radius: 10px; margin-bottom: 12px; border: 1px solid rgba(56, 189, 248, 0.25);">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                                    <div>
+                                        <span style="font-size: 14px; font-weight: 800; color: #38bdf8;">⏱️ Duração Real: ${escapeHTML(duracaoStr)}</span>
+                                        <span style="font-size: 11px; color: #94a3b8; display: block; margin-top: 3px;">
+                                            📅 ${escapeHTML(dataDia)} • <b>Início:</b> ${inicioFormatado} ➔ <b>Fim:</b> ${fimFormatado} (Brasília / America/Sao_Paulo)
+                                        </span>
+                                        <span style="font-size: 11px; color: #eab308; display: block; margin-top: 2px;">
+                                            📌 Status / Encerramento: <b>${escapeHTML(motivo)}</b>
+                                        </span>
                                     </div>
+                                    ${turnoId ? `<button class="btn-action btn-demitir" style="padding: 5px 10px; font-size: 11px;" onclick="excluirTurnoEspecifico('${id}', '${turnoId}', '${escapeHTML(nickname)}')">🗑️ Apagar</button>` : ''}
+                                </div>
 
-                                    <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(56, 189, 248, 0.15);">
-                                        ${t.fotoComprovante && t.fotoComprovante.startsWith('data:image') ? `
-                                            <div style="text-align: center;">
-                                                <span style="font-size: 10px; color: #38bdf8; display: block; font-weight: 600;">Print Encerramento</span>
-                                                <img src="${t.fotoComprovante}" style="max-width: 110px; max-height: 75px; border-radius: 6px; border: 1px solid #38bdf8; cursor: pointer;" onclick="window.open('${t.fotoComprovante}')">
-                                            </div>
-                                        ` : ''}
-                                        ${Array.isArray(t.comprovantesVerificacao) && t.comprovantesVerificacao.length > 0 ? t.comprovantesVerificacao.map(v => `
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(56, 189, 248, 0.15);">
+                                    ${t.fotoComprovante && t.fotoComprovante.startsWith('data:image') ? `
+                                        <div style="text-align: center;">
+                                            <span style="font-size: 10px; color: #38bdf8; display: block; font-weight: 600;">Print Encerramento</span>
+                                            <img src="${t.fotoComprovante}" style="max-width: 110px; max-height: 75px; border-radius: 6px; border: 1px solid #38bdf8; cursor: pointer;" onclick="window.open('${t.fotoComprovante}')">
+                                        </div>
+                                    ` : (t.fotoComprovante ? `<span style="font-size: 11px; color: #94a3b8;">${escapeHTML(t.fotoComprovante)}</span>` : '')}
+                                    ${Array.isArray(t.comprovantesVerificacao) && t.comprovantesVerificacao.length > 0 ? t.comprovantesVerificacao.map(v => `
+                                        ${v && v.fotoComprovante && v.fotoComprovante.startsWith('data:image') ? `
                                             <div style="text-align: center;">
                                                 <span style="font-size: 10px; color: #fde047; display: block; font-weight: 600;">Verificação ${v.horaNumero || 1}ª Hora</span>
                                                 <img src="${v.fotoComprovante}" style="max-width: 110px; max-height: 75px; border-radius: 6px; border: 1px solid #eab308; cursor: pointer;" onclick="window.open('${v.fotoComprovante}')">
                                             </div>
-                                        `).join('') : ''}
-                                    </div>
+                                        ` : ''}
+                                    `).join('') : ''}
                                 </div>
-                                `;
-                            }).join('') : '<p style="color: #94a3b8;">Nenhum turno registado.</p>'}
-                        </div>
-                    `;
-                }
+                            </div>
+                            `;
+                        }).join('') : '<p style="color: #94a3b8; padding: 10px; text-align: center;">Nenhum turno registado.</p>'}
+                    </div>
+                `;
             } catch (e) {
-                container.innerHTML = '<p style="color: #ef4444;">Erro ao carregar histórico.</p>';
+                console.error("[ERRO CLIENTE HISTÓRICO]", e);
+                container.innerHTML = `<div style="padding: 16px; background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; border-radius: 10px; text-align: center;"><p style="color: #fca5a5; font-weight: bold; margin-bottom: 6px;">Erro ao carregar histórico operacional.</p><p style="color: #cbd5e1; font-size: 11px;">Diagnóstico: ${escapeHTML(e.message)}</p></div>`;
             }
         }
 
