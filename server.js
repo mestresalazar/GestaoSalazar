@@ -1965,12 +1965,15 @@ app.post('/api/membro/turno', async (req, res) => {
         const inicioBrtStr = dataInicioReal.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const fimBrtStr = agoraServidor.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
+        const intervaloSegs = Math.max(0, Math.floor((agoraServidor.getTime() - dataInicioReal.getTime()) / 1000));
+        const intervaloFormatado = converterSegundosParaDuracao(intervaloSegs);
+
         io.emit('atualizar_estado_turno_usuario', { nickname: String(nickname).toLowerCase().trim() });
         io.emit('atualizar_status_geral_tropa');
         await registarLogAdmin(
             membroDoc.nickname,
             'Registo de Turno',
-            `Início: ${inicioBrtStr} | Fim: ${fimBrtStr} (Brasília) | Duração real: ${duracaoFormatada} | Verificações: ${listaComprovantes.length} | Etapa ${etapaDeterminada}`
+            `Início: ${inicioBrtStr} | Fim: ${fimBrtStr} (Brasília) | Intervalo: ${intervaloFormatado} | Duração homologada: ${duracaoFormatada} | Verificações: ${listaComprovantes.length} | Etapa ${etapaDeterminada}`
         );
 
         res.json({
