@@ -1803,7 +1803,13 @@ app.post('/api/membro/turno', async (req, res) => {
         }
 
         const agoraServidor = new Date();
-        const dataInicioReal = membroDoc.inicioPlantao ? new Date(membroDoc.inicioPlantao) : agoraServidor;
+        let dataInicioReal = null;
+
+        if (membroDoc.inicioPlantao && !isNaN(new Date(membroDoc.inicioPlantao).getTime())) {
+            dataInicioReal = new Date(membroDoc.inicioPlantao);
+        } else if (req.body.inicioPlantao && !isNaN(new Date(req.body.inicioPlantao).getTime())) {
+            dataInicioReal = new Date(req.body.inicioPlantao);
+        }
 
         // Validação estrita: cálculo no servidor pela diferença real de timestamps em America/Sao_Paulo
         let segundosValidosServidor = Number(membroDoc.segundosAcumulados || 0);
@@ -1834,6 +1840,11 @@ app.post('/api/membro/turno', async (req, res) => {
 
         if (segundosFinais < 5) {
             segundosFinais = 5;
+        }
+
+        // Se dataInicioReal estiver ausente ou inválida, deduz com precisão subtraindo os segundos reais acumulados
+        if (!dataInicioReal || isNaN(dataInicioReal.getTime()) || dataInicioReal.getTime() >= agoraServidor.getTime()) {
+            dataInicioReal = new Date(agoraServidor.getTime() - (segundosFinais * 1000));
         }
 
         const duracaoFormatada = converterSegundosParaDuracao(segundosFinais);
@@ -2382,18 +2393,35 @@ app.get('/api/admin/membro/historico-completo/:id', async (req, res) => {
         }
 
         // Sanitização resiliente contra registros antigos ou campos ausentes
-        const turnosSanitizados = (membro.historicoTurnos || []).map((t, idx) => ({
-            _id: t._id ? String(t._id) : `t_${idx}_${Date.now()}`,
-            data: t.data || new Date(),
-            inicioEm: t.inicioEm || t.data || null,
-            fimEm: t.fimEm || t.data || null,
-            duracao: t.duracao || '00:00:00',
-            segundosTotais: typeof t.segundosTotais === 'number' ? t.segundosTotais : 0,
-            motivoEncerramento: t.motivoEncerramento || (t.manual ? 'Injeção Manual' : 'Concluído'),
-            fotoComprovante: t.fotoComprovante || '',
-            comprovantesVerificacao: Array.isArray(t.comprovantesVerificacao) ? t.comprovantesVerificacao : [],
-            manual: !!t.manual
-        }));
+        const turnosSanitizados = (membro.historicoTurnos || []).map((t, idx) => {
+            const fimTurno = t.fimEm ? new Date(t.fimEm) : (t.data ? new Date(t.data) : new Date());
+            const duracaoSegundos = typeof t.segundosTotais === 'number' && t.segundosTotais > 0
+                ? t.segundosTotais
+                : converterDuracaoParaSegundos(t.duracao);
+
+            let inicioTurno = null;
+            if (t.inicioEm && !isNaN(new Date(t.inicioEm).getTime())) {
+                inicioTurno = new Date(t.inicioEm);
+            } else if (duracaoSegundos > 0 && !isNaN(fimTurno.getTime())) {
+                // Dedução matemática retroativa segura para registros antigos sem inicioEm
+                inicioTurno = new Date(fimTurno.getTime() - (duracaoSegundos * 1000));
+            } else {
+                inicioTurno = fimTurno;
+            }
+
+            return {
+                _id: t._id ? String(t._id) : `t_${idx}_${Date.now()}`,
+                data: t.data || fimTurno,
+                inicioEm: inicioTurno,
+                fimEm: fimTurno,
+                duracao: t.duracao || converterSegundosParaDuracao(duracaoSegundos),
+                segundosTotais: duracaoSegundos,
+                motivoEncerramento: t.motivoEncerramento || (t.manual ? 'Injeção Manual' : 'Concluído'),
+                fotoComprovante: t.fotoComprovante || '',
+                comprovantesVerificacao: Array.isArray(t.comprovantesVerificacao) ? t.comprovantesVerificacao : [],
+                manual: !!t.manual
+            };
+        });
 
         res.json({
             success: true,

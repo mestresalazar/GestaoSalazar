@@ -2099,9 +2099,23 @@
                     <div style="background: rgba(7, 13, 22, 0.7); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2);">
                         <h4 style="color: #38bdf8; margin-bottom: 8px;">🛡️ Auditoria de Turnos e Verificações Horárias (${listaTurnos.length})</h4>
                         ${listaTurnos.length > 0 ? listaTurnos.slice().reverse().map((t) => {
-                            const inicioFormatado = formatarDataHoraBrtSegura(t.inicioEm || t.data);
-                            const fimFormatado = formatarDataHoraBrtSegura(t.fimEm || t.data);
-                            const dataDia = formatarDataDiaBrtSegura(t.data || t.inicioEm);
+                            let dataFim = t.fimEm ? new Date(t.fimEm) : (t.data ? new Date(t.data) : null);
+                            let dataInicio = t.inicioEm ? new Date(t.inicioEm) : null;
+
+                            // Fallback caso o registro antigo não tenha inicioEm distinto de fimEm
+                            if ((!dataInicio || isNaN(dataInicio.getTime()) || (dataFim && dataInicio.getTime() === dataFim.getTime())) && t.duracao) {
+                                const partesD = String(t.duracao).split(':');
+                                if (partesD.length === 3 && dataFim) {
+                                    const segs = (parseInt(partesD[0], 10) * 3600) + (parseInt(partesD[1], 10) * 60) + parseInt(partesD[2], 10);
+                                    if (segs > 0) {
+                                        dataInicio = new Date(dataFim.getTime() - (segs * 1000));
+                                    }
+                                }
+                            }
+
+                            const inicioFormatado = formatarDataHoraBrtSegura(dataInicio || t.data);
+                            const fimFormatado = formatarDataHoraBrtSegura(dataFim || t.data);
+                            const dataDia = formatarDataDiaBrtSegura(t.data || dataInicio);
                             const motivo = t.motivoEncerramento || (t.manual ? 'Injeção Manual' : 'Concluído');
                             const duracaoStr = t.duracao || '00:00:00';
                             const turnoId = t._id || '';
