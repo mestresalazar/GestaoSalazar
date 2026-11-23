@@ -833,13 +833,18 @@ async function verificarFechamentoAutomaticoTurnos() {
 
                     // Encerramento automático SOMENTE se passou mais de 5 minutos (300 segundos) e o turno tem no mínimo (horasCompletadas * 3600) + 300 segundos
                     if (segundosPassadosDaHora >= 300 && segundosTotais >= (segundosAteHoraCheia + 300)) {
+                        const agoraFim = new Date();
                         const duracaoFormatada = converterSegundosParaDuracao(segundosTotais);
-                        const horaBrtStr = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                        const horaBrtStr = agoraFim.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' });
                         const comprovanteFinal = `Fechamento Automático (Limite de 5 min da ${horasCompletadas}ª hora expirado às ${horaBrtStr} no horário de Brasília)`;
 
                         const novoTurno = {
-                            data: new Date(),
+                            data: agoraFim,
+                            inicioEm: membro.inicioPlantao || new Date(agoraMs - (segundosTotais * 1000)),
+                            fimEm: agoraFim,
                             duracao: duracaoFormatada,
+                            segundosTotais: segundosTotais,
+                            motivoEncerramento: `Falta de Confirmação na ${horasCompletadas}ª hora`,
                             fotoComprovante: comprovanteFinal,
                             comprovantesVerificacao: comprovantes
                         };
@@ -907,13 +912,20 @@ async function verificarFechamentoAutomaticoTurnos() {
                 const dataCiclo = obterDataCicloBrasil(limite02hMs - 1000);
 
                 if (segundosTotais >= 5) {
+                    // Aplica teto de segurança de 9 horas
+                    if (segundosTotais > 9 * 3600) segundosTotais = 9 * 3600;
+
                     const duracaoFormatada = converterSegundosParaDuracao(segundosTotais);
                     const comprovanteFinal = membro.fotoComprovanteAtiva || 'Fechamento Automático (Limite 02:00)';
                     const comprovantesLista = Array.isArray(membro.comprovantesTurnoAtivo) ? membro.comprovantesTurnoAtivo : [];
 
                     const novoTurno = {
                         data: new Date(limite02hMs),
+                        inicioEm: membro.inicioPlantao || new Date(limite02hMs - (segundosTotais * 1000)),
+                        fimEm: new Date(limite02hMs),
                         duracao: duracaoFormatada,
+                        segundosTotais: segundosTotais,
+                        motivoEncerramento: 'Fechamento Automático às 02:05 (Limite 02:00 Brasília)',
                         fotoComprovante: comprovanteFinal,
                         comprovantesVerificacao: comprovantesLista
                     };
@@ -1786,22 +1798,33 @@ app.post('/api/membro/turno', async (req, res) => {
             });
         }
 
-        let segundosFinais = parseInt(segundosTotais, 10) || 0;
+        const agoraServidor = new Date();
+        const dataInicioReal = membroDoc.inicioPlantao ? new Date(membroDoc.inicioPlantao) : agoraServidor;
 
-        // Calcula tempo real acumulado com base no estado salvo no servidor, limitado estritamente até 02:00:00
-        let segundosBanco = Number(membroDoc.segundosAcumulados || 0);
+        // Validação estrita do tempo decorrido com base no fuso de Brasília e trava contra horas infladas
+        let segundosValidosServidor = Number(membroDoc.segundosAcumulados || 0);
         if (membroDoc.estadoTurno === 'ativo' && membroDoc.inicioPlantao) {
-            const diffBanco = calcularSegundosValidosNoHorario(membroDoc.inicioPlantao, Date.now());
-            if (diffBanco > 0) segundosBanco += diffBanco;
+            const decorridoJanela = calcularSegundosValidosNoHorario(membroDoc.inicioPlantao, agoraServidor.getTime());
+            if (decorridoJanela > 0) segundosValidosServidor += decorridoJanela;
         }
 
-        // Se o valor do servidor for mais completo ou o cliente não enviou, utiliza o tempo real
-        if (segundosFinais <= 0 || (segundosBanco > 0 && segundosBanco > segundosFinais)) {
-            segundosFinais = segundosBanco;
+        let segundosCliente = parseInt(segundosTotais, 10) || 0;
+        if (segundosCliente <= 0 && duracao) {
+            segundosCliente = converterDuracaoParaSegundos(duracao);
         }
 
-        if (segundosFinais <= 0 && duracao) {
-            segundosFinais = converterDuracaoParaSegundos(duracao);
+        // Trava: se o cliente enviar um tempo superior ao que de fato transcorreu no servidor com tolerância de 30s, prevalece o tempo real do servidor
+        let segundosFinais = segundosValidosServidor;
+        if (segundosCliente > 0 && segundosCliente <= (segundosValidosServidor + 30)) {
+            segundosFinais = Math.max(segundosCliente, segundosValidosServidor);
+        } else if (segundosValidosServidor <= 0 && segundosCliente > 0) {
+            segundosFinais = Math.min(segundosCliente, 9 * 3600);
+        }
+
+        // Trava de integridade: nenhum turno de um único ciclo diário pode exceder 9 horas (32.400 segundos)
+        const TETO_MAXIMO_TURNO = 9 * 3600;
+        if (segundosFinais > TETO_MAXIMO_TURNO) {
+            segundosFinais = TETO_MAXIMO_TURNO;
         }
 
         if (segundosFinais < 5) {
@@ -1818,8 +1841,12 @@ app.post('/api/membro/turno', async (req, res) => {
             : (Array.isArray(membroDoc.comprovantesTurnoAtivo) ? membroDoc.comprovantesTurnoAtivo : []);
 
         const novoTurno = {
-            data: new Date(),
+            data: agoraServidor,
+            inicioEm: dataInicioReal,
+            fimEm: agoraServidor,
             duracao: duracaoFormatada,
+            segundosTotais: segundosFinais,
+            motivoEncerramento: 'Check-out pelo Operacional',
             fotoComprovante: comprovanteFinal,
             comprovantesVerificacao: listaComprovantes
         };
@@ -1919,9 +1946,16 @@ app.post('/api/membro/turno', async (req, res) => {
             console.error("Aviso ao persistir no BatePonto:", errBatePonto.message);
         }
 
+        const inicioBrtStr = dataInicioReal.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const fimBrtStr = agoraServidor.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
         io.emit('atualizar_estado_turno_usuario', { nickname: String(nickname).toLowerCase().trim() });
         io.emit('atualizar_status_geral_tropa');
-        await registarLogAdmin(membroDoc.nickname, 'Registo de Turno', `Turno de duração ${duracaoFormatada} concluído na Etapa ${etapaDeterminada}.`);
+        await registarLogAdmin(
+            membroDoc.nickname,
+            'Registo de Turno',
+            `Início: ${inicioBrtStr} | Fim: ${fimBrtStr} (Brasília) | Duração real: ${duracaoFormatada} | Verificações: ${listaComprovantes.length} | Etapa ${etapaDeterminada}`
+        );
 
         res.json({
             success: true,
@@ -2615,7 +2649,10 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
                 const t = turnos[j];
                 if (dataCorte && new Date(t.data).getTime() <= dataCorte) continue;
                 if (turnoEstaNoHorarioPermitido(t)) {
-                    totalSegundos += converterDuracaoParaSegundos(t.duracao);
+                    let segTurno = t.segundosTotais ? Number(t.segundosTotais) : converterDuracaoParaSegundos(t.duracao);
+                    // Trava de integridade no ranking: no máximo 9 horas (32.400s) por turno individual
+                    if (segTurno > 9 * 3600) segTurno = 9 * 3600;
+                    totalSegundos += segTurno;
                 }
             }
 

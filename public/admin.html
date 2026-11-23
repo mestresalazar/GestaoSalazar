@@ -2060,32 +2060,46 @@
                             <button class="btn-action btn-demitir" onclick="resetarTurnosMembro('${membroIdAtualModal}')">🗑️ Resetar TODOS os Turnos</button>
                         </div>
                         <div style="background: rgba(7, 13, 22, 0.7); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2);">
-                            <h4 style="color: #38bdf8; margin-bottom: 8px;">🛡️ Turnos e Verificações de 1h (${data.historicoTurnos.length})</h4>
-                            ${data.historicoTurnos.length > 0 ? data.historicoTurnos.slice().reverse().map((t) => `
+                            <h4 style="color: #38bdf8; margin-bottom: 8px;">🛡️ Auditoria de Turnos e Verificações Horárias (${data.historicoTurnos.length})</h4>
+                            ${data.historicoTurnos.length > 0 ? data.historicoTurnos.slice().reverse().map((t) => {
+                                const dataFimRef = t.fimEm || t.data;
+                                const inicioFormatado = t.inicioEm ? new Date(t.inicioEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-';
+                                const fimFormatado = dataFimRef ? new Date(dataFimRef).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-';
+                                const dataDia = new Date(t.data).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+                                const motivo = t.motivoEncerramento || (t.manual ? 'Injeção Manual' : 'Concluído');
+
+                                return `
                                 <div style="background: rgba(30, 41, 59, 0.6); padding: 12px; border-radius: 10px; margin-bottom: 12px; border: 1px solid rgba(56, 189, 248, 0.25);">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
                                         <div>
-                                            <span style="font-size: 13px; font-weight: 700; color: #38bdf8;">• Duração: ${t.duracao}</span>
-                                            <span style="font-size: 11px; color: #94a3b8; margin-left: 8px;">Data: ${new Date(t.data).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
+                                            <span style="font-size: 14px; font-weight: 800; color: #38bdf8;">⏱️ Duração Real: ${t.duracao}</span>
+                                            <span style="font-size: 11px; color: #94a3b8; display: block; margin-top: 3px;">
+                                                📅 ${dataDia} • <b>Início:</b> ${inicioFormatado} ➔ <b>Fim:</b> ${fimFormatado} (Brasília)
+                                            </span>
+                                            <span style="font-size: 11px; color: #eab308; display: block; margin-top: 2px;">
+                                                📌 Status: <b>${escapeHTML(motivo)}</b>
+                                            </span>
                                         </div>
                                         <button class="btn-action btn-demitir" style="padding: 5px 10px; font-size: 11px;" onclick="excluirTurnoEspecifico('${id}', '${t._id}', '${nickname}')">🗑️ Apagar</button>
                                     </div>
-                                    <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; margin-top: 6px;">
+
+                                    <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(56, 189, 248, 0.15);">
                                         ${t.fotoComprovante && t.fotoComprovante.startsWith('data:image') ? `
                                             <div style="text-align: center;">
-                                                <span style="font-size: 10px; color: #94a3b8; display: block;">Print Turno</span>
+                                                <span style="font-size: 10px; color: #38bdf8; display: block; font-weight: 600;">Print Encerramento</span>
                                                 <img src="${t.fotoComprovante}" style="max-width: 110px; max-height: 75px; border-radius: 6px; border: 1px solid #38bdf8; cursor: pointer;" onclick="window.open('${t.fotoComprovante}')">
                                             </div>
                                         ` : ''}
                                         ${Array.isArray(t.comprovantesVerificacao) && t.comprovantesVerificacao.length > 0 ? t.comprovantesVerificacao.map(v => `
                                             <div style="text-align: center;">
-                                                <span style="font-size: 10px; color: #fde047; display: block;">Verificação ${v.horaNumero || 1}h</span>
+                                                <span style="font-size: 10px; color: #fde047; display: block; font-weight: 600;">Verificação ${v.horaNumero || 1}ª Hora</span>
                                                 <img src="${v.fotoComprovante}" style="max-width: 110px; max-height: 75px; border-radius: 6px; border: 1px solid #eab308; cursor: pointer;" onclick="window.open('${v.fotoComprovante}')">
                                             </div>
                                         `).join('') : ''}
                                     </div>
                                 </div>
-                            `).join('') : '<p style="color: #94a3b8;">Nenhum turno registado.</p>'}
+                                `;
+                            }).join('') : '<p style="color: #94a3b8;">Nenhum turno registado.</p>'}
                         </div>
                     `;
                 }
