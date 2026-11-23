@@ -591,7 +591,11 @@ function calcularSegundosValidosNoHorario(inicioTimestamp, fimTimestamp = Date.n
     const fimValidoMs = Math.min(fimMs, limite02hMs);
 
     if (fimValidoMs <= inicioMs) return 0;
-    return Math.floor((fimValidoMs - inicioMs) / 1000);
+    const segundosCalculados = Math.floor((fimValidoMs - inicioMs) / 1000);
+
+    // Teto absoluto: a janela completa das 17:00 às 02:00 tem no máximo 9 horas (32.400 segundos)
+    const TETO_JANELA_9H = 9 * 3600;
+    return Math.min(segundosCalculados, TETO_JANELA_9H);
 }
 
 function turnoEstaNoHorarioPermitido(t) {
@@ -1801,7 +1805,7 @@ app.post('/api/membro/turno', async (req, res) => {
         const agoraServidor = new Date();
         const dataInicioReal = membroDoc.inicioPlantao ? new Date(membroDoc.inicioPlantao) : agoraServidor;
 
-        // Validação estrita do tempo decorrido com base no fuso de Brasília e trava contra horas infladas
+        // Validação estrita: cálculo no servidor pela diferença real de timestamps em America/Sao_Paulo
         let segundosValidosServidor = Number(membroDoc.segundosAcumulados || 0);
         if (membroDoc.estadoTurno === 'ativo' && membroDoc.inicioPlantao) {
             const decorridoJanela = calcularSegundosValidosNoHorario(membroDoc.inicioPlantao, agoraServidor.getTime());
@@ -1813,15 +1817,16 @@ app.post('/api/membro/turno', async (req, res) => {
             segundosCliente = converterDuracaoParaSegundos(duracao);
         }
 
-        // Trava: se o cliente enviar um tempo superior ao que de fato transcorreu no servidor com tolerância de 30s, prevalece o tempo real do servidor
+        // Blindagem contra manipulação ou horas infladas: prevalece a apuração estrita dos timestamps no servidor
         let segundosFinais = segundosValidosServidor;
-        if (segundosCliente > 0 && segundosCliente <= (segundosValidosServidor + 30)) {
-            segundosFinais = Math.max(segundosCliente, segundosValidosServidor);
+        if (segundosCliente > 0 && segundosValidosServidor > 0) {
+            // Permite no máximo pequena oscilação de 15 segundos decorrente de latência de rede
+            segundosFinais = Math.min(segundosCliente, segundosValidosServidor + 15);
         } else if (segundosValidosServidor <= 0 && segundosCliente > 0) {
             segundosFinais = Math.min(segundosCliente, 9 * 3600);
         }
 
-        // Trava de integridade: nenhum turno de um único ciclo diário pode exceder 9 horas (32.400 segundos)
+        // Teto inegociável da janela oficial (17h às 02h = 9h = 32.400 segundos)
         const TETO_MAXIMO_TURNO = 9 * 3600;
         if (segundosFinais > TETO_MAXIMO_TURNO) {
             segundosFinais = TETO_MAXIMO_TURNO;
@@ -2666,6 +2671,7 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
             }
         }
 
+        // Ordena por maior tempo válido acumulado e limita aos líderes da tropa
         ranking.sort((a, b) => b.totalSegundos - a.totalSegundos);
         res.json({ success: true, ranking: ranking.slice(0, 10) });
     } catch (error) {
