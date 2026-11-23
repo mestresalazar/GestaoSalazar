@@ -806,14 +806,19 @@ async function verificarFechamentoAutomaticoTurnos() {
         for (const membro of operacionaisAtivos) {
             let segundosTotais = Number(membro.segundosAcumulados || 0);
             if (membro.inicioPlantao) {
-                const decorrido = Math.floor((agoraMs - new Date(membro.inicioPlantao).getTime()) / 1000);
+                const decorrido = calcularSegundosValidosNoHorario(membro.inicioPlantao, agoraMs);
                 if (decorrido > 0) segundosTotais += decorrido;
+            }
+
+            // O turno só pode ser submetido a verificação ou expiração após ter completado no mínimo 60 minutos reais (3600s)
+            if (segundosTotais < 3000) {
+                continue;
             }
 
             const proximaHoraAlvo = Math.floor(segundosTotais / 3600) + 1;
             const segundosParaProximaHora = (proximaHoraAlvo * 3600) - segundosTotais;
 
-            // ALERTA PRÉVIO: 10 minutos antes (entre 590s e 610s para a hora cheia)
+            // ALERTA PRÉVIO: 10 minutos antes (entre 540s e 600s para a hora cheia)
             if (segundosParaProximaHora <= 600 && segundosParaProximaHora > 540) {
                 await enviarNotificacaoMembro(membro._id, {
                     titulo: `⏱️ Aviso de Presença: ${proximaHoraAlvo}ª Hora em 10 min`,
@@ -824,7 +829,8 @@ async function verificarFechamentoAutomaticoTurnos() {
             }
 
             const horasCompletadas = Math.floor(segundosTotais / 3600);
-            if (horasCompletadas >= 1) {
+            // TRAVA ESTRITA: A cobrança de presença e a tolerância de 5 minutos SÓ ocorrem a partir de 3600s (60 min)
+            if (horasCompletadas >= 1 && segundosTotais >= 3600) {
                 const comprovantes = Array.isArray(membro.comprovantesTurnoAtivo) ? membro.comprovantesTurnoAtivo : [];
                 const jaConfirmouHoraAtual = comprovantes.some(c => Number(c.horaNumero) === horasCompletadas);
 
@@ -832,8 +838,8 @@ async function verificarFechamentoAutomaticoTurnos() {
                     const segundosAteHoraCheia = horasCompletadas * 3600;
                     const segundosPassadosDaHora = segundosTotais - segundosAteHoraCheia;
 
-                    // Notificação em cima da hora (primeiro minuto da hora cheia)
-                    if (segundosPassadosDaHora < 60) {
+                    // Notificação em cima da hora (primeiro minuto após completar os 3600s)
+                    if (segundosPassadosDaHora >= 0 && segundosPassadosDaHora < 60) {
                         await enviarNotificacaoMembro(membro._id, {
                             titulo: `📸 Verificação de Presença (${horasCompletadas}ª Hora)`,
                             mensagem: `Completou ${horasCompletadas}h de plantão! Confirme a sua presença enviando o print do jogo dentro de 5 minutos.`,
@@ -842,8 +848,8 @@ async function verificarFechamentoAutomaticoTurnos() {
                         });
                     }
 
-                    // Se passou mais de 5 minutos (300 segundos) sem envio: encerra automaticamente
-                    if (segundosPassadosDaHora >= 300) {
+                    // Encerramento automático SOMENTE se passou mais de 5 minutos (300 segundos) e o turno tem no mínimo (horasCompletadas * 3600) + 300 segundos
+                    if (segundosPassadosDaHora >= 300 && segundosTotais >= (segundosAteHoraCheia + 300)) {
                         const duracaoFormatada = converterSegundosParaDuracao(segundosTotais);
                         const horaBrtStr = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' });
                         const comprovanteFinal = `Fechamento Automático (Limite de 5 min da ${horasCompletadas}ª hora expirado às ${horaBrtStr} no horário de Brasília)`;
@@ -1536,10 +1542,10 @@ app.put('/api/membro/status-plantao', async (req, res) => {
         if (!membroAtual) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
         const estadoTurnoDestino = estadoTurno || (emPlantao ? 'ativo' : 'parado');
-        const ehNovoTurno = (membroAtual.estadoTurno === 'parado' || !membroAtual.estadoTurno) && estadoTurnoDestino === 'ativo';
+        const ehInicioDeNovoTurno = (membroAtual.estadoTurno === 'parado' || !membroAtual.estadoTurno || segundosAcumulados === 0) && estadoTurnoDestino === 'ativo';
 
         // Ao INICIAR um novo plantão (vindo de parado), valida estritamente a janela regulamentar de Brasília (17:00 às 02:00)
-        if (ehNovoTurno) {
+        if (ehInicioDeNovoTurno) {
             const comp = obterComponentesBrasilia(new Date());
             const hora = comp.hora;
             const dentroDoHorario = (hora >= 17 && hora <= 23) || (hora >= 0 && hora < 2);
@@ -1556,48 +1562,56 @@ app.put('/api/membro/status-plantao', async (req, res) => {
             estadoTurno: estadoTurnoDestino
         };
 
-        if (ehNovoTurno) {
-            updateData.comprovantesTurnoAtivo = [];
-        }
-
-        // Consolida os segundos acumulados reais respeitando rigorosamente o teto das 02:00
-        let segundosConsolidados = Number(membroAtual.segundosAcumulados || 0);
-        if (membroAtual.estadoTurno === 'ativo' && membroAtual.inicioPlantao) {
-            const diffBanco = calcularSegundosValidosNoHorario(membroAtual.inicioPlantao, Date.now());
-            if (diffBanco > 0) segundosConsolidados += diffBanco;
-        }
-        if (segundosAcumulados !== undefined) {
-            const parsed = Math.max(0, parseInt(segundosAcumulados, 10) || 0);
-            if (parsed > segundosConsolidados || membroAtual.estadoTurno !== 'ativo') {
-                segundosConsolidados = Math.max(segundosConsolidados, parsed);
-            }
-        }
-
-        if (estadoTurnoDestino === 'parado') {
-            updateData.emPlantao = false;
-            updateData.inicioPlantao = null;
+        if (ehInicioDeNovoTurno) {
+            // Garante início rigorosamente do zero no novo turno sem resíduos de plantões anteriores
+            updateData.emPlantao = true;
+            updateData.inicioPlantao = inicioPlantao ? new Date(inicioPlantao) : new Date();
             updateData.segundosAcumulados = 0;
-            updateData.fotoComprovanteAtiva = '';
-        } else if (estadoTurnoDestino === 'pausado') {
-            updateData.emPlantao = true;
-            updateData.inicioPlantao = null; // Interrompe o relógio contínuo, preservando segundos acumulados
-            updateData.segundosAcumulados = segundosConsolidados;
+            updateData.comprovantesTurnoAtivo = [];
             if (fotoComprovanteAtiva !== undefined) {
                 updateData.fotoComprovanteAtiva = fotoComprovanteAtiva;
             }
-        } else if (estadoTurnoDestino === 'ativo') {
-            updateData.emPlantao = true;
-            if (inicioPlantao) {
-                updateData.inicioPlantao = new Date(inicioPlantao);
-            } else if (!membroAtual.inicioPlantao) {
-                updateData.inicioPlantao = new Date();
+        } else {
+            // Consolida os segundos acumulados reais respeitando rigorosamente o teto das 02:00
+            let segundosConsolidados = Number(membroAtual.segundosAcumulados || 0);
+            if (membroAtual.estadoTurno === 'ativo' && membroAtual.inicioPlantao) {
+                const diffBanco = calcularSegundosValidosNoHorario(membroAtual.inicioPlantao, Date.now());
+                if (diffBanco > 0) segundosConsolidados += diffBanco;
+            }
+            if (segundosAcumulados !== undefined) {
+                const parsed = Math.max(0, parseInt(segundosAcumulados, 10) || 0);
+                if (parsed > segundosConsolidados || membroAtual.estadoTurno !== 'ativo') {
+                    segundosConsolidados = Math.max(segundosConsolidados, parsed);
+                }
             }
 
-            // Preserva e consolida os segundos acumulados pré-existentes ao retomar da pausa
-            updateData.segundosAcumulados = segundosConsolidados;
+            if (estadoTurnoDestino === 'parado') {
+                updateData.emPlantao = false;
+                updateData.inicioPlantao = null;
+                updateData.segundosAcumulados = 0;
+                updateData.fotoComprovanteAtiva = '';
+                updateData.comprovantesTurnoAtivo = [];
+            } else if (estadoTurnoDestino === 'pausado') {
+                updateData.emPlantao = true;
+                updateData.inicioPlantao = null; // Interrompe o relógio contínuo, preservando segundos acumulados
+                updateData.segundosAcumulados = segundosConsolidados;
+                if (fotoComprovanteAtiva !== undefined) {
+                    updateData.fotoComprovanteAtiva = fotoComprovanteAtiva;
+                }
+            } else if (estadoTurnoDestino === 'ativo') {
+                updateData.emPlantao = true;
+                if (inicioPlantao) {
+                    updateData.inicioPlantao = new Date(inicioPlantao);
+                } else if (!membroAtual.inicioPlantao) {
+                    updateData.inicioPlantao = new Date();
+                }
 
-            if (fotoComprovanteAtiva !== undefined) {
-                updateData.fotoComprovanteAtiva = fotoComprovanteAtiva;
+                // Preserva e consolida os segundos acumulados pré-existentes ao retomar da pausa
+                updateData.segundosAcumulados = segundosConsolidados;
+
+                if (fotoComprovanteAtiva !== undefined) {
+                    updateData.fotoComprovanteAtiva = fotoComprovanteAtiva;
+                }
             }
         }
 

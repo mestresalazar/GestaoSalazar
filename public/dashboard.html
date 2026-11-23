@@ -3456,7 +3456,24 @@
                 return;
             }
 
-            // 1. Notificação prévia 10 minutos antes da próxima hora cheia (aos 50 minutos de cada hora)
+            // SEGURANÇA ESTRITA: Se o tempo for inferior a 60 minutos (3600s), oculta qualquer box e nunca finaliza
+            if (totalSegundos < 3600) {
+                const box = document.getElementById('boxVerificacaoHora');
+                if (box && box.style.display !== 'none') {
+                    box.style.display = 'none';
+                }
+                // Aviso prévio de 10 minutos para a 1ª hora (entre 50min e 60min)
+                if (totalSegundos >= 3000 && !avisosPrevia10mDisparados.has(1)) {
+                    avisosPrevia10mDisparados.add(1);
+                    dispararNotificacaoNativa(`⏱️ Aviso: 1ª Hora em 10 Minutos`, {
+                        body: `Faltam 10 minutos para completar a sua 1ª hora de turno. Prepare o print do jogo.`,
+                        tag: `aviso_previo_1h`
+                    });
+                }
+                return;
+            }
+
+            // 1. Notificação prévia 10 minutos antes da próxima hora cheia (a partir da 2ª hora em diante)
             const proximaHora = Math.floor(totalSegundos / 3600) + 1;
             const segundosAteProximaHora = (proximaHora * 3600) - totalSegundos;
             if (segundosAteProximaHora <= 600 && segundosAteProximaHora > 0 && !avisosPrevia10mDisparados.has(proximaHora)) {
@@ -3469,7 +3486,7 @@
 
             // 2. Cobrança de confirmação com print ao completar cada 1 hora cheia com 5 minutos de tolerância
             const horaAtual = Math.floor(totalSegundos / 3600);
-            if (horaAtual >= 1 && !horasVerificadasLocal.has(horaAtual)) {
+            if (horaAtual >= 1 && totalSegundos >= (horaAtual * 3600) && !horasVerificadasLocal.has(horaAtual)) {
                 const segundosPassadosDaHora = totalSegundos - (horaAtual * 3600);
                 const segundosRestantes5Min = Math.max(0, 300 - segundosPassadosDaHora);
 
@@ -3481,8 +3498,8 @@
                     });
                 }
 
-                // Se esgotar os 5 minutos (300 segundos) sem envio, finaliza o turno automaticamente
-                if (segundosRestantes5Min <= 0) {
+                // Se esgotar os 5 minutos (300 segundos) sem envio E tempo total for condizente, finaliza o turno
+                if (segundosRestantes5Min <= 0 && totalSegundos >= (horaAtual * 3600) + 300) {
                     if (timerExpiracaoVerificacao) {
                         clearInterval(timerExpiracaoVerificacao);
                         timerExpiracaoVerificacao = null;
@@ -3509,6 +3526,13 @@
 
         async function encerrarTurnoPorFaltaDeVerificacao(horaNumero, totalSegundos) {
             if (processandoCheckout) return;
+
+            // Trava de segurança: impede finalização prematura se o turno tiver menos de 60 minutos
+            if (!totalSegundos || totalSegundos < 3600 || horaNumero < 1 || totalSegundos < (horaNumero * 3600) + 300) {
+                console.warn("Tentativa de encerramento por falta de verificação bloqueada (tempo inferior a 60 minutos):", totalSegundos);
+                return;
+            }
+
             processandoCheckout = true;
             if (timerInterval) clearInterval(timerInterval);
 
@@ -3743,6 +3767,17 @@
                 if (!res.ok || data.success === false) {
                     throw new Error(data.message || 'Falha ao registar check-in no servidor.');
                 }
+
+                // Limpa integralmente qualquer histórico residual de verificações horárias anteriores
+                horasVerificadasLocal.clear();
+                avisosPrevia10mDisparados.clear();
+                fotoVerificacaoHoraBase64 = '';
+                if (timerExpiracaoVerificacao) {
+                    clearInterval(timerExpiracaoVerificacao);
+                    timerExpiracaoVerificacao = null;
+                }
+                const boxH = document.getElementById('boxVerificacaoHora');
+                if (boxH) boxH.style.display = 'none';
 
                 estadoTurno = 'ativo';
                 timestampInicioServer = agora;
