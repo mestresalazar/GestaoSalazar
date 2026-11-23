@@ -1543,6 +1543,7 @@ app.put('/api/membro/status-plantao', async (req, res) => {
 
         const estadoTurnoDestino = estadoTurno || (emPlantao ? 'ativo' : 'parado');
         const ehInicioDeNovoTurno = (membroAtual.estadoTurno === 'parado' || !membroAtual.estadoTurno || segundosAcumulados === 0) && estadoTurnoDestino === 'ativo';
+        const ehNovoTurno = ehInicioDeNovoTurno;
 
         // Ao INICIAR um novo plantão (vindo de parado), valida estritamente a janela regulamentar de Brasília (17:00 às 02:00)
         if (ehInicioDeNovoTurno) {
