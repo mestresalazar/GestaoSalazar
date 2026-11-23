@@ -3384,6 +3384,7 @@
         }
 
         let horasVerificadasLocal = new Set();
+        let avisosPrevia10mDisparados = new Set();
         let fotoVerificacaoHoraBase64 = '';
         let timerExpiracaoVerificacao = null;
 
@@ -3455,11 +3456,30 @@
                 return;
             }
 
-            // A cada 60 minutos (3600 segundos) de turno exige comprovante com 5 minutos de tolerância
+            // 1. Notificação prévia 10 minutos antes da próxima hora cheia (aos 50 minutos de cada hora)
+            const proximaHora = Math.floor(totalSegundos / 3600) + 1;
+            const segundosAteProximaHora = (proximaHora * 3600) - totalSegundos;
+            if (segundosAteProximaHora <= 600 && segundosAteProximaHora > 0 && !avisosPrevia10mDisparados.has(proximaHora)) {
+                avisosPrevia10mDisparados.add(proximaHora);
+                dispararNotificacaoNativa(`⏱️ Aviso: ${proximaHora}ª Hora em 10 Minutos`, {
+                    body: `Faltam 10 minutos para completar a sua ${proximaHora}ª hora de turno. Prepare o print do jogo.`,
+                    tag: `aviso_previo_${proximaHora}h`
+                });
+            }
+
+            // 2. Cobrança de confirmação com print ao completar cada 1 hora cheia com 5 minutos de tolerância
             const horaAtual = Math.floor(totalSegundos / 3600);
             if (horaAtual >= 1 && !horasVerificadasLocal.has(horaAtual)) {
                 const segundosPassadosDaHora = totalSegundos - (horaAtual * 3600);
                 const segundosRestantes5Min = Math.max(0, 300 - segundosPassadosDaHora);
+
+                // Notificação no exato início da janela de 5 minutos
+                if (segundosPassadosDaHora <= 2) {
+                    dispararNotificacaoNativa(`🚨 Verificação de Presença (${horaAtual}h)`, {
+                        body: `Completou ${horaAtual}h de plantão! Confirme o print do jogo nos próximos 5 minutos.`,
+                        tag: `verificacao_ativa_${horaAtual}h`
+                    });
+                }
 
                 // Se esgotar os 5 minutos (300 segundos) sem envio, finaliza o turno automaticamente
                 if (segundosRestantes5Min <= 0) {
@@ -3552,7 +3572,7 @@
 
         function calcularSegundosTotais() {
             if (estadoTurno === 'ativo' && timestampInicioServer) {
-                // Teto estrito às 02:00:00 no fuso de Brasília (America/Sao_Paulo / UTC-3)
+                // Cálculo rigoroso com base no timestamp salvo e teto das 02:00:00 de Brasília (America/Sao_Paulo)
                 const comp = obterComponentesBrasilia(new Date(timestampInicioServer));
                 const diaLimite = comp.hora >= 17 ? comp.dia + 1 : comp.dia;
                 const limite02hMs = Date.UTC(comp.ano, comp.mes - 1, diaLimite, 5, 0, 0, 0); // 05:00 UTC = 02:00 Brasília
@@ -3569,10 +3589,27 @@
 
         function atualizarDisplayTimer() {
             const total = calcularSegundosTotais();
-            document.getElementById('timerDisplay').innerText = `${String(Math.floor(total / 3600)).padStart(2, '0')}:${String(Math.floor((total % 3600) / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+            const el = document.getElementById('timerDisplay');
+            if (el) {
+                el.innerText = `${String(Math.floor(total / 3600)).padStart(2, '0')}:${String(Math.floor((total % 3600) / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+            }
             atualizarStatusSorteioUI();
             return total;
         }
+
+        // Garante recálculo imediato do cronômetro ao voltar à página, trocar de aba ou desbloquear a tela
+        function revalidarTimerVisibilidade() {
+            if (estadoTurno === 'ativo' || estadoTurno === 'pausado') {
+                atualizarDisplayTimer();
+            }
+        }
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                revalidarTimerVisibilidade();
+            }
+        });
+        window.addEventListener('focus', revalidarTimerVisibilidade);
+        window.addEventListener('pageshow', revalidarTimerVisibilidade);
 
         function iniciarLoopTimer() {
             if (timerInterval) clearInterval(timerInterval);

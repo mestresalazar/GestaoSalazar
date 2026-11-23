@@ -797,7 +797,7 @@ async function verificarFechamentoAutomaticoTurnos() {
         const comp = obterComponentesBrasilia(new Date());
         const agoraMs = Date.now();
 
-        // 1. VERIFICAÇÃO CONTÍNUA: Encerra plantão se a verificação de 1h não for confirmada em 5 minutos (300s)
+        // 1. VERIFICAÇÃO CONTÍNUA: Alertas prévios (10m antes), alerta na hora cheia e encerramento após 5 minutos
         const operacionaisAtivos = await User.find(
             { estadoTurno: 'ativo', inicioPlantao: { $ne: null } },
             'nickname cargo estadoTurno segundosAcumulados inicioPlantao fotoComprovanteAtiva comprovantesTurnoAtivo'
@@ -810,17 +810,39 @@ async function verificarFechamentoAutomaticoTurnos() {
                 if (decorrido > 0) segundosTotais += decorrido;
             }
 
+            const proximaHoraAlvo = Math.floor(segundosTotais / 3600) + 1;
+            const segundosParaProximaHora = (proximaHoraAlvo * 3600) - segundosTotais;
+
+            // ALERTA PRÉVIO: 10 minutos antes (entre 590s e 610s para a hora cheia)
+            if (segundosParaProximaHora <= 600 && segundosParaProximaHora > 540) {
+                await enviarNotificacaoMembro(membro._id, {
+                    titulo: `⏱️ Aviso de Presença: ${proximaHoraAlvo}ª Hora em 10 min`,
+                    mensagem: `Atenção: faltam 10 minutos para completar a tua ${proximaHoraAlvo}ª hora de plantão. Prepare o print do jogo para a verificação.`,
+                    tag: `aviso_previo_10m_${membro.nickname}_${proximaHoraAlvo}h`,
+                    url: '/dashboard.html'
+                });
+            }
+
             const horasCompletadas = Math.floor(segundosTotais / 3600);
             if (horasCompletadas >= 1) {
                 const comprovantes = Array.isArray(membro.comprovantesTurnoAtivo) ? membro.comprovantesTurnoAtivo : [];
                 const jaConfirmouHoraAtual = comprovantes.some(c => Number(c.horaNumero) === horasCompletadas);
 
                 if (!jaConfirmouHoraAtual) {
-                    // Calcula o instante exato em que a hora foi completada
                     const segundosAteHoraCheia = horasCompletadas * 3600;
                     const segundosPassadosDaHora = segundosTotais - segundosAteHoraCheia;
 
-                    // Se passou mais de 5 minutos (300 segundos) sem o envio do print: encerra automaticamente
+                    // Notificação em cima da hora (primeiro minuto da hora cheia)
+                    if (segundosPassadosDaHora < 60) {
+                        await enviarNotificacaoMembro(membro._id, {
+                            titulo: `📸 Verificação de Presença (${horasCompletadas}ª Hora)`,
+                            mensagem: `Completou ${horasCompletadas}h de plantão! Confirme a sua presença enviando o print do jogo dentro de 5 minutos.`,
+                            tag: `exigir_print_${membro.nickname}_${horasCompletadas}h`,
+                            url: '/dashboard.html'
+                        });
+                    }
+
+                    // Se passou mais de 5 minutos (300 segundos) sem envio: encerra automaticamente
                     if (segundosPassadosDaHora >= 300) {
                         const duracaoFormatada = converterSegundosParaDuracao(segundosTotais);
                         const horaBrtStr = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -833,7 +855,7 @@ async function verificarFechamentoAutomaticoTurnos() {
                             comprovantesVerificacao: comprovantes
                         };
 
-                        // Atualização atômica condicional: só encerra se o membro AINDA estiver ativo (evita duplicar com o cliente)
+                        // Atualização atômica condicional: só encerra se o membro AINDA estiver ativo
                         const updateAtomico = await User.updateOne(
                             { _id: membro._id, estadoTurno: 'ativo' },
                             {
