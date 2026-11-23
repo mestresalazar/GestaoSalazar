@@ -833,8 +833,9 @@ async function verificarFechamentoAutomaticoTurnos() {
                             comprovantesVerificacao: comprovantes
                         };
 
-                        await User.updateOne(
-                            { _id: membro._id },
+                        // Atualização atômica condicional: só encerra se o membro AINDA estiver ativo (evita duplicar com o cliente)
+                        const updateAtomico = await User.updateOne(
+                            { _id: membro._id, estadoTurno: 'ativo' },
                             {
                                 $push: {
                                     historicoTurnos: { $each: [novoTurno], $slice: -35 }
@@ -850,24 +851,26 @@ async function verificarFechamentoAutomaticoTurnos() {
                             }
                         );
 
-                        await enviarNotificacaoMembro(membro._id, {
-                            titulo: '⏱️ Turno Finalizado por Falta de Confirmação',
-                            mensagem: `O teu plantão foi encerrado automaticamente às ${horaBrtStr} (horário de Brasília) após o limite de 5 minutos da ${horasCompletadas}ª hora expirar. Duração salva: <b>${duracaoFormatada}</b>.`,
-                            tag: 'turno_expirado_' + Date.now(),
-                            url: '/dashboard.html'
-                        });
+                        if (updateAtomico.modifiedCount > 0) {
+                            await enviarNotificacaoMembro(membro._id, {
+                                titulo: '⏱️ Turno Finalizado por Falta de Confirmação',
+                                mensagem: `O teu plantão foi encerrado automaticamente às ${horaBrtStr} (horário de Brasília) após o limite de 5 minutos da ${horasCompletadas}ª hora expirar. Duração salva: <b>${duracaoFormatada}</b>.`,
+                                tag: 'turno_expirado_' + Date.now(),
+                                url: '/dashboard.html'
+                            });
 
-                        io.emit('atualizar_estado_turno_usuario', {
-                            nickname: membro.nickname.toLowerCase(),
-                            estadoTurno: 'parado',
-                            motivo: 'expirado_5m',
-                            duracaoFormatada
-                        });
-                        await registarLogAdmin(
-                            membro.nickname,
-                            'Fim de Turno (Expirado 5m)',
-                            `Turno encerrado às ${horaBrtStr} (horário de Brasília) após exceder o limite de 5 minutos para confirmação da ${horasCompletadas}ª hora. Duração salva: ${duracaoFormatada}`
-                        );
+                            io.emit('atualizar_estado_turno_usuario', {
+                                nickname: membro.nickname.toLowerCase(),
+                                estadoTurno: 'parado',
+                                motivo: 'expirado_5m',
+                                duracaoFormatada
+                            });
+                            await registarLogAdmin(
+                                membro.nickname,
+                                'Fim de Turno (Expirado 5m)',
+                                `Turno encerrado às ${horaBrtStr} (horário de Brasília) após exceder o limite de 5 minutos para confirmação da ${horasCompletadas}ª hora. Duração salva: ${duracaoFormatada}`
+                            );
+                        }
                     }
                 }
             }
@@ -1750,9 +1753,18 @@ app.post('/api/membro/turno', async (req, res) => {
 
         const membroDoc = await User.findOne(
             { nickname: new RegExp('^' + String(nickname).trim() + '$', 'i') },
-            '_id nickname cargo estadoTurno inicioPlantao segundosAcumulados fotoComprovanteAtiva comprovantesTurnoAtivo'
+            '_id nickname cargo emPlantao estadoTurno inicioPlantao segundosAcumulados fotoComprovanteAtiva comprovantesTurnoAtivo'
         );
         if (!membroDoc) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        // Trava estrita contra duplicidade: se o turno já foi encerrado e computado, rejeita nova inserção
+        if (membroDoc.estadoTurno === 'parado' && !membroDoc.emPlantao) {
+            return res.status(400).json({
+                success: false,
+                jaFinalizado: true,
+                message: 'Este turno já foi finalizado e registrado no sistema anteriormente.'
+            });
+        }
 
         let segundosFinais = parseInt(segundosTotais, 10) || 0;
 
@@ -1792,10 +1804,10 @@ app.post('/api/membro/turno', async (req, res) => {
             comprovantesVerificacao: listaComprovantes
         };
 
-        // 1. Atualiza no User com histórico controlado por $slice para evitar estouro de 16MB
+        // 1. Atualiza no User com trava atômica de estado para impedir gravação duplicada
         try {
-            await User.updateOne(
-                { _id: membroDoc._id },
+            const resUpdateUser = await User.updateOne(
+                { _id: membroDoc._id, $or: [{ emPlantao: true }, { estadoTurno: { $in: ['ativo', 'pausado'] } }] },
                 {
                     $push: {
                         historicoTurnos: {
@@ -1813,11 +1825,19 @@ app.post('/api/membro/turno', async (req, res) => {
                     }
                 }
             );
+
+            if (resUpdateUser.matchedCount === 0) {
+                return res.status(400).json({
+                    success: false,
+                    jaFinalizado: true,
+                    message: 'O turno já havia sido encerrado e salvo no sistema.'
+                });
+            }
         } catch (errTurnoUser) {
             if (errTurnoUser.code === 10334 || String(errTurnoUser.message).includes('16793600') || String(errTurnoUser.message).includes('BSONObj size')) {
                 await limparDocumentoUsuarioSobrecarga(membroDoc._id);
-                await User.updateOne(
-                    { _id: membroDoc._id },
+                const resRetry = await User.updateOne(
+                    { _id: membroDoc._id, $or: [{ emPlantao: true }, { estadoTurno: { $in: ['ativo', 'pausado'] } }] },
                     {
                         $push: {
                             historicoTurnos: {
@@ -1835,6 +1855,13 @@ app.post('/api/membro/turno', async (req, res) => {
                         }
                     }
                 );
+                if (resRetry.matchedCount === 0) {
+                    return res.status(400).json({
+                        success: false,
+                        jaFinalizado: true,
+                        message: 'O turno já havia sido encerrado e salvo no sistema.'
+                    });
+                }
             } else {
                 throw errTurnoUser;
             }

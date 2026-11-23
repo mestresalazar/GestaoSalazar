@@ -3490,14 +3490,14 @@
         async function encerrarTurnoPorFaltaDeVerificacao(horaNumero, totalSegundos) {
             if (processandoCheckout) return;
             processandoCheckout = true;
-            clearInterval(timerInterval);
+            if (timerInterval) clearInterval(timerInterval);
 
             const duracaoTxt = document.getElementById('timerDisplay').innerText;
             const compBrt = obterComponentesBrasilia(new Date());
             const horaBrtStr = `${String(compBrt.hora).padStart(2, '0')}:${String(compBrt.minuto).padStart(2, '0')}:${String(compBrt.segundo).padStart(2, '0')}`;
             const comprovanteExpirado = `Fechamento Automático (Limite de 5 min da ${horaNumero}ª hora expirado às ${horaBrtStr} no horário de Brasília)`;
 
-            // Congela o cronômetro e atualiza o estado visual no ato
+            // Interrompe imediatamente o cronômetro visual e redefine os controles na tela
             estadoTurno = 'parado';
             timestampInicioServer = null;
             segundosAcumuladosBase = 0;
@@ -3517,7 +3517,7 @@
             atualizarEtapaTurnoUI();
 
             try {
-                await fetch('/api/membro/turno', {
+                const res = await fetch('/api/membro/turno', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -3527,6 +3527,7 @@
                         fotoComprovante: comprovanteExpirado
                     })
                 });
+                const data = await res.json().catch(() => ({}));
 
                 processandoCheckout = false;
                 sincronizarCarteiraEMissoes();
@@ -3776,8 +3777,13 @@
         async function fazerCheckout() {
             if (processandoCheckout) return;
 
+            if (estadoTurno === 'parado') {
+                mostrarModalCustomizado('Aviso', 'Não há nenhum turno em andamento no momento. Faça o Check-in primeiro.');
+                return;
+            }
+
             const total = atualizarDisplayTimer();
-            if (estadoTurno === 'parado' && total === 0) {
+            if (total === 0) {
                 mostrarModalCustomizado('Aviso', 'Não há nenhum turno em andamento no momento. Faça o Check-in primeiro.');
                 return;
             }
@@ -3880,6 +3886,21 @@
                     carregarRanking();
 
                     mostrarModalCustomizado('Turno Registado!', `Turno de <b>${duracaoTxt}</b> validado e registado no sistema Salazar!`);
+                } else if (data.jaFinalizado) {
+                    // Turno já havia sido encerrado e salvo pelo fechamento automático/expirado
+                    processandoCheckout = false;
+                    limparPrintTurnoLocal();
+                    estadoTurno = 'parado';
+                    timestampInicioServer = null;
+                    segundosAcumuladosBase = 0;
+                    document.getElementById('timerDisplay').innerText = '00:00:00';
+                    document.getElementById('btnCheckin').disabled = false;
+                    document.getElementById('btnPausar').style.display = 'none';
+                    document.getElementById('btnCheckout').disabled = false;
+                    atualizarEtapaTurnoUI();
+                    sincronizarCarteiraEMissoes();
+                    atualizarFiscalizacaoServidor();
+                    mostrarModalCustomizado('Turno Já Finalizado', 'Este plantão já havia sido encerrado e consolidado no sistema com sucesso.');
                 } else {
                     processandoCheckout = false;
                     if (btnCheckoutEl) {
