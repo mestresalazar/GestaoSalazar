@@ -3493,7 +3493,9 @@
             clearInterval(timerInterval);
 
             const duracaoTxt = document.getElementById('timerDisplay').innerText;
-            const comprovanteExpirado = `Fechamento Automático (Falta de Confirmação em 5 min na ${horaNumero}ª hora)`;
+            const compBrt = obterComponentesBrasilia(new Date());
+            const horaBrtStr = `${String(compBrt.hora).padStart(2, '0')}:${String(compBrt.minuto).padStart(2, '0')}:${String(compBrt.segundo).padStart(2, '0')}`;
+            const comprovanteExpirado = `Fechamento Automático (Limite de 5 min da ${horaNumero}ª hora expirado às ${horaBrtStr} no horário de Brasília)`;
 
             // Congela o cronômetro e atualiza o estado visual no ato
             estadoTurno = 'parado';

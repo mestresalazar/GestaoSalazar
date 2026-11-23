@@ -823,7 +823,8 @@ async function verificarFechamentoAutomaticoTurnos() {
                     // Se passou mais de 5 minutos (300 segundos) sem o envio do print: encerra automaticamente
                     if (segundosPassadosDaHora >= 300) {
                         const duracaoFormatada = converterSegundosParaDuracao(segundosTotais);
-                        const comprovanteFinal = `Fechamento Automático (Falta de Confirmação em 5 min na ${horasCompletadas}ª hora)`;
+                        const horaBrtStr = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                        const comprovanteFinal = `Fechamento Automático (Limite de 5 min da ${horasCompletadas}ª hora expirado às ${horaBrtStr} no horário de Brasília)`;
 
                         const novoTurno = {
                             data: new Date(),
@@ -851,7 +852,7 @@ async function verificarFechamentoAutomaticoTurnos() {
 
                         await enviarNotificacaoMembro(membro._id, {
                             titulo: '⏱️ Turno Finalizado por Falta de Confirmação',
-                            mensagem: `O teu plantão foi encerrado automaticamente pois o print da ${horasCompletadas}ª hora não foi enviado dentro do prazo de 5 minutos. Duração salva: <b>${duracaoFormatada}</b>.`,
+                            mensagem: `O teu plantão foi encerrado automaticamente às ${horaBrtStr} (horário de Brasília) após o limite de 5 minutos da ${horasCompletadas}ª hora expirar. Duração salva: <b>${duracaoFormatada}</b>.`,
                             tag: 'turno_expirado_' + Date.now(),
                             url: '/dashboard.html'
                         });
@@ -862,7 +863,11 @@ async function verificarFechamentoAutomaticoTurnos() {
                             motivo: 'expirado_5m',
                             duracaoFormatada
                         });
-                        await registarLogAdmin(membro.nickname, 'Fim de Turno (Expirado 5m)', `Turno encerrado por não envio do print da ${horasCompletadas}ª hora em 5 minutos. Duração salva: ${duracaoFormatada}`);
+                        await registarLogAdmin(
+                            membro.nickname,
+                            'Fim de Turno (Expirado 5m)',
+                            `Turno encerrado às ${horaBrtStr} (horário de Brasília) após exceder o limite de 5 minutos para confirmação da ${horasCompletadas}ª hora. Duração salva: ${duracaoFormatada}`
+                        );
                     }
                 }
             }
@@ -1071,6 +1076,8 @@ app.get('/api/admin/membros-inativos', async (req, res) => {
 });
 
 // --- ROTAS DE AUTENTICAÇÃO ---
+const ultimosLoginsRegistrados = new Map();
+
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { nickname, senha, password } = req.body;
@@ -1090,7 +1097,15 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(403).json({ success: false, message: 'A sua conta aguarda aprovação do Comando para ter acesso ao site.' });
         }
 
-        await registarLogAdmin(user.nickname, 'Login no Sistema', `Utilizador ${user.nickname} efetuou login.`);
+        // Evita gravar entradas duplicadas de login para o mesmo usuário em intervalo menor que 10 segundos
+        const nickChave = user.nickname.toLowerCase().trim();
+        const agoraMs = Date.now();
+        const ultimoLogin = ultimosLoginsRegistrados.get(nickChave);
+
+        if (!ultimoLogin || (agoraMs - ultimoLogin) > 10000) {
+            ultimosLoginsRegistrados.set(nickChave, agoraMs);
+            await registarLogAdmin(user.nickname, 'Login no Sistema', `Utilizador ${user.nickname} efetuou login.`);
+        }
         res.json({
             success: true,
             message: 'Login bem-sucedido',
