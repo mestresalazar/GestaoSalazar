@@ -55,7 +55,7 @@ app.use(cors());
 
 // Limitador de requisições flexível em memória para evitar bloqueios 429 em cascata
 const historicoRequisicoesIp = new Map();
-function rateLimiterSeguro(maxPorJanela = 180, janelaMs = 60000) {
+function rateLimiterSeguro(maxPorJanela = 360, janelaMs = 60000) {
     return (req, res, next) => {
         const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
         const agora = Date.now();
@@ -70,16 +70,17 @@ function rateLimiterSeguro(maxPorJanela = 180, janelaMs = 60000) {
         historicoRequisicoesIp.set(ip, registro);
 
         if (registro.contagem > maxPorJanela) {
-            res.setHeader('Retry-After', Math.ceil((registro.resetEm - agora) / 1000));
+            const esperaSegundos = Math.max(1, Math.ceil((registro.resetEm - agora) / 1000));
+            res.setHeader('Retry-After', esperaSegundos);
             return res.status(429).json({
                 success: false,
-                message: 'Muitas requisições em curto intervalo. Aguarde alguns instantes antes de atualizar novamente.'
+                message: `Muitas requisições em curto intervalo. Aguarde ${esperaSegundos} segundos antes de tentar novamente.`
             });
         }
         next();
     };
 }
-app.use('/api/', rateLimiterSeguro(240, 60000));
+app.use('/api/', rateLimiterSeguro(400, 60000));
 
 app.use(express.static(__dirname));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -2775,7 +2776,7 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
                     motivoStr.includes('injeção') || motivoStr.includes('injecao') || motivoStr.includes('mestre') ||
                     fotoStr.includes('injeção') || fotoStr.includes('injecao') || fotoStr.includes('mestre');
 
-                // Injeções manuais ou ajustes do Mestre entram sempre no ranking semanal, ignorando a restrição de horário das 17h às 02h
+                // Injeções manuais ou ajustes do Mestre (General) entram sempre no ranking semanal, independentemente da janela 17h-02h
                 if (ehManualInjetado || turnoEstaNoHorarioPermitido(t)) {
                     let segTurno = (typeof t.segundosTotais === 'number' && t.segundosTotais > 0)
                         ? t.segundosTotais

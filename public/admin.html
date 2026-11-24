@@ -2277,11 +2277,15 @@
         function fecharHistoricoAdmin() { document.getElementById('modalAdminHistorico').style.display = 'none'; }
 
         async function carregarElegiveisSorteio() {
+            const container = document.getElementById('listaElegiveisSorteio');
+            if (!container) return;
             try {
                 const res = await fetch('/api/admin/sorteio/elegiveis?_=' + new Date().getTime());
+                if (!res.ok) {
+                    container.innerHTML = `<span style="color: #f87171;">[HTTP ${res.status}] Falha ao buscar elegíveis.</span>`;
+                    return;
+                }
                 const data = await res.json();
-                const container = document.getElementById('listaElegiveisSorteio');
-                if (!container) return;
                 container.innerHTML = '';
 
                 if (data.success && Array.isArray(data.elegiveis) && data.elegiveis.length > 0) {
@@ -2291,13 +2295,15 @@
                         div.dataset.nickname = m.nickname.toLowerCase();
                         div.style.padding = '5px 0';
                         div.style.borderBottom = '1px solid rgba(56, 189, 248, 0.1)';
-                        div.innerHTML = `• <b>${m.nickname}</b> (${m.cargo}) — <i style="color: #38bdf8;">Elegível (2h+ HOJE)</i>`;
+                        div.innerHTML = `• <b>${escapeHTML(m.nickname)}</b> (${escapeHTML(m.cargo)}) — <i style="color: #38bdf8;">Elegível (2h+ HOJE)</i>`;
                         container.appendChild(div);
                     });
                 } else {
                     container.innerHTML = `<span style="color: #94a3b8;">Nenhum operacional elegível com 2h+ hoje.</span>`;
                 }
-            } catch (e) {}
+            } catch (e) {
+                container.innerHTML = `<span style="color: #f87171;">Erro de conexão ao carregar elegíveis: ${escapeHTML(e.message)}</span>`;
+            }
         }
         carregarElegiveisSorteio();
 
