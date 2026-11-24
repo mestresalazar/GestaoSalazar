@@ -2720,9 +2720,11 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
                 if (dataCorte && new Date(t.data).getTime() <= dataCorte) {
                     continue;
                 }
+                const motivoStr = String(t.motivoEncerramento || '').toLowerCase();
+                const fotoStr = String(t.fotoComprovante || '').toLowerCase();
                 const ehManualInjetado = t.manual === true ||
-                    (typeof t.motivoEncerramento === 'string' && t.motivoEncerramento.toLowerCase().includes('injeção')) ||
-                    (typeof t.fotoComprovante === 'string' && t.fotoComprovante.toLowerCase().includes('injeção'));
+                    motivoStr.includes('injeção') || motivoStr.includes('injecao') || motivoStr.includes('mestre') ||
+                    fotoStr.includes('injeção') || fotoStr.includes('injecao') || fotoStr.includes('mestre');
 
                 if (ehManualInjetado || turnoEstaNoHorarioPermitido(t)) {
                     let segTurno = (typeof t.segundosTotais === 'number' && t.segundosTotais > 0)
