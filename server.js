@@ -1562,6 +1562,8 @@ app.put('/api/membro/status-plantao', async (req, res) => {
             estadoTurno: estadoTurnoDestino
         };
 
+        let segundosConsolidados = Number(membroAtual.segundosAcumulados || 0);
+
         if (ehInicioDeNovoTurno) {
             // Garante início rigorosamente do zero no novo turno sem resíduos de plantões anteriores
             updateData.emPlantao = true;
@@ -1573,7 +1575,6 @@ app.put('/api/membro/status-plantao', async (req, res) => {
             }
         } else {
             // Consolida os segundos acumulados reais respeitando rigorosamente o teto das 02:00
-            let segundosConsolidados = Number(membroAtual.segundosAcumulados || 0);
             if (membroAtual.estadoTurno === 'ativo' && membroAtual.inicioPlantao) {
                 const diffBanco = calcularSegundosValidosNoHorario(membroAtual.inicioPlantao, Date.now());
                 if (diffBanco > 0) segundosConsolidados += diffBanco;
@@ -2705,7 +2706,7 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
 
         const membros = await User.find(
             { 'historicoTurnos.0': { $exists: true } },
-            'nickname cargo historicoTurnos.duracao historicoTurnos.data historicoTurnos.manual'
+            'nickname cargo historicoTurnos.duracao historicoTurnos.data historicoTurnos.manual historicoTurnos.motivoEncerramento historicoTurnos.fotoComprovante historicoTurnos.segundosTotais'
         ).lean();
 
         const ranking = [];
@@ -2719,7 +2720,11 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
                 if (dataCorte && new Date(t.data).getTime() <= dataCorte) {
                     continue;
                 }
-                if (t.manual === true || turnoEstaNoHorarioPermitido(t)) {
+                const ehManualInjetado = t.manual === true ||
+                    (typeof t.motivoEncerramento === 'string' && t.motivoEncerramento.toLowerCase().includes('injeção')) ||
+                    (typeof t.fotoComprovante === 'string' && t.fotoComprovante.toLowerCase().includes('injeção'));
+
+                if (ehManualInjetado || turnoEstaNoHorarioPermitido(t)) {
                     let segTurno = (typeof t.segundosTotais === 'number' && t.segundosTotais > 0)
                         ? t.segundosTotais
                         : converterDuracaoParaSegundos(t.duracao);
