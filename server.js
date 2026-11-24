@@ -2812,8 +2812,7 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
                 'historicoTurnos.fimEm': 1,
                 'historicoTurnos.manual': 1,
                 'historicoTurnos.motivoEncerramento': 1,
-                'historicoTurnos.segundosTotais': 1,
-                historicoTurnos: { $slice: -40 }
+                'historicoTurnos.segundosTotais': 1
             }
         ).lean();
 
@@ -2823,7 +2822,8 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
             if (!m || !m.nickname) continue;
 
             let totalSegundos = 0;
-            const turnos = Array.isArray(m.historicoTurnos) ? m.historicoTurnos : [];
+            const turnosRaw = Array.isArray(m.historicoTurnos) ? m.historicoTurnos : [];
+            const turnos = turnosRaw.slice(-40);
             const turnosProcessadosIds = new Set();
 
             for (let j = 0; j < turnos.length; j++) {
