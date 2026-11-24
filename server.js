@@ -2782,10 +2782,18 @@ app.delete('/api/admin/membro/:id', async (req, res) => {
 
 app.get('/api/admin/ranking/turnos', async (req, res) => {
     try {
-        const configRanking = await ConfigSorteio.collection.findOne({ chave: 'config_ranking_semanal' });
-        const dataCorte = configRanking && configRanking.dataUltimoReset ? new Date(configRanking.dataUltimoReset).getTime() : null;
+        let dataCorte = null;
+        try {
+            const configRanking = await ConfigSorteio.collection.findOne({ chave: 'config_ranking_semanal' });
+            if (configRanking && configRanking.dataUltimoReset) {
+                const ts = new Date(configRanking.dataUltimoReset).getTime();
+                if (!isNaN(ts)) dataCorte = ts;
+            }
+        } catch (eConfig) {
+            console.warn("Aviso ao buscar data de reset do ranking:", eConfig.message);
+        }
 
-        // Limita projeção com lean() e $slice para evitar carregar fotos pesadas em base64 na memória
+        // Projeção controlada e leve para evitar alocação excessiva de memória
         const membros = await User.find(
             { 'historicoTurnos.0': { $exists: true } },
             {
@@ -2806,20 +2814,37 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
         const ranking = [];
         for (let i = 0; i < membros.length; i++) {
             const m = membros[i];
+            if (!m || !m.nickname) continue;
+
             let totalSegundos = 0;
-            const turnos = m.historicoTurnos || [];
+            const turnos = Array.isArray(m.historicoTurnos) ? m.historicoTurnos : [];
             const turnosProcessadosIds = new Set();
 
             for (let j = 0; j < turnos.length; j++) {
                 const t = turnos[j];
-                const idTurno = t._id ? String(t._id) : `${t.data}_${t.duracao}_${j}`;
+                if (!t) continue;
+
+                const idTurno = t._id ? String(t._id) : `${t.data || ''}_${t.duracao || ''}_${j}`;
                 if (turnosProcessadosIds.has(idTurno)) {
                     continue;
                 }
                 turnosProcessadosIds.add(idTurno);
 
-                const dataTurnoMs = t.data ? new Date(t.data).getTime() : (t.fimEm ? new Date(t.fimEm).getTime() : 0);
-                if (dataCorte && dataTurnoMs <= dataCorte) {
+                let dataTurnoMs = 0;
+                if (t.data) {
+                    const parsedData = new Date(t.data).getTime();
+                    if (!isNaN(parsedData)) dataTurnoMs = parsedData;
+                }
+                if (!dataTurnoMs && t.fimEm) {
+                    const parsedFim = new Date(t.fimEm).getTime();
+                    if (!isNaN(parsedFim)) dataTurnoMs = parsedFim;
+                }
+                if (!dataTurnoMs && t.inicioEm) {
+                    const parsedInicio = new Date(t.inicioEm).getTime();
+                    if (!isNaN(parsedInicio)) dataTurnoMs = parsedInicio;
+                }
+
+                if (dataCorte && dataTurnoMs > 0 && dataTurnoMs <= dataCorte) {
                     continue;
                 }
 
@@ -2829,7 +2854,7 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
 
                 // Injeções manuais ou ajustes do Mestre (General) entram sempre no ranking semanal, independentemente da janela 17h-02h
                 if (ehManualInjetado || turnoEstaNoHorarioPermitido(t)) {
-                    let segTurno = (typeof t.segundosTotais === 'number' && t.segundosTotais > 0)
+                    let segTurno = (typeof t.segundosTotais === 'number' && !isNaN(t.segundosTotais) && t.segundosTotais > 0)
                         ? t.segundosTotais
                         : converterDuracaoParaSegundos(t.duracao);
 
@@ -2837,7 +2862,9 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
                     if (segTurno > 9 * 3600) {
                         segTurno = 9 * 3600;
                     }
-                    totalSegundos += segTurno;
+                    if (segTurno > 0) {
+                        totalSegundos += segTurno;
+                    }
                 }
             }
 
@@ -2856,7 +2883,7 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
         res.json({ success: true, ranking: ranking.slice(0, 10) });
     } catch (error) {
         console.error("Erro ao processar ranking de turnos:", error);
-        res.status(500).json({ success: false, message: 'Erro ao carregar ranking de turnos: ' + error.message });
+        res.status(500).json({ success: false, message: 'Erro ao carregar ranking de turnos: ' + (error && error.message ? error.message : error) });
     }
 });
 

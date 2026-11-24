@@ -3309,22 +3309,29 @@
         carregarHistoricoChatLocal();
 
         async function carregarRanking() {
+            const tbody = document.getElementById('tabelaRanking');
             try {
                 const res = await fetch('/api/admin/ranking/turnos?_=' + Date.now());
+                if (!res.ok) {
+                    if (tbody) {
+                        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #f87171; padding: 12px;">⚠️ [HTTP ${res.status}] Falha ao carregar ranking do servidor.</td></tr>`;
+                    }
+                    return;
+                }
                 const data = await res.json();
-                const tbody = document.getElementById('tabelaRanking');
                 if (!tbody) return;
                 tbody.innerHTML = '';
                 if (data.success && Array.isArray(data.ranking) && data.ranking.length > 0) {
                     data.ranking.forEach((item, index) => {
                         tbody.innerHTML += `<tr><td><b>${index+1}º</b></td><td>${escapeHTML(item.nickname)}</td><td style="color: #38bdf8; font-weight: bold;">${escapeHTML(item.totalFormatado)}</td></tr>`;
                     });
-                } else {
+                } else if (data.success) {
                     tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8;">Sem registos no horário regulamentar.</td></tr>`;
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #f87171; padding: 12px;">Erro: ${escapeHTML(data.message || 'Falha ao processar ranking.')}</td></tr>`;
                 }
             } catch (e) {
-                const tbody = document.getElementById('tabelaRanking');
-                if (tbody) tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #f87171;">Erro ao carregar ranking.</td></tr>`;
+                if (tbody) tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #f87171; padding: 12px;">Erro de conexão ao carregar ranking.</td></tr>`;
             }
         }
 

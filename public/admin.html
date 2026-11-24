@@ -2156,21 +2156,21 @@
                             return `
                             <div style="background: rgba(30, 41, 59, 0.6); padding: 12px; border-radius: 10px; margin-bottom: 12px; border: 1px solid ${temDivergencia ? 'rgba(239, 68, 68, 0.5)' : (ehManual ? 'rgba(234, 179, 8, 0.4)' : 'rgba(56, 189, 248, 0.25)')};">
                                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
-                                    <div>
-                                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px;">
+                                    <div style="flex: 1; min-width: 240px;">
+                                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
                                             <span style="font-size: 14px; font-weight: 800; color: #38bdf8;">⏱️ Duração Real: ${escapeHTML(duracaoStr)}</span>
                                             <span style="font-size: 12px; color: #a7f3d0; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); padding: 2px 8px; border-radius: 6px; font-weight: 600;">Intervalo Início ➔ Fim: ${escapeHTML(intervaloFormatado)}</span>
                                             ${badgeOrigem}
                                             ${temDivergencia ? `<span style="font-size: 11px; background: rgba(239, 68, 68, 0.25); color: #fca5a5; border: 1px solid #ef4444; padding: 2px 6px; border-radius: 6px; font-weight: bold;">⚠️ Divergência (+${Math.round(diffAbs / 60)}m pausa/latência)</span>` : ''}
                                         </div>
-                                        <div style="font-size: 11px; color: #cbd5e1; display: flex; flex-direction: column; gap: 2px; margin-top: 4px;">
+                                        <div style="font-size: 12px; color: #cbd5e1; display: flex; flex-direction: column; gap: 3px; margin-top: 4px; background: rgba(7, 13, 22, 0.5); padding: 8px 10px; border-radius: 8px;">
                                             <span>📅 <b>Data:</b> ${escapeHTML(dataDia)}</span>
-                                            <span>🟢 <b>Início:</b> ${inicioFormatado} &nbsp;|&nbsp; 🔴 <b>Fim:</b> ${fimFormatado} <span style="color: #94a3b8;">(Brasília / America/Sao_Paulo)</span></span>
-                                            <span>🏛️ <b>Origem:</b> <span style="color: ${ehManual ? '#fde047' : '#38bdf8'}; font-weight: 600;">${escapeHTML(origemTexto)}</span></span>
+                                            <span>🟢 <b>Início:</b> ${inicioFormatado} &nbsp;|&nbsp; 🔴 <b>Fim:</b> ${fimFormatado} <span style="color: #94a3b8; font-size: 11px;">(Brasília / America/Sao_Paulo)</span></span>
+                                            <span>🏛️ <b>Origem:</b> <span style="color: ${ehManual ? '#fde047' : '#38bdf8'}; font-weight: 700;">${escapeHTML(origemTexto)}</span></span>
                                             <span>📌 <b>Motivo:</b> <span style="color: #eab308; font-weight: 600;">${escapeHTML(motivo)}</span></span>
                                         </div>
                                     </div>
-                                    ${turnoId ? `<button class="btn-action btn-demitir" style="padding: 5px 10px; font-size: 11px;" onclick="excluirTurnoEspecifico('${id}', '${turnoId}', '${escapeHTML(nickname)}')">🗑️ Apagar</button>` : ''}
+                                    ${turnoId ? `<button class="btn-action btn-demitir" style="padding: 5px 10px; font-size: 11px; margin-left: 8px;" onclick="excluirTurnoEspecifico('${id}', '${turnoId}', '${escapeHTML(nickname)}')">🗑️ Apagar</button>` : ''}
                                 </div>
 
                                 <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(56, 189, 248, 0.15);">
