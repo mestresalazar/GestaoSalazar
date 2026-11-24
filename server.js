@@ -53,8 +53,15 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors());
 
-// Limitador de requisições flexível em memória para evitar bloqueios 429 em cascata
+// Limitador de requisições flexível em memória para evitar bloqueios 429 em cascata e vazamento de RAM
 const historicoRequisicoesIp = new Map();
+setInterval(() => {
+    const agora = Date.now();
+    for (const [ip, reg] of historicoRequisicoesIp.entries()) {
+        if (agora > reg.resetEm) historicoRequisicoesIp.delete(ip);
+    }
+}, 300000);
+
 function rateLimiterSeguro(maxPorJanela = 360, janelaMs = 60000) {
     return (req, res, next) => {
         const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
@@ -1069,14 +1076,19 @@ async function verificarInatividadeTropa() {
         const agora = new Date();
         const tresDiasAtras = new Date(agora.getTime() - (3 * 24 * 60 * 60 * 1000));
 
-        const membros = await User.find({ status: 'ativo' }, 'nickname historicoTurnos.data caixaEntrada').lean();
+        // Projeta apenas o último turno e limite de notificações para economizar RAM
+        const membros = await User.find(
+            { status: 'ativo' },
+            { nickname: 1, 'historicoTurnos.data': 1, historicoTurnos: { $slice: -1 }, caixaEntrada: { $slice: -5 } }
+        ).lean();
+
         for (const membro of membros) {
             const turnos = membro.historicoTurnos || [];
             let ultimoTurnoData = membro._id.getTimestamp();
 
             if (turnos.length > 0) {
                 const ultimo = turnos[turnos.length - 1];
-                if (ultimo.data) ultimoTurnoData = new Date(ultimo.data);
+                if (ultimo && ultimo.data) ultimoTurnoData = new Date(ultimo.data);
             }
 
             if (ultimoTurnoData < tresDiasAtras) {
@@ -1090,9 +1102,12 @@ async function verificarInatividadeTropa() {
                         {
                             $push: {
                                 caixaEntrada: {
-                                    titulo: '⚠️ Aviso de Inatividade',
-                                    mensagem: 'Atenção: Detetámos que está há mais de 3 dias sem registar turnos na organização!',
-                                    data: new Date()
+                                    $each: [{
+                                        titulo: '⚠️ Aviso de Inatividade',
+                                        mensagem: 'Atenção: Detetámos que está há mais de 3 dias sem registar turnos na organização!',
+                                        data: new Date()
+                                    }],
+                                    $slice: -25
                                 }
                             }
                         }
@@ -1113,7 +1128,12 @@ app.get('/api/admin/membros-inativos', async (req, res) => {
         const agora = new Date();
         const tresDiasAtras = new Date(agora.getTime() - (3 * 24 * 60 * 60 * 1000));
 
-        const membros = await User.find({ status: 'ativo' }, 'nickname cargo historicoTurnos.data').lean();
+        // Projeta somente os campos essenciais com apenas o último registro de turno
+        const membros = await User.find(
+            { status: 'ativo' },
+            { nickname: 1, cargo: 1, 'historicoTurnos.data': 1, historicoTurnos: { $slice: -1 } }
+        ).lean();
+
         const inativos = [];
 
         for (const m of membros) {
@@ -1122,7 +1142,7 @@ app.get('/api/admin/membros-inativos', async (req, res) => {
 
             if (turnos.length > 0) {
                 const ultimo = turnos[turnos.length - 1];
-                if (ultimo.data) ultimoTurnoData = new Date(ultimo.data);
+                if (ultimo && ultimo.data) ultimoTurnoData = new Date(ultimo.data);
             }
 
             if (ultimoTurnoData < tresDiasAtras) {
@@ -1145,6 +1165,12 @@ app.get('/api/admin/membros-inativos', async (req, res) => {
 
 // --- ROTAS DE AUTENTICAÇÃO ---
 const ultimosLoginsRegistrados = new Map();
+setInterval(() => {
+    const agora = Date.now();
+    for (const [nick, timestamp] of ultimosLoginsRegistrados.entries()) {
+        if (agora - timestamp > 60000) ultimosLoginsRegistrados.delete(nick);
+    }
+}, 300000);
 
 app.post('/api/auth/login', async (req, res) => {
     try {
@@ -2567,12 +2593,26 @@ app.get('/api/admin/membro/historico/:nickname', async (req, res) => {
 
 app.get('/api/admin/membros', async (req, res) => {
   try {
-    const membros = await User.find({}, 'nickname cargo status emPlantao historicoTurnos.duracao historicoTurnos.data').lean();
+    // Projeta turnos com slice reduzido e campos leves para evitar alocação de objetos pesados
+    const membros = await User.find(
+      {},
+      {
+        nickname: 1,
+        cargo: 1,
+        status: 1,
+        emPlantao: 1,
+        'historicoTurnos.duracao': 1,
+        'historicoTurnos.data': 1,
+        historicoTurnos: { $slice: -25 }
+      }
+    ).lean();
+
     const membrosFormatados = membros.map(m => {
-      const totalSegundosAcumulados = (m.historicoTurnos || []).reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
+      const turnos = m.historicoTurnos || [];
+      const totalSegundosAcumulados = turnos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
       const totalHorasFormatado = converterSegundosParaDuracao(totalSegundosAcumulados);
 
-      const ultimoTurno = m.historicoTurnos && m.historicoTurnos.length > 0 ? m.historicoTurnos[m.historicoTurnos.length - 1] : null;
+      const ultimoTurno = turnos.length > 0 ? turnos[turnos.length - 1] : null;
       return {
         _id: m._id,
         nickname: m.nickname,
@@ -2580,8 +2620,8 @@ app.get('/api/admin/membros', async (req, res) => {
         status: m.status || 'ativo',
         emPlantao: !!m.emPlantao,
         ultimoPlantao: totalSegundosAcumulados > 0
-          ? `Total: ${totalHorasFormatado} (${m.historicoTurnos.length} turnos)`
-          : (ultimoTurno ? `${ultimoTurno.duracao} (${new Date(ultimoTurno.data).toLocaleDateString()})` : 'Nenhum plantão registado')
+          ? `Total: ${totalHorasFormatado} (${turnos.length} turnos)`
+          : (ultimoTurno && ultimoTurno.data ? `${ultimoTurno.duracao || '00:00:00'} (${new Date(ultimoTurno.data).toLocaleDateString()})` : 'Nenhum plantão registado')
       };
     });
     res.json({ success: true, membros: membrosFormatados });
@@ -2745,9 +2785,22 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
         const configRanking = await ConfigSorteio.collection.findOne({ chave: 'config_ranking_semanal' });
         const dataCorte = configRanking && configRanking.dataUltimoReset ? new Date(configRanking.dataUltimoReset).getTime() : null;
 
+        // Limita projeção com lean() e $slice para evitar carregar fotos pesadas em base64 na memória
         const membros = await User.find(
             { 'historicoTurnos.0': { $exists: true } },
-            'nickname cargo historicoTurnos._id historicoTurnos.duracao historicoTurnos.data historicoTurnos.inicioEm historicoTurnos.fimEm historicoTurnos.manual historicoTurnos.motivoEncerramento historicoTurnos.fotoComprovante historicoTurnos.segundosTotais'
+            {
+                nickname: 1,
+                cargo: 1,
+                'historicoTurnos._id': 1,
+                'historicoTurnos.duracao': 1,
+                'historicoTurnos.data': 1,
+                'historicoTurnos.inicioEm': 1,
+                'historicoTurnos.fimEm': 1,
+                'historicoTurnos.manual': 1,
+                'historicoTurnos.motivoEncerramento': 1,
+                'historicoTurnos.segundosTotais': 1,
+                historicoTurnos: { $slice: -40 }
+            }
         ).lean();
 
         const ranking = [];
@@ -2771,10 +2824,8 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
                 }
 
                 const motivoStr = String(t.motivoEncerramento || '').toLowerCase();
-                const fotoStr = String(t.fotoComprovante || '').toLowerCase();
                 const ehManualInjetado = t.manual === true ||
-                    motivoStr.includes('injeção') || motivoStr.includes('injecao') || motivoStr.includes('mestre') ||
-                    fotoStr.includes('injeção') || fotoStr.includes('injecao') || fotoStr.includes('mestre');
+                    motivoStr.includes('injeção') || motivoStr.includes('injecao') || motivoStr.includes('mestre');
 
                 // Injeções manuais ou ajustes do Mestre (General) entram sempre no ranking semanal, independentemente da janela 17h-02h
                 if (ehManualInjetado || turnoEstaNoHorarioPermitido(t)) {
@@ -3069,7 +3120,14 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
 
     const membros = await User.find(
         { 'historicoTurnos.0': { $exists: true } },
-        'nickname cargo historicoTurnos.duracao historicoTurnos.data historicoTurnos.manual'
+        {
+            nickname: 1,
+            cargo: 1,
+            'historicoTurnos.duracao': 1,
+            'historicoTurnos.data': 1,
+            'historicoTurnos.manual': 1,
+            historicoTurnos: { $slice: -25 }
+        }
     ).lean();
 
     const elegiveis = membros.filter(m => {
@@ -3186,7 +3244,14 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
 
     const membros = await User.find(
         { 'historicoTurnos.0': { $exists: true } },
-        'nickname cargo historicoTurnos.duracao historicoTurnos.data historicoTurnos.manual'
+        {
+            nickname: 1,
+            cargo: 1,
+            'historicoTurnos.duracao': 1,
+            'historicoTurnos.data': 1,
+            'historicoTurnos.manual': 1,
+            historicoTurnos: { $slice: -25 }
+        }
     ).lean();
 
     const elegiveis = membros.filter(m => {
@@ -3309,7 +3374,13 @@ app.get('/api/admin/sorteio/elegiveis-um-turno', async (req, res) => {
 
     const membros = await User.find(
         { 'historicoTurnos.0': { $exists: true } },
-        'nickname cargo historicoTurnos.data historicoTurnos.manual'
+        {
+            nickname: 1,
+            cargo: 1,
+            'historicoTurnos.data': 1,
+            'historicoTurnos.manual': 1,
+            historicoTurnos: { $slice: -20 }
+        }
     ).lean();
 
     const elegiveis = membros.filter(m => {
@@ -3337,7 +3408,13 @@ app.post('/api/admin/sorteio/realizar-um-turno', async (req, res) => {
 
     const membros = await User.find(
         { 'historicoTurnos.0': { $exists: true } },
-        'nickname cargo historicoTurnos.data historicoTurnos.manual'
+        {
+            nickname: 1,
+            cargo: 1,
+            'historicoTurnos.data': 1,
+            'historicoTurnos.manual': 1,
+            historicoTurnos: { $slice: -20 }
+        }
     ).lean();
 
     const elegiveis = membros.filter(m => {
