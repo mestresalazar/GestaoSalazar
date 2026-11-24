@@ -2719,15 +2719,18 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
                 if (dataCorte && new Date(t.data).getTime() <= dataCorte) {
                     continue;
                 }
-                if (turnoEstaNoHorarioPermitido(t)) {
-                    let segTurno = t.segundosTotais ? Number(t.segundosTotais) : converterDuracaoParaSegundos(t.duracao);
+                if (t.manual === true || turnoEstaNoHorarioPermitido(t)) {
+                    let segTurno = (typeof t.segundosTotais === 'number' && t.segundosTotais > 0)
+                        ? t.segundosTotais
+                        : converterDuracaoParaSegundos(t.duracao);
+
                     // Trava de integridade no ranking: no máximo 9 horas (32.400s) por turno individual
                     if (segTurno > 9 * 3600) {
                         console.log(`[RANKING AUDIT] Turno de ${m.nickname} excedeu 9h (${segTurno}s) e foi ajustado para o teto regulamentar de 9h.`);
                         segTurno = 9 * 3600;
                     }
                     totalSegundos += segTurno;
-                } else if (!t.manual) {
+                } else {
                     console.log(`[RANKING AUDIT] Turno de ${m.nickname} em ${t.data} ignorado por estar fora da janela regulamentar de Brasília.`);
                 }
             }
@@ -2813,11 +2816,19 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
 
         const duracaoFormatada = converterSegundosParaDuracao(totalSegundos);
 
+        const agoraInjecao = new Date();
+        const dataInicioEstimada = new Date(agoraInjecao.getTime() - (totalSegundos * 1000));
+
         const novoTurnoManual = {
-            data: new Date(),
+            data: agoraInjecao,
+            inicioEm: dataInicioEstimada,
+            fimEm: agoraInjecao,
             duracao: duracaoFormatada,
+            segundosTotais: totalSegundos,
             manual: true,
-            fotoComprovante: motivo ? `Injeção Manual por Mestre: ${motivo}` : 'Injeção Manual por Mestre'
+            motivoEncerramento: motivo ? `Injeção Manual por Mestre: ${motivo}` : 'Injeção Manual por Mestre',
+            fotoComprovante: motivo ? `Injeção Manual por Mestre: ${motivo}` : 'Injeção Manual por Mestre',
+            comprovantesVerificacao: []
         };
 
         const notif = {
