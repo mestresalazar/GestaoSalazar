@@ -765,6 +765,263 @@
             max-width: 100%;
             height: auto;
         }
+
+        /* --- ESTILOS DO PÓDIO & RANKING TÁTICO --- */
+        .ranking-podium-wrapper {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 12px;
+            margin: 20px 0 24px 0;
+            padding: 10px 4px;
+        }
+        .podium-pillar {
+            flex: 1;
+            max-width: 190px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            border-radius: 16px 16px 12px 12px;
+            padding: 14px 10px 12px 10px;
+            position: relative;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+            transition: transform 0.25s ease;
+        }
+        .podium-pillar:hover {
+            transform: translateY(-3px);
+        }
+        .podium-pillar.pos-1 {
+            order: 2;
+            min-height: 220px;
+            background: linear-gradient(180deg, rgba(234, 179, 8, 0.22) 0%, rgba(15, 20, 31, 0.95) 75%);
+            border: 1.5px solid #eab308;
+            box-shadow: 0 0 22px rgba(234, 179, 8, 0.3), 0 12px 30px rgba(0,0,0,0.8);
+            z-index: 2;
+        }
+        .podium-pillar.pos-2 {
+            order: 1;
+            min-height: 185px;
+            background: linear-gradient(180deg, rgba(148, 163, 184, 0.18) 0%, rgba(15, 20, 31, 0.95) 75%);
+            border: 1.5px solid #94a3b8;
+            box-shadow: 0 0 16px rgba(148, 163, 184, 0.2), 0 10px 24px rgba(0,0,0,0.7);
+        }
+        .podium-pillar.pos-3 {
+            order: 3;
+            min-height: 165px;
+            background: linear-gradient(180deg, rgba(217, 119, 6, 0.18) 0%, rgba(15, 20, 31, 0.95) 75%);
+            border: 1.5px solid #d97706;
+            box-shadow: 0 0 16px rgba(217, 119, 6, 0.2), 0 10px 24px rgba(0,0,0,0.7);
+        }
+        .podium-crown {
+            font-size: 26px;
+            margin-bottom: -6px;
+            filter: drop-shadow(0 2px 8px rgba(234, 179, 8, 0.6));
+            animation: floatCrown 2.5s ease-in-out infinite alternate;
+        }
+        @keyframes floatCrown {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-4px); }
+        }
+        .podium-avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 18px;
+            color: #fff;
+            margin-bottom: 8px;
+            background: rgba(15, 23, 42, 0.9);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        .pos-1 .podium-avatar {
+            width: 62px;
+            height: 62px;
+            border: 2.5px solid #eab308;
+            box-shadow: 0 0 14px rgba(234, 179, 8, 0.45);
+        }
+        .pos-2 .podium-avatar {
+            border: 2px solid #cbd5e1;
+            box-shadow: 0 0 12px rgba(203, 213, 225, 0.35);
+        }
+        .pos-3 .podium-avatar {
+            border: 2px solid #f59e0b;
+            box-shadow: 0 0 12px rgba(245, 158, 11, 0.35);
+        }
+        .podium-badge-rank {
+            position: absolute;
+            bottom: -6px;
+            right: -4px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 800;
+            color: #07090f;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+        }
+        .pos-1 .podium-badge-rank { background: #eab308; }
+        .pos-2 .podium-badge-rank { background: #cbd5e1; }
+        .pos-3 .podium-badge-rank { background: #f59e0b; }
+
+        .podium-nick {
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            justify-content: center;
+        }
+        .podium-cargo {
+            font-size: 10px;
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+        .podium-time {
+            font-size: 14px;
+            font-weight: 800;
+            margin-top: auto;
+            padding-top: 8px;
+            letter-spacing: 0.5px;
+        }
+        .pos-1 .podium-time { color: #facc15; text-shadow: 0 0 10px rgba(250, 204, 21, 0.4); }
+        .pos-2 .podium-time { color: #e2e8f0; }
+        .pos-3 .podium-time { color: #fdba74; }
+
+        .tag-voce-badge {
+            background: linear-gradient(135deg, #38bdf8, #0284c7);
+            color: #07090f;
+            font-size: 9px;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 6px;
+            letter-spacing: 0.5px;
+            display: inline-block;
+        }
+
+        .ranking-list-card {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(56, 189, 248, 0.18);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+        .ranking-list-card:hover {
+            border-color: rgba(56, 189, 248, 0.4);
+            background: rgba(15, 23, 42, 0.9);
+            transform: translateX(2px);
+        }
+        .ranking-list-card.is-me {
+            border: 1.5px solid #38bdf8 !important;
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(15, 23, 42, 0.95)) !important;
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.25);
+        }
+        .ranking-row-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .ranking-row-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+            flex: 1;
+        }
+        .ranking-num-pos {
+            font-size: 13px;
+            font-weight: 800;
+            color: #94a3b8;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: rgba(30, 41, 59, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .ranking-user-info {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+        .ranking-nick-txt {
+            font-size: 13px;
+            font-weight: 700;
+            color: #f1f5f9;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .ranking-cargo-txt {
+            font-size: 11px;
+            color: #64748b;
+            font-weight: 500;
+        }
+        .ranking-time-badge {
+            font-size: 13px;
+            font-weight: 800;
+            color: #38bdf8;
+            background: rgba(56, 189, 248, 0.12);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            padding: 5px 10px;
+            border-radius: 8px;
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+        }
+        .ranking-progress-bg {
+            width: 100%;
+            height: 4px;
+            background: rgba(30, 41, 59, 0.8);
+            border-radius: 99px;
+            overflow: hidden;
+            margin-top: 2px;
+        }
+        .ranking-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0284c7, #38bdf8);
+            border-radius: 99px;
+            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @media (max-width: 520px) {
+            .ranking-podium-wrapper {
+                gap: 6px;
+            }
+            .podium-pillar {
+                padding: 10px 6px 10px 6px;
+            }
+            .podium-pillar.pos-1 { min-height: 195px; }
+            .podium-pillar.pos-2 { min-height: 165px; }
+            .podium-pillar.pos-3 { min-height: 150px; }
+            .podium-avatar { width: 44px; height: 44px; font-size: 15px; }
+            .pos-1 .podium-avatar { width: 54px; height: 54px; }
+            .podium-nick { font-size: 12px; }
+            .podium-time { font-size: 12px; }
+        }
     </style>
     <script src="/socket.io/socket.io.js"></script>
 </head>
@@ -1377,29 +1634,26 @@
     </div>
 
     <div id="aba-ranking" class="tab-content">
-        <div class="card" style="max-width: 700px; margin: 0 auto;">
+        <div class="card" style="max-width: 720px; margin: 0 auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(239, 68, 68, 0.2); padding-bottom: 10px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
-                <h3 style="border: none; margin: 0; padding: 0;">🏆 Ranking da Tropa (17h às 02h)</h3>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 20px;">🏆</span>
+                    <h3 style="border: none; margin: 0; padding: 0;">Ranking da Tropa (17h às 02h)</h3>
+                </div>
                 <button id="btnAtualizarRankingManual" onclick="atualizarRankingBtnClick(this)" style="background: rgba(239, 68, 68, 0.18); border: 1px solid #ef4444; color: #fca5a5; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s;">
                     🔄 Atualizar Rank
                 </button>
             </div>
-            <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Membros com mais horas acumuladas no horário regulamentar de Brasília (17h às 02h).</p>
-            <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Posição</th>
-                            <th>Nickname</th>
-                            <th>Total de Horas</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabelaRanking">
-                        <tr>
-                            <td colspan="3" style="text-align: center; color: #94a3b8;">A carregar ranking...</td>
-                        </tr>
-                    </tbody>
-                </table>
+            <p style="color: #cbd5e1; margin-bottom: 16px; font-size: 13px; line-height: 1.5;">Classificação oficial dos operacionais com maior dedicação e horas acumuladas no horário de Brasília.</p>
+
+            <!-- PÓDIO VISUAL TOP 3 -->
+            <div id="rankingPodiumContainer" class="ranking-podium-wrapper" style="display: none;"></div>
+
+            <!-- LISTAGEM DOS DEMAIS COLOCADOS / RANKING COMPLETO -->
+            <div id="rankingListaCardsContainer">
+                <div id="tabelaRanking" style="text-align: center; color: #94a3b8; padding: 20px; font-size: 13px;">
+                    A carregar ranking...
+                </div>
             </div>
         </div>
     </div>
@@ -3309,29 +3563,159 @@
         carregarHistoricoChatLocal();
 
         async function carregarRanking() {
-            const tbody = document.getElementById('tabelaRanking');
+            const podiumContainer = document.getElementById('rankingPodiumContainer');
+            const listaContainer = document.getElementById('rankingListaCardsContainer');
+            const nickLogado = (user && user.nickname ? user.nickname : '').toLowerCase().trim();
+
             try {
                 const res = await fetch('/api/admin/ranking/turnos?_=' + Date.now());
                 if (!res.ok) {
-                    if (tbody) {
-                        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #f87171; padding: 12px;">⚠️ [HTTP ${res.status}] Falha ao carregar ranking do servidor.</td></tr>`;
+                    if (podiumContainer) podiumContainer.style.display = 'none';
+                    if (listaContainer) {
+                        listaContainer.innerHTML = `<div style="text-align: center; color: #f87171; padding: 16px; background: rgba(239, 68, 68, 0.1); border-radius: 10px; border: 1px solid rgba(239, 68, 68, 0.3);">⚠️ [HTTP ${res.status}] Falha ao carregar ranking do servidor.</div>`;
                     }
                     return;
                 }
                 const data = await res.json();
-                if (!tbody) return;
-                tbody.innerHTML = '';
-                if (data.success && Array.isArray(data.ranking) && data.ranking.length > 0) {
-                    data.ranking.forEach((item, index) => {
-                        tbody.innerHTML += `<tr><td><b>${index+1}º</b></td><td>${escapeHTML(item.nickname)}</td><td style="color: #38bdf8; font-weight: bold;">${escapeHTML(item.totalFormatado)}</td></tr>`;
-                    });
-                } else if (data.success) {
-                    tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8;">Sem registos no horário regulamentar.</td></tr>`;
-                } else {
-                    tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #f87171; padding: 12px;">Erro: ${escapeHTML(data.message || 'Falha ao processar ranking.')}</td></tr>`;
+                if (!data.success || !Array.isArray(data.ranking) || data.ranking.length === 0) {
+                    if (podiumContainer) podiumContainer.style.display = 'none';
+                    if (listaContainer) {
+                        listaContainer.innerHTML = `<div style="text-align: center; color: #94a3b8; padding: 24px; font-size: 13px;">Sem registos computados no horário regulamentar até o momento.</div>`;
+                    }
+                    return;
+                }
+
+                const ranking = data.ranking;
+                const maxSegundosLider = (ranking[0] && ranking[0].totalSegundos) ? ranking[0].totalSegundos : 1;
+
+                // --- 1. RENDERIZAÇÃO DO PÓDIO TOP 3 ---
+                const top1 = ranking[0];
+                const top2 = ranking[1];
+                const top3 = ranking[2];
+
+                if (podiumContainer) {
+                    let podiumHtml = '';
+
+                    // 2º Lugar (Prata) - Esquerda
+                    if (top2) {
+                        const ehEu2 = top2.nickname.toLowerCase().trim() === nickLogado;
+                        const iniciais2 = escapeHTML(top2.nickname.slice(0, 2).toUpperCase());
+                        podiumHtml += `
+                            <div class="podium-pillar pos-2">
+                                <div class="podium-avatar">
+                                    ${iniciais2}
+                                    <div class="podium-badge-rank">2</div>
+                                </div>
+                                <div class="podium-nick" title="${escapeHTML(top2.nickname)}">
+                                    ${escapeHTML(top2.nickname)}
+                                    ${ehEu2 ? '<span class="tag-voce-badge">VOCÊ</span>' : ''}
+                                </div>
+                                <div class="podium-cargo">${escapeHTML(top2.cargo || 'Operacional')}</div>
+                                <div class="podium-time">${escapeHTML(top2.totalFormatado)}</div>
+                            </div>
+                        `;
+                    }
+
+                    // 1º Lugar (Ouro) - Centro Elevado
+                    if (top1) {
+                        const ehEu1 = top1.nickname.toLowerCase().trim() === nickLogado;
+                        const iniciais1 = escapeHTML(top1.nickname.slice(0, 2).toUpperCase());
+                        podiumHtml += `
+                            <div class="podium-pillar pos-1">
+                                <div class="podium-crown">👑</div>
+                                <div class="podium-avatar">
+                                    ${iniciais1}
+                                    <div class="podium-badge-rank">1</div>
+                                </div>
+                                <div class="podium-nick" title="${escapeHTML(top1.nickname)}">
+                                    ${escapeHTML(top1.nickname)}
+                                    ${ehEu1 ? '<span class="tag-voce-badge">VOCÊ</span>' : ''}
+                                </div>
+                                <div class="podium-cargo" style="color: #fde047;">${escapeHTML(top1.cargo || 'Líder')}</div>
+                                <div class="podium-time">${escapeHTML(top1.totalFormatado)}</div>
+                            </div>
+                        `;
+                    }
+
+                    // 3º Lugar (Bronze) - Direita
+                    if (top3) {
+                        const ehEu3 = top3.nickname.toLowerCase().trim() === nickLogado;
+                        const iniciais3 = escapeHTML(top3.nickname.slice(0, 2).toUpperCase());
+                        podiumHtml += `
+                            <div class="podium-pillar pos-3">
+                                <div class="podium-avatar">
+                                    ${iniciais3}
+                                    <div class="podium-badge-rank">3</div>
+                                </div>
+                                <div class="podium-nick" title="${escapeHTML(top3.nickname)}">
+                                    ${escapeHTML(top3.nickname)}
+                                    ${ehEu3 ? '<span class="tag-voce-badge">VOCÊ</span>' : ''}
+                                </div>
+                                <div class="podium-cargo">${escapeHTML(top3.cargo || 'Operacional')}</div>
+                                <div class="podium-time">${escapeHTML(top3.totalFormatado)}</div>
+                            </div>
+                        `;
+                    }
+
+                    podiumContainer.innerHTML = podiumHtml;
+                    podiumContainer.style.display = 'flex';
+                }
+
+                // --- 2. LISTAGEM TÁTICA (4º COLOCADO EM DIANTE) ---
+                if (listaContainer) {
+                    const demaisMembros = ranking.slice(3);
+
+                    if (demaisMembros.length === 0) {
+                        listaContainer.innerHTML = `
+                            <div style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 14px; padding: 12px; border-top: 1px solid rgba(56, 189, 248, 0.15);">
+                                Top 3 estabelecido. Demais colocações aguardando novos registros de plantão.
+                            </div>
+                        `;
+                    } else {
+                        let cardsHtml = `
+                            <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin: 18px 0 10px 4px; display: flex; align-items: center; justify-content: space-between;">
+                                <span>Demais Operacionais</span>
+                                <span>Total de Horas</span>
+                            </div>
+                        `;
+
+                        demaisMembros.forEach((item, index) => {
+                            const posicaoReal = index + 4;
+                            const ehEu = item.nickname.toLowerCase().trim() === nickLogado;
+                            const porcentagem = maxSegundosLider > 0
+                                ? Math.min(100, Math.max(8, Math.round(((item.totalSegundos || 0) / maxSegundosLider) * 100)))
+                                : 0;
+
+                            cardsHtml += `
+                                <div class="ranking-list-card ${ehEu ? 'is-me' : ''}">
+                                    <div class="ranking-row-top">
+                                        <div class="ranking-row-left">
+                                            <div class="ranking-num-pos">${posicaoReal}º</div>
+                                            <div class="ranking-user-info">
+                                                <div class="ranking-nick-txt">
+                                                    <span>${escapeHTML(item.nickname)}</span>
+                                                    ${ehEu ? '<span class="tag-voce-badge">VOCÊ</span>' : ''}
+                                                </div>
+                                                <div class="ranking-cargo-txt">${escapeHTML(item.cargo || 'Soldado')}</div>
+                                            </div>
+                                        </div>
+                                        <div class="ranking-time-badge">⏱️ ${escapeHTML(item.totalFormatado)}</div>
+                                    </div>
+                                    <div class="ranking-progress-bg" title="${porcentagem}% do tempo do 1º colocado">
+                                        <div class="ranking-progress-fill" style="width: ${porcentagem}%;"></div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+
+                        listaContainer.innerHTML = cardsHtml;
+                    }
                 }
             } catch (e) {
-                if (tbody) tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #f87171; padding: 12px;">Erro de conexão ao carregar ranking.</td></tr>`;
+                if (podiumContainer) podiumContainer.style.display = 'none';
+                if (listaContainer) {
+                    listaContainer.innerHTML = `<div style="text-align: center; color: #f87171; padding: 14px;">Erro de conexão ao carregar ranking.</div>`;
+                }
             }
         }
 
