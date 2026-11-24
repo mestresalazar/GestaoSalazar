@@ -1079,11 +1079,12 @@ async function verificarInatividadeTropa() {
         // Projeta apenas o último turno e limite de notificações para economizar RAM
         const membros = await User.find(
             { status: 'ativo' },
-            { nickname: 1, 'historicoTurnos.data': 1, historicoTurnos: { $slice: -1 }, caixaEntrada: { $slice: -5 } }
+            { nickname: 1, 'historicoTurnos.data': 1, 'caixaEntrada.titulo': 1, 'caixaEntrada.data': 1 }
         ).lean();
 
         for (const membro of membros) {
-            const turnos = membro.historicoTurnos || [];
+            const turnosRaw = Array.isArray(membro.historicoTurnos) ? membro.historicoTurnos : [];
+            const turnos = turnosRaw.slice(-1);
             let ultimoTurnoData = membro._id.getTimestamp();
 
             if (turnos.length > 0) {
@@ -1092,7 +1093,8 @@ async function verificarInatividadeTropa() {
             }
 
             if (ultimoTurnoData < tresDiasAtras) {
-                const jaNotificadoRecente = (membro.caixaEntrada || []).some(n =>
+                const caixa = Array.isArray(membro.caixaEntrada) ? membro.caixaEntrada.slice(-5) : [];
+                const jaNotificadoRecente = caixa.some(n =>
                     n.titulo && n.titulo.includes('Inatividade') && (agora - new Date(n.data)) < 24 * 60 * 60 * 1000
                 );
 
@@ -1131,13 +1133,14 @@ app.get('/api/admin/membros-inativos', async (req, res) => {
         // Projeta somente os campos essenciais com apenas o último registro de turno
         const membros = await User.find(
             { status: 'ativo' },
-            { nickname: 1, cargo: 1, 'historicoTurnos.data': 1, historicoTurnos: { $slice: -1 } }
+            { nickname: 1, cargo: 1, 'historicoTurnos.data': 1 }
         ).lean();
 
         const inativos = [];
 
         for (const m of membros) {
-            const turnos = m.historicoTurnos || [];
+            const turnosRaw = Array.isArray(m.historicoTurnos) ? m.historicoTurnos : [];
+            const turnos = turnosRaw.slice(-1);
             let ultimoTurnoData = m._id.getTimestamp();
 
             if (turnos.length > 0) {
@@ -2608,13 +2611,13 @@ app.get('/api/admin/membros', async (req, res) => {
         status: 1,
         emPlantao: 1,
         'historicoTurnos.duracao': 1,
-        'historicoTurnos.data': 1,
-        historicoTurnos: { $slice: -25 }
+        'historicoTurnos.data': 1
       }
     ).lean();
 
     const membrosFormatados = membros.map(m => {
-      const turnos = m.historicoTurnos || [];
+      const turnosRaw = Array.isArray(m.historicoTurnos) ? m.historicoTurnos : [];
+      const turnos = turnosRaw.slice(-25);
       const totalSegundosAcumulados = turnos.reduce((acc, t) => acc + converterDuracaoParaSegundos(t.duracao), 0);
       const totalHorasFormatado = converterSegundosParaDuracao(totalSegundosAcumulados);
 
@@ -3161,8 +3164,7 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
             cargo: 1,
             'historicoTurnos.duracao': 1,
             'historicoTurnos.data': 1,
-            'historicoTurnos.manual': 1,
-            historicoTurnos: { $slice: -25 }
+            'historicoTurnos.manual': 1
         }
     ).lean();
 
@@ -3171,7 +3173,8 @@ app.get('/api/admin/sorteio/elegiveis', async (req, res) => {
       if (ganhadoresCiclo.includes(nicknameLower)) return false;
 
       let totalSegundos = 0;
-      const turnos = m.historicoTurnos || [];
+      const turnosRaw = Array.isArray(m.historicoTurnos) ? m.historicoTurnos : [];
+      const turnos = turnosRaw.slice(-25);
       for (let i = 0; i < turnos.length; i++) {
           const t = turnos[i];
           const tempoTurno = new Date(t.data).getTime();
@@ -3285,8 +3288,7 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
             cargo: 1,
             'historicoTurnos.duracao': 1,
             'historicoTurnos.data': 1,
-            'historicoTurnos.manual': 1,
-            historicoTurnos: { $slice: -25 }
+            'historicoTurnos.manual': 1
         }
     ).lean();
 
@@ -3295,7 +3297,8 @@ app.post('/api/admin/sorteio/realizar', async (req, res) => {
       if (ganhadoresCiclo.includes(nicknameLower)) return false;
 
       let totalSegundos = 0;
-      const turnos = m.historicoTurnos || [];
+      const turnosRaw = Array.isArray(m.historicoTurnos) ? m.historicoTurnos : [];
+      const turnos = turnosRaw.slice(-25);
       for (let i = 0; i < turnos.length; i++) {
           const t = turnos[i];
           if (dataCorte && new Date(t.data).getTime() <= dataCorte) continue;
@@ -3414,8 +3417,7 @@ app.get('/api/admin/sorteio/elegiveis-um-turno', async (req, res) => {
             nickname: 1,
             cargo: 1,
             'historicoTurnos.data': 1,
-            'historicoTurnos.manual': 1,
-            historicoTurnos: { $slice: -20 }
+            'historicoTurnos.manual': 1
         }
     ).lean();
 
@@ -3423,7 +3425,10 @@ app.get('/api/admin/sorteio/elegiveis-um-turno', async (req, res) => {
       const nicknameLower = m.nickname.toLowerCase().trim();
       if (ganhadoresCiclo.includes(nicknameLower)) return false;
 
-      return (m.historicoTurnos || []).some(t => {
+      const turnosRaw = Array.isArray(m.historicoTurnos) ? m.historicoTurnos : [];
+      const turnos = turnosRaw.slice(-20);
+
+      return turnos.some(t => {
           const tempoTurno = new Date(t.data).getTime();
           if (dataCorte && tempoTurno <= dataCorte) return false;
           return turnoPertenceAoCicloAtual(t);
@@ -3448,8 +3453,7 @@ app.post('/api/admin/sorteio/realizar-um-turno', async (req, res) => {
             nickname: 1,
             cargo: 1,
             'historicoTurnos.data': 1,
-            'historicoTurnos.manual': 1,
-            historicoTurnos: { $slice: -20 }
+            'historicoTurnos.manual': 1
         }
     ).lean();
 
@@ -3457,7 +3461,10 @@ app.post('/api/admin/sorteio/realizar-um-turno', async (req, res) => {
       const nicknameLower = m.nickname.toLowerCase().trim();
       if (ganhadoresCiclo.includes(nicknameLower)) return false;
 
-      return (m.historicoTurnos || []).some(t => turnoPertenceAoCicloAtual(t));
+      const turnosRaw = Array.isArray(m.historicoTurnos) ? m.historicoTurnos : [];
+      const turnos = turnosRaw.slice(-20);
+
+      return turnos.some(t => turnoPertenceAoCicloAtual(t));
     });
 
     if (elegiveis.length === 0) {
