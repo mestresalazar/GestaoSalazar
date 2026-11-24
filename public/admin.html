@@ -2142,13 +2142,13 @@
                             const badgeOrigem = ehManual
                                 ? '<span style="font-size: 11px; background: rgba(234, 179, 8, 0.2); color: #fde047; border: 1px solid #eab308; padding: 2px 7px; border-radius: 6px; font-weight: 700;">👑 Injeção / Ajuste Manual do Mestre</span>'
                                 : '<span style="font-size: 11px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); padding: 2px 7px; border-radius: 6px; font-weight: 700;">🪖 Turno Normal</span>';
-                            const motivo = t.motivoEncerramento || (ehManual ? 'Injeção / Ajuste Manual' : 'Concluído');
+                            const motivo = t.motivoEncerramento || (ehManual ? 'Injeção / Ajuste Manual do Mestre' : 'Concluído');
                             const duracaoStr = t.duracao || '00:00:00';
                             const turnoId = t._id || '';
 
                             const intervaloObj = calcularIntervaloEntreDatas(dataInicio, dataFim);
                             const intervaloFormatado = intervaloObj ? intervaloObj.formatado : duracaoStr;
-                            const segundosDuracao = typeof t.segundosTotais === 'number' && t.segundosTotais > 0 ? t.segundosTotais : 0;
+                            const segundosDuracao = (typeof t.segundosTotais === 'number' && !isNaN(t.segundosTotais) && t.segundosTotais > 0) ? t.segundosTotais : 0;
                             const segundosIntervalo = intervaloObj ? intervaloObj.segundos : segundosDuracao;
                             const diffAbs = Math.abs(segundosIntervalo - segundosDuracao);
                             const temDivergencia = (diffAbs > 60 && !ehManual);

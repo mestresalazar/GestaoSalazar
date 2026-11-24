@@ -2471,7 +2471,7 @@ app.get('/api/admin/membro/historico-completo/:id', async (req, res) => {
         // Sanitização resiliente contra registros antigos ou campos ausentes
         const turnosSanitizados = (membro.historicoTurnos || []).map((t, idx) => {
             const fimTurno = t.fimEm ? new Date(t.fimEm) : (t.data ? new Date(t.data) : new Date());
-            const duracaoSegundos = typeof t.segundosTotais === 'number' && t.segundosTotais > 0
+            const duracaoSegundos = (typeof t.segundosTotais === 'number' && !isNaN(t.segundosTotais) && t.segundosTotais > 0)
                 ? t.segundosTotais
                 : converterDuracaoParaSegundos(t.duracao);
 
@@ -2485,6 +2485,12 @@ app.get('/api/admin/membro/historico-completo/:id', async (req, res) => {
                 inicioTurno = fimTurno;
             }
 
+            const motivoStr = String(t.motivoEncerramento || '');
+            const fotoStr = String(t.fotoComprovante || '');
+            const ehManual = !!t.manual ||
+                motivoStr.toLowerCase().includes('injeção') || motivoStr.toLowerCase().includes('injecao') || motivoStr.toLowerCase().includes('mestre') ||
+                fotoStr.toLowerCase().includes('injeção') || fotoStr.toLowerCase().includes('injecao') || fotoStr.toLowerCase().includes('mestre');
+
             return {
                 _id: t._id ? String(t._id) : `t_${idx}_${Date.now()}`,
                 data: t.data || fimTurno,
@@ -2492,10 +2498,10 @@ app.get('/api/admin/membro/historico-completo/:id', async (req, res) => {
                 fimEm: fimTurno,
                 duracao: t.duracao || converterSegundosParaDuracao(duracaoSegundos),
                 segundosTotais: duracaoSegundos,
-                motivoEncerramento: t.motivoEncerramento || (t.manual ? 'Injeção Manual' : 'Concluído'),
+                motivoEncerramento: t.motivoEncerramento || (ehManual ? 'Injeção Manual' : 'Concluído'),
                 fotoComprovante: t.fotoComprovante || '',
                 comprovantesVerificacao: Array.isArray(t.comprovantesVerificacao) ? t.comprovantesVerificacao : [],
-                manual: !!t.manual
+                manual: ehManual
             };
         });
 
@@ -2793,7 +2799,7 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
             console.warn("Aviso ao buscar data de reset do ranking:", eConfig.message);
         }
 
-        // Projeção controlada e leve para evitar alocação excessiva de memória
+        // Projeção ultra-leve defensiva para manter consumo mínimo de memória RAM (< 512MB)
         const membros = await User.find(
             { 'historicoTurnos.0': { $exists: true } },
             {
@@ -2822,7 +2828,7 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
 
             for (let j = 0; j < turnos.length; j++) {
                 const t = turnos[j];
-                if (!t) continue;
+                if (!t || typeof t !== 'object') continue;
 
                 const idTurno = t._id ? String(t._id) : `${t.data || ''}_${t.duracao || ''}_${j}`;
                 if (turnosProcessadosIds.has(idTurno)) {
@@ -2870,8 +2876,8 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
 
             if (totalSegundos > 0) {
                 ranking.push({
-                    nickname: m.nickname,
-                    cargo: m.cargo || 'Privado',
+                    nickname: String(m.nickname),
+                    cargo: String(m.cargo || 'Privado'),
                     totalSegundos: totalSegundos,
                     totalFormatado: converterSegundosParaDuracao(totalSegundos)
                 });
@@ -2952,6 +2958,7 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
 
         const agoraInjecao = new Date();
         const dataInicioEstimada = new Date(agoraInjecao.getTime() - (totalSegundos * 1000));
+        const motivoDescricao = motivo ? String(motivo).trim() : 'Injeção Manual por Mestre';
 
         const novoTurnoManual = {
             data: agoraInjecao,
@@ -2960,8 +2967,8 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
             duracao: duracaoFormatada,
             segundosTotais: totalSegundos,
             manual: true,
-            motivoEncerramento: motivo ? `Injeção Manual por Mestre: ${motivo}` : 'Injeção Manual por Mestre',
-            fotoComprovante: motivo ? `Injeção Manual por Mestre: ${motivo}` : 'Injeção Manual por Mestre',
+            motivoEncerramento: `Injeção Manual por Mestre: ${motivoDescricao}`,
+            fotoComprovante: motivo ? `Injeção Manual por Mestre: ${motivoDescricao}` : 'Injeção Manual por Mestre',
             comprovantesVerificacao: []
         };
 
