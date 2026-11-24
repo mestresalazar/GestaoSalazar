@@ -2483,12 +2483,14 @@
                     try {
                         const res = await fetch('/api/admin/notificar/ranking', { method: 'POST' });
                         const data = await res.json();
-                        if (data.success) {
+                        if (res.ok && data.success) {
                             mostrarModalCustomizado('Sucesso', 'Notificações de ranking enviadas!');
                         } else {
-                            mostrarModalCustomizado('Erro', data.message);
+                            mostrarModalCustomizado('Erro', `[HTTP ${res.status}] ${data.message || 'Falha ao enviar notificações do ranking.'}`);
                         }
-                    } catch (e) {}
+                    } catch (e) {
+                        mostrarModalCustomizado('Erro', `Erro de conexão ao enviar notificações: ${e.message}`);
+                    }
                 }
             );
         }
@@ -2506,12 +2508,14 @@
                             body: JSON.stringify({ adminNickname: user.nickname })
                         });
                         const data = await res.json();
-                        if (data.success) {
+                        if (res.ok && data.success) {
                             mostrarModalCustomizado('Sucesso', 'Ranking semanal resetado com sucesso!');
                         } else {
-                            mostrarModalCustomizado('Erro', data.message);
+                            mostrarModalCustomizado('Erro', `[HTTP ${res.status}] ${data.message || 'Falha ao resetar ranking semanal.'}`);
                         }
-                    } catch (e) {}
+                    } catch (e) {
+                        mostrarModalCustomizado('Erro', `Erro de conexão ao resetar ranking: ${e.message}`);
+                    }
                 }
             );
         }

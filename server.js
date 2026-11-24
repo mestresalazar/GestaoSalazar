@@ -15,6 +15,15 @@ const Justificativa = require('./models/Justificativa');
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 dotenv.config(); // Fallback para diretório atual
+
+// Prevenção contra encerramento inesperado do processo por rejeições ou erros não tratados
+process.on('uncaughtException', (err) => {
+    console.error('[UNCAUGHT EXCEPTION PREVENTED]:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('[UNHANDLED REJECTION PREVENTED]:', reason);
+});
+
 conectarDB();
 
 const publicVapidKey = process.env.VAPID_PUBLIC_KEY || 'BE5CpajXiRi74CjMe6B0ooSqHupNpbsu1otJVlH5t0t5h6tVJmL8PTVGlkSTPWIdAlIwra6WjFsTcy9sBgii8wQ';
@@ -43,6 +52,34 @@ const io = new Server(server, {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors());
+
+// Limitador de requisições flexível em memória para evitar bloqueios 429 em cascata
+const historicoRequisicoesIp = new Map();
+function rateLimiterSeguro(maxPorJanela = 180, janelaMs = 60000) {
+    return (req, res, next) => {
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+        const agora = Date.now();
+        const registro = historicoRequisicoesIp.get(ip) || { contagem: 0, resetEm: agora + janelaMs };
+
+        if (agora > registro.resetEm) {
+            registro.contagem = 0;
+            registro.resetEm = agora + janelaMs;
+        }
+
+        registro.contagem++;
+        historicoRequisicoesIp.set(ip, registro);
+
+        if (registro.contagem > maxPorJanela) {
+            res.setHeader('Retry-After', Math.ceil((registro.resetEm - agora) / 1000));
+            return res.status(429).json({
+                success: false,
+                message: 'Muitas requisições em curto intervalo. Aguarde alguns instantes antes de atualizar novamente.'
+            });
+        }
+        next();
+    };
+}
+app.use('/api/', rateLimiterSeguro(240, 60000));
 
 app.use(express.static(__dirname));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -1562,10 +1599,25 @@ app.put('/api/membro/status-plantao', async (req, res) => {
             estadoTurno: estadoTurnoDestino
         };
 
-        let segundosConsolidados = Number(membroAtual.segundosAcumulados || 0);
+        // Garante a definição segura de segundosConsolidados em todo o ciclo de vida da requisição
+        let segundosConsolidados = Math.max(0, Number(membroAtual.segundosAcumulados || 0));
+
+        // Incorpora tempo transcorrido no relógio ativo se aplicável
+        if (membroAtual.estadoTurno === 'ativo' && membroAtual.inicioPlantao) {
+            const diffBanco = calcularSegundosValidosNoHorario(membroAtual.inicioPlantao, Date.now());
+            if (diffBanco > 0) segundosConsolidados += diffBanco;
+        }
+
+        if (segundosAcumulados !== undefined) {
+            const parsed = Math.max(0, parseInt(segundosAcumulados, 10) || 0);
+            if (parsed > segundosConsolidados || membroAtual.estadoTurno !== 'ativo') {
+                segundosConsolidados = Math.max(segundosConsolidados, parsed);
+            }
+        }
 
         if (ehInicioDeNovoTurno) {
             // Garante início rigorosamente do zero no novo turno sem resíduos de plantões anteriores
+            segundosConsolidados = 0;
             updateData.emPlantao = true;
             updateData.inicioPlantao = inicioPlantao ? new Date(inicioPlantao) : new Date();
             updateData.segundosAcumulados = 0;
@@ -1574,18 +1626,6 @@ app.put('/api/membro/status-plantao', async (req, res) => {
                 updateData.fotoComprovanteAtiva = fotoComprovanteAtiva;
             }
         } else {
-            // Consolida os segundos acumulados reais respeitando rigorosamente o teto das 02:00
-            if (membroAtual.estadoTurno === 'ativo' && membroAtual.inicioPlantao) {
-                const diffBanco = calcularSegundosValidosNoHorario(membroAtual.inicioPlantao, Date.now());
-                if (diffBanco > 0) segundosConsolidados += diffBanco;
-            }
-            if (segundosAcumulados !== undefined) {
-                const parsed = Math.max(0, parseInt(segundosAcumulados, 10) || 0);
-                if (parsed > segundosConsolidados || membroAtual.estadoTurno !== 'ativo') {
-                    segundosConsolidados = Math.max(segundosConsolidados, parsed);
-                }
-            }
-
             if (estadoTurnoDestino === 'parado') {
                 updateData.emPlantao = false;
                 updateData.inicioPlantao = null;
@@ -2706,7 +2746,7 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
 
         const membros = await User.find(
             { 'historicoTurnos.0': { $exists: true } },
-            'nickname cargo historicoTurnos.duracao historicoTurnos.data historicoTurnos.manual historicoTurnos.motivoEncerramento historicoTurnos.fotoComprovante historicoTurnos.segundosTotais'
+            'nickname cargo historicoTurnos._id historicoTurnos.duracao historicoTurnos.data historicoTurnos.inicioEm historicoTurnos.fimEm historicoTurnos.manual historicoTurnos.motivoEncerramento historicoTurnos.fotoComprovante historicoTurnos.segundosTotais'
         ).lean();
 
         const ranking = [];
@@ -2714,18 +2754,28 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
             const m = membros[i];
             let totalSegundos = 0;
             const turnos = m.historicoTurnos || [];
+            const turnosProcessadosIds = new Set();
 
             for (let j = 0; j < turnos.length; j++) {
                 const t = turnos[j];
-                if (dataCorte && new Date(t.data).getTime() <= dataCorte) {
+                const idTurno = t._id ? String(t._id) : `${t.data}_${t.duracao}_${j}`;
+                if (turnosProcessadosIds.has(idTurno)) {
                     continue;
                 }
+                turnosProcessadosIds.add(idTurno);
+
+                const dataTurnoMs = t.data ? new Date(t.data).getTime() : (t.fimEm ? new Date(t.fimEm).getTime() : 0);
+                if (dataCorte && dataTurnoMs <= dataCorte) {
+                    continue;
+                }
+
                 const motivoStr = String(t.motivoEncerramento || '').toLowerCase();
                 const fotoStr = String(t.fotoComprovante || '').toLowerCase();
                 const ehManualInjetado = t.manual === true ||
                     motivoStr.includes('injeção') || motivoStr.includes('injecao') || motivoStr.includes('mestre') ||
                     fotoStr.includes('injeção') || fotoStr.includes('injecao') || fotoStr.includes('mestre');
 
+                // Injeções manuais ou ajustes do Mestre entram sempre no ranking semanal, ignorando a restrição de horário das 17h às 02h
                 if (ehManualInjetado || turnoEstaNoHorarioPermitido(t)) {
                     let segTurno = (typeof t.segundosTotais === 'number' && t.segundosTotais > 0)
                         ? t.segundosTotais
@@ -2733,12 +2783,9 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
 
                     // Trava de integridade no ranking: no máximo 9 horas (32.400s) por turno individual
                     if (segTurno > 9 * 3600) {
-                        console.log(`[RANKING AUDIT] Turno de ${m.nickname} excedeu 9h (${segTurno}s) e foi ajustado para o teto regulamentar de 9h.`);
                         segTurno = 9 * 3600;
                     }
                     totalSegundos += segTurno;
-                } else {
-                    console.log(`[RANKING AUDIT] Turno de ${m.nickname} em ${t.data} ignorado por estar fora da janela regulamentar de Brasília.`);
                 }
             }
 
@@ -2756,7 +2803,8 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
         ranking.sort((a, b) => b.totalSegundos - a.totalSegundos);
         res.json({ success: true, ranking: ranking.slice(0, 10) });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Erro ao carregar ranking de turnos.' });
+        console.error("Erro ao processar ranking de turnos:", error);
+        res.status(500).json({ success: false, message: 'Erro ao carregar ranking de turnos: ' + error.message });
     }
 });
 
