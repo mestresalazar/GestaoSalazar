@@ -2132,7 +2132,11 @@
                             const inicioFormatado = formatarDataHoraBrtSegura(dataInicio || t.data);
                             const fimFormatado = formatarDataHoraBrtSegura(dataFim || t.data);
                             const dataDia = formatarDataDiaBrtSegura(t.data || dataInicio);
-                            const motivo = t.motivoEncerramento || (t.manual ? 'Injeção Manual' : 'Concluído');
+                            const ehManual = !!t.manual;
+                            const badgeOrigem = ehManual
+                                ? '<span style="font-size: 11px; background: rgba(234, 179, 8, 0.2); color: #fde047; border: 1px solid #eab308; padding: 2px 7px; border-radius: 6px; font-weight: 700;">👑 Injeção / Ajuste do Mestre</span>'
+                                : '<span style="font-size: 11px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); padding: 2px 7px; border-radius: 6px; font-weight: 700;">🪖 Turno Operacional Normal</span>';
+                            const motivo = t.motivoEncerramento || (ehManual ? 'Injeção Manual' : 'Concluído');
                             const duracaoStr = t.duracao || '00:00:00';
                             const turnoId = t._id || '';
 
@@ -2141,22 +2145,23 @@
                             const segundosDuracao = typeof t.segundosTotais === 'number' && t.segundosTotais > 0 ? t.segundosTotais : 0;
                             const segundosIntervalo = intervaloObj ? intervaloObj.segundos : segundosDuracao;
                             const diffAbs = Math.abs(segundosIntervalo - segundosDuracao);
-                            const temDivergencia = (diffAbs > 60 && !t.manual);
+                            const temDivergencia = (diffAbs > 60 && !ehManual);
 
                             return `
-                            <div style="background: rgba(30, 41, 59, 0.6); padding: 12px; border-radius: 10px; margin-bottom: 12px; border: 1px solid ${temDivergencia ? 'rgba(239, 68, 68, 0.5)' : 'rgba(56, 189, 248, 0.25)'};">
+                            <div style="background: rgba(30, 41, 59, 0.6); padding: 12px; border-radius: 10px; margin-bottom: 12px; border: 1px solid ${temDivergencia ? 'rgba(239, 68, 68, 0.5)' : (ehManual ? 'rgba(234, 179, 8, 0.4)' : 'rgba(56, 189, 248, 0.25)')};">
                                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
                                     <div>
-                                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px;">
                                             <span style="font-size: 14px; font-weight: 800; color: #38bdf8;">⏱️ Duração Real: ${escapeHTML(duracaoStr)}</span>
                                             <span style="font-size: 12px; color: #a7f3d0; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); padding: 2px 8px; border-radius: 6px; font-weight: 600;">Intervalo Início➔Fim: ${escapeHTML(intervaloFormatado)}</span>
+                                            ${badgeOrigem}
                                             ${temDivergencia ? `<span style="font-size: 11px; background: rgba(239, 68, 68, 0.25); color: #fca5a5; border: 1px solid #ef4444; padding: 2px 6px; border-radius: 6px; font-weight: bold;">⚠️ Divergência (+${Math.round(diffAbs / 60)}m pausa/latência)</span>` : ''}
                                         </div>
                                         <span style="font-size: 11px; color: #94a3b8; display: block; margin-top: 4px;">
                                             📅 ${escapeHTML(dataDia)} • <b>Início:</b> ${inicioFormatado} ➔ <b>Fim:</b> ${fimFormatado} (Brasília / America/Sao_Paulo)
                                         </span>
                                         <span style="font-size: 11px; color: #eab308; display: block; margin-top: 2px;">
-                                            📌 Status / Encerramento: <b>${escapeHTML(motivo)}</b>
+                                            📌 <b>Origem & Motivo:</b> ${ehManual ? 'Injeção Manual do Mestre' : 'Turno Normal'} ${motivo ? `• ${escapeHTML(motivo)}` : ''}
                                         </span>
                                     </div>
                                     ${turnoId ? `<button class="btn-action btn-demitir" style="padding: 5px 10px; font-size: 11px;" onclick="excluirTurnoEspecifico('${id}', '${turnoId}', '${escapeHTML(nickname)}')">🗑️ Apagar</button>` : ''}
