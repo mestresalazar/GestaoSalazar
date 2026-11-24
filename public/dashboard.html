@@ -4062,20 +4062,133 @@
             modal.style.display = 'flex';
         }
 
+        function formatarDataHoraBrtMembro(valorData) {
+            if (!valorData) return '-';
+            const d = new Date(valorData);
+            if (isNaN(d.getTime())) return '-';
+            try {
+                return d.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            } catch (e) {
+                return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            }
+        }
+
+        function formatarDataDiaBrtMembro(valorData) {
+            if (!valorData) return '-';
+            const d = new Date(valorData);
+            if (isNaN(d.getTime())) return '-';
+            try {
+                return d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+            } catch (e) {
+                return d.toLocaleDateString();
+            }
+        }
+
+        function calcularIntervaloTurnoMembro(inicioData, fimData) {
+            if (!inicioData || !fimData) return null;
+            const tInicio = new Date(inicioData).getTime();
+            const tFim = new Date(fimData).getTime();
+            if (isNaN(tInicio) || isNaN(tFim) || tFim < tInicio) return null;
+
+            const segundos = Math.floor((tFim - tInicio) / 1000);
+            const h = String(Math.floor(segundos / 3600)).padStart(2, '0');
+            const m = String(Math.floor((segundos % 3600) / 60)).padStart(2, '0');
+            const s = String(segundos % 60).padStart(2, '0');
+            return { segundos, formatado: `${h}:${m}:${s}` };
+        }
+
         async function abrirHistorico() {
             document.getElementById('modalHistorico').style.display = 'flex';
             const c = document.getElementById('conteudoHistorico');
-            c.innerHTML = '<p>A carregar histórico...</p>';
+            c.innerHTML = '<p style="text-align: center; color: #94a3b8; padding: 12px;">A carregar histórico operacional...</p>';
             try {
-                const res = await fetch(`/api/membro/historico/${encodeURIComponent(user.nickname)}`);
+                const res = await fetch(`/api/membro/historico/${encodeURIComponent(user.nickname)}?_=${Date.now()}`);
                 const data = await res.json();
-                if (data.success) {
-                    c.innerHTML = (data.historicoTurnos || []).map(t => `<p>• ${escapeHTML(t.duracao)} (${escapeHTML(new Date(t.data).toLocaleDateString())})</p>`).join('') || '<p>Nenhum turno.</p>';
+                if (data.success && Array.isArray(data.historicoTurnos)) {
+                    const turnos = data.historicoTurnos;
+                    if (turnos.length === 0) {
+                        c.innerHTML = '<p style="color: #94a3b8; text-align: center; padding: 16px;">Nenhum turno registado até o momento.</p>';
+                        return;
+                    }
+
+                    c.innerHTML = `
+                        <div style="font-size: 12px; color: #94a3b8; margin-bottom: 6px;">Total de turnos homologados: <b style="color: #38bdf8;">${turnos.length}</b></div>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            ${turnos.slice().reverse().map(t => {
+                                let dataFim = t.fimEm ? new Date(t.fimEm) : (t.data ? new Date(t.data) : null);
+                                let dataInicio = t.inicioEm ? new Date(t.inicioEm) : null;
+
+                                if ((!dataInicio || isNaN(dataInicio.getTime()) || (dataFim && dataInicio.getTime() === dataFim.getTime())) && t.duracao) {
+                                    const partesD = String(t.duracao).split(':');
+                                    if (partesD.length === 3 && dataFim) {
+                                        const segs = (parseInt(partesD[0], 10) * 3600) + (parseInt(partesD[1], 10) * 60) + parseInt(partesD[2], 10);
+                                        if (segs > 0) {
+                                            dataInicio = new Date(dataFim.getTime() - (segs * 1000));
+                                        }
+                                    }
+                                }
+
+                                const inicioFormatado = formatarDataHoraBrtMembro(dataInicio || t.data);
+                                const fimFormatado = formatarDataHoraBrtMembro(dataFim || t.data);
+                                const dataDia = formatarDataDiaBrtMembro(t.data || dataInicio);
+
+                                const motivoStr = String(t.motivoEncerramento || '');
+                                const fotoStr = String(t.fotoComprovante || '');
+                                const ehManual = !!t.manual ||
+                                    motivoStr.toLowerCase().includes('injeção') || motivoStr.toLowerCase().includes('injecao') || motivoStr.toLowerCase().includes('mestre') ||
+                                    fotoStr.toLowerCase().includes('injeção') || fotoStr.toLowerCase().includes('injecao') || fotoStr.toLowerCase().includes('mestre');
+
+                                const badgeOrigem = ehManual
+                                    ? '<span style="font-size: 11px; background: rgba(234, 179, 8, 0.2); color: #fde047; border: 1px solid #eab308; padding: 2px 8px; border-radius: 6px; font-weight: 700;">👑 Injeção / Ajuste Manual</span>'
+                                    : '<span style="font-size: 11px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); padding: 2px 8px; border-radius: 6px; font-weight: 700;">🪖 Turno Normal</span>';
+
+                                const duracaoStr = t.duracao || '00:00:00';
+                                const motivo = t.motivoEncerramento || (ehManual ? 'Injeção / Ajuste Manual do Mestre' : 'Turno Regular');
+                                const intervaloObj = calcularIntervaloTurnoMembro(dataInicio, dataFim);
+                                const intervaloFormatado = intervaloObj ? intervaloObj.formatado : duracaoStr;
+
+                                return `
+                                    <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid ${ehManual ? 'rgba(234, 179, 8, 0.4)' : 'rgba(56, 189, 248, 0.25)'}; border-radius: 12px; padding: 12px 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                                <span style="font-size: 14px; font-weight: 800; color: #34d399;">⏱️ ${escapeHTML(duracaoStr)}</span>
+                                                ${badgeOrigem}
+                                            </div>
+                                            <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">📅 ${escapeHTML(dataDia)}</span>
+                                        </div>
+
+                                        <div style="background: rgba(7, 13, 22, 0.55); border-radius: 8px; padding: 8px 10px; font-size: 12px; color: #cbd5e1; display: flex; flex-direction: column; gap: 4px; border-left: 3px solid ${ehManual ? '#eab308' : '#38bdf8'};">
+                                            <div>🟢 <b>Início:</b> ${inicioFormatado} &nbsp;|&nbsp; 🔴 <b>Fim:</b> ${fimFormatado} <span style="color: #94a3b8; font-size: 10px;">(Brasília)</span></div>
+                                            <div>⏳ <b>Intervalo decorrido:</b> <span style="color: #a7f3d0; font-weight: 600;">${escapeHTML(intervaloFormatado)}</span></div>
+                                            <div>📌 <b>Motivo/Registro:</b> <span style="color: #eab308;">${escapeHTML(motivo)}</span></div>
+                                        </div>
+
+                                        ${(t.fotoComprovante && t.fotoComprovante.startsWith('data:image')) || (Array.isArray(t.comprovantesVerificacao) && t.comprovantesVerificacao.length > 0) ? `
+                                            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(56, 189, 248, 0.15);">
+                                                ${t.fotoComprovante && t.fotoComprovante.startsWith('data:image') ? `
+                                                    <div style="text-align: center;">
+                                                        <span style="font-size: 10px; color: #38bdf8; display: block; font-weight: 600;">Comprovante</span>
+                                                        <img src="${t.fotoComprovante}" style="max-width: 90px; max-height: 60px; border-radius: 6px; border: 1px solid #38bdf8; cursor: pointer; object-fit: cover;" onclick="window.open('${t.fotoComprovante}')">
+                                                    </div>
+                                                ` : ''}
+                                                ${Array.isArray(t.comprovantesVerificacao) ? t.comprovantesVerificacao.filter(v => v && v.fotoComprovante && v.fotoComprovante.startsWith('data:image')).map(v => `
+                                                    <div style="text-align: center;">
+                                                        <span style="font-size: 10px; color: #fde047; display: block; font-weight: 600;">${v.horaNumero || 1}ª Hora</span>
+                                                        <img src="${v.fotoComprovante}" style="max-width: 90px; max-height: 60px; border-radius: 6px; border: 1px solid #eab308; cursor: pointer; object-fit: cover;" onclick="window.open('${v.fotoComprovante}')">
+                                                    </div>
+                                                `).join('') : ''}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
                 } else {
-                    c.innerHTML = '<p>Não foi possível carregar o histórico.</p>';
+                    c.innerHTML = '<p style="color: #ef4444; text-align: center; padding: 12px;">Não foi possível carregar o histórico.</p>';
                 }
             } catch (e) {
-                c.innerHTML = '<p>Erro de ligação ao carregar histórico.</p>';
+                c.innerHTML = '<p style="color: #ef4444; text-align: center; padding: 12px;">Erro de ligação ao carregar histórico.</p>';
             }
         }
         function fecharHistorico() { document.getElementById('modalHistorico').style.display = 'none'; }
