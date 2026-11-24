@@ -2888,7 +2888,7 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
         ranking.sort((a, b) => b.totalSegundos - a.totalSegundos);
         res.json({ success: true, ranking: ranking.slice(0, 10) });
     } catch (error) {
-        console.error("Erro ao processar ranking de turnos:", error);
+        console.error("[RANKING_500_DEBUG] Erro ao processar GET /api/admin/ranking/turnos:", error && error.message, error && error.stack);
         res.status(500).json({ success: false, message: 'Erro ao carregar ranking de turnos: ' + (error && error.message ? error.message : error) });
     }
 });
@@ -2916,6 +2916,7 @@ app.put('/api/admin/ranking/resetar', async (req, res) => {
         await registarLogAdmin(adminNickname || 'Comando', 'Reset de Ranking', `Novo ciclo semanal iniciado por ${adminNickname || 'Comando'}.`);
         res.json({ success: true, message: 'Ranking semanal resetado com sucesso! O histórico dos membros foi preservado.' });
     } catch (e) {
+        console.error("[RANKING_500_DEBUG] Erro ao processar PUT /api/admin/ranking/resetar:", e && e.message, e && e.stack);
         res.status(500).json({ success: false, message: 'Erro ao resetar ranking.' });
     }
 });
@@ -2930,6 +2931,7 @@ app.post('/api/admin/notificar/ranking', async (req, res) => {
         await User.updateMany({}, { $push: { caixaEntrada: notif } });
         res.json({ success: true, message: 'Notificações enviadas!' });
     } catch (e) {
+        console.error("[RANKING_500_DEBUG] Erro ao processar POST /api/admin/notificar/ranking:", e && e.message, e && e.stack);
         res.status(500).json({ success: false, message: 'Erro ao enviar notificações.' });
     }
 });
