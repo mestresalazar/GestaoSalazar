@@ -2327,12 +2327,159 @@ app.post('/api/admin/config/missao-valor', async (req, res) => {
     }
 });
 
+// --- ROTA DE BONIFICAÇÃO DE PLANTÃO NA CARTEIRA (INDIVIDUAL E COLETIVA) ---
+app.post('/api/admin/carteira/bonificar', async (req, res) => {
+    try {
+        const { adminNickname, modo, targetNickname, valor, tipo, observacao } = req.body;
+        const valorNumerico = Math.max(1, parseInt(valor, 10) || 0);
+
+        if (valorNumerico <= 0) {
+            return res.status(400).json({ success: false, message: 'Informe um valor válido maior que zero.' });
+        }
+
+        const categoriaTipo = tipo || 'Bônus de Plantão';
+        const autor = adminNickname || 'Comando';
+        const obsFinal = observacao ? String(observacao).trim() : '';
+        const cicloAtual = obterDataCicloBrasil();
+
+        if (modo === 'individual') {
+            if (!targetNickname) {
+                return res.status(400).json({ success: false, message: 'Selecione o operacional a bonificar.' });
+            }
+
+            const membro = await User.findOne(
+                { nickname: new RegExp('^' + escaparRegex(String(targetNickname).trim()) + '$', 'i') },
+                '_id nickname carteiraSaldo'
+            );
+
+            if (!membro) {
+                return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+            }
+
+            const registroExtrato = {
+                data: new Date(),
+                ciclo: cicloAtual,
+                motivo: `${categoriaTipo}: +R$ ${valorNumerico.toLocaleString('pt-BR')}${obsFinal ? ` (${obsFinal})` : ''}`,
+                tipo: categoriaTipo,
+                valor: valorNumerico,
+                autor: autor,
+                comprovante: ''
+            };
+
+            await User.updateOne(
+                { _id: membro._id },
+                {
+                    $inc: { carteiraSaldo: valorNumerico },
+                    $push: {
+                        historicoMissoes: {
+                            $each: [registroExtrato],
+                            $slice: -40
+                        }
+                    }
+                }
+            );
+
+            await enviarNotificacaoMembro(membro._id, {
+                titulo: `💳 ${categoriaTipo}!`,
+                mensagem: `Você recebeu uma bonificação de <b>R$ ${valorNumerico.toLocaleString('pt-BR')}</b> na sua carteira digital!<br>Responsável: ${autor}${obsFinal ? `<br>Observação: ${obsFinal}` : ''}`,
+                tag: 'bonus_' + Date.now(),
+                url: '/dashboard.html'
+            });
+
+            await registarLogAdmin(
+                autor,
+                `Bonificação Individual (${categoriaTipo})`,
+                `Creditado R$ ${valorNumerico.toLocaleString('pt-BR')} para ${membro.nickname}. Obs: ${obsFinal || 'Sem observações'}`
+            );
+
+            io.emit('atualizar_carteira_membro', { nickname: membro.nickname });
+            io.emit('atualizar_status_geral_tropa');
+
+            return res.json({
+                success: true,
+                message: `Bonificação de R$ ${valorNumerico.toLocaleString('pt-BR')} creditada com sucesso para ${membro.nickname}!`,
+                membrosContemplados: 1,
+                totalDistribuido: valorNumerico
+            });
+        } else if (modo === 'coletivo') {
+            // Bonifica TODOS que estiverem com plantão aberto no momento (emPlantao: true ou estadoTurno: 'ativo')
+            const membrosEmPlantao = await User.find(
+                { $or: [{ emPlantao: true }, { estadoTurno: 'ativo' }] },
+                '_id nickname'
+            ).lean();
+
+            if (membrosEmPlantao.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Nenhum operacional está em plantão ativo no momento para receber a bonificação coletiva.'
+                });
+            }
+
+            const ids = membrosEmPlantao.map(m => m._id);
+            const registroExtratoColetivo = {
+                data: new Date(),
+                ciclo: cicloAtual,
+                motivo: `${categoriaTipo} (Coletivo): +R$ ${valorNumerico.toLocaleString('pt-BR')}${obsFinal ? ` (${obsFinal})` : ''}`,
+                tipo: categoriaTipo,
+                valor: valorNumerico,
+                autor: autor,
+                comprovante: ''
+            };
+
+            await User.updateMany(
+                { _id: { $in: ids } },
+                {
+                    $inc: { carteiraSaldo: valorNumerico },
+                    $push: {
+                        historicoMissoes: {
+                            $each: [registroExtratoColetivo],
+                            $slice: -40
+                        }
+                    }
+                }
+            );
+
+            // Notifica individualmente cada membro bonificado
+            for (const m of membrosEmPlantao) {
+                await enviarNotificacaoMembro(m._id, {
+                    titulo: `💳 ${categoriaTipo} (Coletivo)!`,
+                    mensagem: `O Comando creditou <b>R$ ${valorNumerico.toLocaleString('pt-BR')}</b> para todo o efetivo em plantão!<br>Responsável: ${autor}${obsFinal ? `<br>Observação: ${obsFinal}` : ''}`,
+                    tag: 'bonus_col_' + Date.now(),
+                    url: '/dashboard.html'
+                });
+            }
+
+            const totalDistribuido = valorNumerico * membrosEmPlantao.length;
+
+            await registarLogAdmin(
+                autor,
+                `Bonificação Coletiva (${categoriaTipo})`,
+                `Distribuído R$ ${valorNumerico.toLocaleString('pt-BR')} para ${membrosEmPlantao.length} membros em plantão (Total: R$ ${totalDistribuido.toLocaleString('pt-BR')}). Obs: ${obsFinal || 'Geral'}`
+            );
+
+            io.emit('atualizar_status_geral_tropa');
+
+            return res.json({
+                success: true,
+                message: `Bonificação coletiva enviada com sucesso! ${membrosEmPlantao.length} membro(s) em plantão receberam R$ ${valorNumerico.toLocaleString('pt-BR')} cada (Total: R$ ${totalDistribuido.toLocaleString('pt-BR')}).`,
+                membrosContemplados: membrosEmPlantao.length,
+                totalDistribuido
+            });
+        } else {
+            return res.status(400).json({ success: false, message: 'Modo de bonificação inválido. Escolha "individual" ou "coletivo".' });
+        }
+    } catch (e) {
+        console.error("Erro na bonificação de plantão:", e);
+        res.status(500).json({ success: false, message: 'Erro interno ao processar bonificação: ' + e.message });
+    }
+});
+
 app.get('/api/membro/carteira/:nickname', async (req, res) => {
     try {
         const { nickname } = req.params;
         const membro = await User.findOne(
             { nickname: new RegExp(`^${nickname}$`, 'i') },
-            'carteiraSaldo ultimoCicloMissoes missoesConcluidasCiclo'
+            'carteiraSaldo ultimoCicloMissoes missoesConcluidasCiclo historicoMissoes'
         );
 
         if (!membro) {
@@ -2347,10 +2494,13 @@ app.get('/api/membro/carteira/:nickname', async (req, res) => {
             await membro.save();
         }
 
+        const extrato = Array.isArray(membro.historicoMissoes) ? membro.historicoMissoes.slice(-15) : [];
+
         res.json({
             success: true,
             saldo: membro.carteiraSaldo !== undefined ? membro.carteiraSaldo : 0,
-            missoes: membro.missoesConcluidasCiclo || []
+            missoes: membro.missoesConcluidasCiclo || [],
+            extrato: extrato
         });
     } catch (error) {
         console.error("Erro ao carregar carteira:", error);
@@ -2863,9 +3013,13 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
 
                 // Injeções manuais ou ajustes do Mestre (General) entram sempre no ranking semanal, independentemente da janela 17h-02h
                 if (ehManualInjetado || turnoEstaNoHorarioPermitido(t)) {
-                    let segTurno = (typeof t.segundosTotais === 'number' && !isNaN(t.segundosTotais) && t.segundosTotais > 0)
-                        ? t.segundosTotais
-                        : converterDuracaoParaSegundos(t.duracao);
+                    // O tempo de pausa NÃO entra no ranking: segundosTotais representa exclusivamente o tempo efetivo ativo descontadas as pausas
+                    let segTurno = 0;
+                    if (typeof t.segundosTotais === 'number' && !isNaN(t.segundosTotais) && t.segundosTotais > 0) {
+                        segTurno = Math.floor(t.segundosTotais);
+                    } else if (t.duracao) {
+                        segTurno = converterDuracaoParaSegundos(t.duracao);
+                    }
 
                     // Trava de integridade no ranking: no máximo 9 horas (32.400s) por turno individual
                     if (segTurno > 9 * 3600) {

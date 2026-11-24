@@ -1227,6 +1227,16 @@
                 </p>
             </div>
 
+            <div class="card" id="cardExtratoCarteira" style="border: 1px solid rgba(16, 185, 129, 0.35);">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(16, 185, 129, 0.2); padding-bottom: 8px; margin-bottom: 12px;">
+                    <h3 style="border: none; margin: 0; padding: 0; color: #34d399; font-size: 15px;">📜 Extrato / Bonificações Recebidas</h3>
+                    <button onclick="sincronizarCarteiraEMissoes()" style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: 600;">🔄 Atualizar</button>
+                </div>
+                <div id="listaExtratoCarteiraContainer" style="max-height: 200px; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 8px;">
+                    <span style="color: #94a3b8; font-size: 12px; text-align: center; padding: 10px;">A carregar extrato...</span>
+                </div>
+            </div>
+
             <div class="card">
                 <h3>🎁 Status do Sorteio Diário</h3>
                 <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Para participar hoje, cumpre pelo menos 2h acumuladas no dia atual (17h–02h).</p>
@@ -2670,6 +2680,7 @@
 
             let saldoServidor = null;
             let servidorRespondeu = false;
+            let extratoServidor = [];
             try {
                 const res = await fetch(`/api/membro/carteira/${encodeURIComponent(user.nickname)}?_=${Date.now()}`);
                 if (res.ok) {
@@ -2678,9 +2689,38 @@
                         servidorRespondeu = true;
                         if (typeof data.saldo === 'number') saldoServidor = data.saldo;
                         missoesServidorCache = Array.isArray(data.missoes) ? data.missoes : [];
+                        extratoServidor = Array.isArray(data.extrato) ? data.extrato : [];
                     }
                 }
             } catch (e) {}
+
+            // Atualiza extrato de bonificações na UI
+            const containerExtrato = document.getElementById('listaExtratoCarteiraContainer');
+            if (containerExtrato) {
+                if (extratoServidor.length > 0) {
+                    containerExtrato.innerHTML = '';
+                    extratoServidor.slice().reverse().forEach(item => {
+                        const dataFormatada = item.data ? new Date(item.data).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-';
+                        const ehBonus = String(item.motivo || '').toLowerCase().includes('bônus') ||
+                                        String(item.motivo || '').toLowerCase().includes('bonus') ||
+                                        String(item.motivo || '').toLowerCase().includes('prêmio') ||
+                                        String(item.motivo || '').toLowerCase().includes('premio') ||
+                                        String(item.motivo || '').toLowerCase().includes('meritocracia');
+
+                        containerExtrato.innerHTML += `
+                            <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid ${ehBonus ? 'rgba(34, 197, 94, 0.35)' : 'rgba(56, 189, 248, 0.2)'}; border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <div style="flex: 1; min-width: 180px;">
+                                    <span style="font-size: 12px; font-weight: 700; color: ${ehBonus ? '#34d399' : '#38bdf8'}; display: block;">${escapeHTML(item.motivo || 'Movimentação')}</span>
+                                    <span style="font-size: 10px; color: #94a3b8;">📅 ${escapeHTML(dataFormatada)}</span>
+                                </div>
+                                <span style="font-size: 11px; background: rgba(34, 197, 94, 0.15); color: #34d399; border: 1px solid rgba(34, 197, 94, 0.3); padding: 2px 8px; border-radius: 6px; font-weight: 700;">+CRÉDITO</span>
+                            </div>
+                        `;
+                    });
+                } else {
+                    containerExtrato.innerHTML = '<span style="color: #94a3b8; font-size: 12px; text-align: center; padding: 8px;">Nenhuma bonificação ou movimentação recente.</span>';
+                }
+            }
 
             const chaveMissoes = `missoes_ciclo_${user.nickname}_${cicloAtual}`;
             let concluidasLocal = JSON.parse(localStorage.getItem(chaveMissoes)) || {};

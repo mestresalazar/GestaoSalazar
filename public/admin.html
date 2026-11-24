@@ -683,6 +683,52 @@
                     </div>
                 </div>
 
+                <!-- PAINEL DE BONIFICAÇÃO DE PLANTÃO NA CARTEIRA -->
+                <div class="card" style="border: 2px solid #10b981; background: linear-gradient(145deg, rgba(16, 185, 129, 0.08), rgba(15, 23, 42, 0.95));">
+                    <h3 style="color: #34d399; border-color: rgba(16, 185, 129, 0.3);">🎖️ Bonificação de Plantão (Carteira)</h3>
+                    <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Envie bônus em dinheiro diretamente para a carteira de quem está em plantão ou operacional específico.</p>
+
+                    <div style="margin-bottom: 12px;">
+                        <label style="font-size: 12px; color: #38bdf8; font-weight: 700; display: block; margin-bottom: 4px;">Modo de Envio:</label>
+                        <select id="selectModoBonificacao" class="search-input-box" onchange="alternarModoBonificacaoUI()" style="margin-bottom: 0;">
+                            <option value="coletivo">👥 Coletivo (Todos os Operacionais em Plantão Agora)</option>
+                            <option value="individual">👤 Individual (Selecionar Operacional)</option>
+                        </select>
+                    </div>
+
+                    <div id="boxSeletorMembroBonificacao" style="display: none; margin-bottom: 12px;">
+                        <label style="font-size: 12px; color: #38bdf8; font-weight: 700; display: block; margin-bottom: 4px;">Escolher Operacional:</label>
+                        <select id="selectMembroBonificacao" class="search-input-box" style="margin-bottom: 0;">
+                            <option value="">A carregar membros...</option>
+                        </select>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                        <div>
+                            <label style="font-size: 12px; color: #34d399; font-weight: 700; display: block; margin-bottom: 4px;">Valor do Bônus (R$):</label>
+                            <input type="number" id="inputValorBonificacao" placeholder="Ex: 25000" min="1" class="search-input-box" style="margin-bottom: 0;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: #38bdf8; font-weight: 700; display: block; margin-bottom: 4px;">Categoria / Motivo:</label>
+                            <select id="selectTipoBonificacao" class="search-input-box" style="margin-bottom: 0;">
+                                <option value="Bônus de Plantão">Bônus de Plantão</option>
+                                <option value="Prêmio de Ação">Prêmio de Ação</option>
+                                <option value="Meritocracia">Meritocracia</option>
+                                <option value="Premiação Especial">Premiação Especial</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 14px;">
+                        <label style="font-size: 12px; color: #cbd5e1; font-weight: 600; display: block; margin-bottom: 4px;">Observação Opcional:</label>
+                        <input type="text" id="inputObsBonificacao" placeholder="Ex: Destaque na defesa da base" class="search-input-box" style="margin-bottom: 0;">
+                    </div>
+
+                    <button class="btn-action" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; width: 100%; padding: 12px; font-weight: bold; border-radius: 10px; font-size: 13px;" onclick="enviarBonificacaoPlantao()">
+                        💸 Confirmar e Enviar Bonificação
+                    </button>
+                </div>
+
                 <!-- CONFIGURAR VALOR DA MISSÃO DIÁRIA -->
                 <div class="card" style="border: 2px dashed #38bdf8; background: rgba(56, 189, 248, 0.05);">
                     <h3 style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.3);">💰 Configurar Valor de Missões Diárias</h3>
@@ -1787,6 +1833,86 @@
             modal.style.display = 'flex';
         }
 
+        function alternarModoBonificacaoUI() {
+            const modo = document.getElementById('selectModoBonificacao')?.value;
+            const boxIndividual = document.getElementById('boxSeletorMembroBonificacao');
+            if (boxIndividual) {
+                boxIndividual.style.display = (modo === 'individual') ? 'block' : 'none';
+            }
+            atualizarOpcoesSeletorBonificacao();
+        }
+
+        function atualizarOpcoesSeletorBonificacao() {
+            const select = document.getElementById('selectMembroBonificacao');
+            if (!select) return;
+
+            select.innerHTML = '<option value="">Selecione o operacional...</option>';
+            if (listaMembrosCache && listaMembrosCache.length > 0) {
+                // Ordena priorizando quem está em plantão
+                const ordenados = [...listaMembrosCache].sort((a, b) => (b.emPlantao ? 1 : 0) - (a.emPlantao ? 1 : 0));
+                ordenados.forEach(m => {
+                    const tagPlantao = m.emPlantao ? ' [🟡 EM PLANTÃO]' : '';
+                    select.innerHTML += `<option value="${escapeHTML(m.nickname)}">${escapeHTML(m.nickname)} (${escapeHTML(m.cargo || 'Privado')})${tagPlantao}</option>`;
+                });
+            }
+        }
+
+        async function enviarBonificacaoPlantao() {
+            const modo = document.getElementById('selectModoBonificacao')?.value || 'coletivo';
+            const targetNickname = document.getElementById('selectMembroBonificacao')?.value;
+            const valor = parseInt(document.getElementById('inputValorBonificacao')?.value, 10) || 0;
+            const tipo = document.getElementById('selectTipoBonificacao')?.value || 'Bônus de Plantão';
+            const observacao = document.getElementById('inputObsBonificacao')?.value?.trim() || '';
+
+            if (valor <= 0) {
+                mostrarModalCustomizado('Atenção', 'Informe um valor válido maior que zero.');
+                return;
+            }
+
+            if (modo === 'individual' && !targetNickname) {
+                mostrarModalCustomizado('Atenção', 'Selecione o operacional que receberá a bonificação.');
+                return;
+            }
+
+            const textoMsg = (modo === 'coletivo')
+                ? `Deseja creditar <b>R$ ${valor.toLocaleString('pt-BR')}</b> para <b>TODOS os operacionais em plantão ativo</b>?<br><br>Categoria: <b>${escapeHTML(tipo)}</b>`
+                : `Deseja creditar <b>R$ ${valor.toLocaleString('pt-BR')}</b> para <b>${escapeHTML(targetNickname)}</b>?<br><br>Categoria: <b>${escapeHTML(tipo)}</b>`;
+
+            mostrarModalCustomizado(
+                'Confirmar Bonificação',
+                textoMsg,
+                'confirmacao',
+                async () => {
+                    try {
+                        const res = await fetch('/api/admin/carteira/bonificar', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                adminNickname: user.nickname,
+                                modo,
+                                targetNickname,
+                                valor,
+                                tipo,
+                                observacao
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            mostrarModalCustomizado('Sucesso', data.message || 'Bonificação creditada com sucesso!');
+                            document.getElementById('inputValorBonificacao').value = '';
+                            document.getElementById('inputObsBonificacao').value = '';
+                            carregarListaCarteirasAdmin();
+                            carregarLogsAdmin();
+                        } else {
+                            mostrarModalCustomizado('Erro', data.message || 'Não foi possível processar a bonificação.');
+                        }
+                    } catch (e) {
+                        mostrarModalCustomizado('Erro', 'Falha na conexão ao enviar bonificação.');
+                    }
+                }
+            );
+        }
+
         async function carregarEfetivo() {
             try {
                 const response = await fetch('/api/admin/membros');
@@ -1794,6 +1920,7 @@
                 if (data.success) {
                     listaMembrosCache = data.membros;
                     renderizarTabelaEfetivo();
+                    atualizarOpcoesSeletorBonificacao();
                 }
             } catch (error) {}
         }
