@@ -3900,7 +3900,7 @@
         async function abrirModalVerificacao3h() {
             mostrarModalCustomizado(
                 '⚡ Continuar Turno (3 Horas)',
-                'Você deseja <b>continuar em plantão</b> além de 3 horas?<br><br>Ao confirmar, o cronômetro é descongelado e continuará contabilizando normalmente.',
+                'Você deseja <b>continuar em plantão</b> além de 3 horas?<br><br>Ao confirmar, o cronômetro é descongelado e continuará contabilizando o tempo ativo real normalmente.',
                 'confirmacao',
                 async () => {
                     try {
@@ -3917,8 +3917,8 @@
                             verificouContinuacao3h = true;
                             const boxVerif = document.getElementById('boxVerificacao3h');
                             if (boxVerif) boxVerif.style.display = 'none';
-                            mostrarModalCustomizado('Turno Descongelado!', 'Verificação confirmada com sucesso. O seu turno continua acumulando normalmente!');
-                            restaurarEstadoTurno();
+                            mostrarModalCustomizado('Turno Descongelado!', 'Verificação confirmada com sucesso. O seu turno continua acumulando o tempo ativo normalmente!');
+                            atualizarDisplayTimer();
                         } else {
                             mostrarModalCustomizado('Erro', data.message || 'Erro ao validar continuidade.');
                         }
@@ -3948,7 +3948,7 @@
             const textoDesc = document.getElementById('textoDescricao3h');
 
             if (estadoTurno === 'ativo' || estadoTurno === 'pausado') {
-                if (total >= AVISO_ANTECEDENCIA_SEGUNDOS_CLIENT && !verificouContinuacao3h) {
+                if (!verificouContinuacao3h && total >= AVISO_ANTECEDENCIA_SEGUNDOS_CLIENT) {
                     if (boxVerif) boxVerif.style.display = 'block';
 
                     if (total >= LIMITE_3H_SEGUNDOS) {
@@ -3969,7 +3969,7 @@
                             url: '/dashboard.html'
                         });
                     }
-                } else if (boxVerif && verificouContinuacao3h) {
+                } else if (boxVerif && (verificouContinuacao3h || total < AVISO_ANTECEDENCIA_SEGUNDOS_CLIENT)) {
                     boxVerif.style.display = 'none';
                 }
             } else if (boxVerif) {
@@ -3977,7 +3977,8 @@
             }
 
             // CONGELAMENTO EM 3 HORAS (10.800 SEGUNDOS):
-            // Não exclui nem reseta o turno; apenas mantém congelado em 3h até confirmação da verificação.
+            // Não adiciona nenhum tempo artificial. Se ainda não confirmou, congela em 3h;
+            // assim que confirmou, descongela e devolve o tempo ativo real decorrido.
             if (total >= LIMITE_3H_SEGUNDOS && !verificouContinuacao3h) {
                 return LIMITE_3H_SEGUNDOS;
             }

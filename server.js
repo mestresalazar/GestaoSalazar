@@ -1769,10 +1769,10 @@ app.post('/api/membro/turno/verificacao-prosseguir', async (req, res) => {
         }
 
         const agoraMs = Date.now();
-        let segundosAtuais = Number(membro.segundosAcumulados || 0);
+        let segundosAtivosReais = Number(membro.segundosAcumulados || 0);
         if (membro.estadoTurno === 'ativo' && membro.inicioPlantao) {
             const decorrido = calcularSegundosValidosNoHorario(membro.inicioPlantao, agoraMs);
-            if (decorrido > 0) segundosAtuais += decorrido;
+            if (decorrido > 0) segundosAtivosReais += decorrido;
         }
 
         const comprovanteItem = {
@@ -1781,14 +1781,10 @@ app.post('/api/membro/turno/verificacao-prosseguir', async (req, res) => {
             foto: (comprovante && String(comprovante).length < 250000) ? comprovante : 'Verificação confirmada pelo operacional'
         };
 
-        // Consolida o tempo cumprido até agora e renova o marcador de relógio ativo
+        // NÃO reinicia inicioPlantao nem altera segundosAcumulados para não duplicar tempo ou quebrar início real
         await User.updateOne(
             { _id: membro._id },
             {
-                $set: {
-                    inicioPlantao: new Date(agoraMs),
-                    segundosAcumulados: segundosAtuais
-                },
                 $push: {
                     comprovantesTurnoAtivo: {
                         $each: [comprovanteItem],
@@ -1803,7 +1799,7 @@ app.post('/api/membro/turno/verificacao-prosseguir', async (req, res) => {
         await registarLogAdmin(
             membro.nickname,
             'Verificação de 3h Concluída',
-            `Operacional ${membro.nickname} confirmou continuidade do turno às ${converterSegundosParaDuracao(segundosAtuais)}. Plantão prorrogado com sucesso.`
+            `Operacional ${membro.nickname} confirmou continuidade do turno às ${converterSegundosParaDuracao(segundosAtivosReais)}. Turno descongelado com sucesso.`
         );
 
         io.emit('atualizar_estado_turno_usuario', {
@@ -1813,8 +1809,8 @@ app.post('/api/membro/turno/verificacao-prosseguir', async (req, res) => {
 
         res.json({
             success: true,
-            message: 'Verificação de 3 horas confirmada com sucesso! Você pode continuar o seu plantão normalmente.',
-            segundosAcumulados: segundosAtuais
+            message: 'Verificação de 3 horas confirmada com sucesso! O turno foi descongelado e continua a contagem real.',
+            segundosAcumulados: segundosAtivosReais
         });
     } catch (e) {
         console.error("Erro na verificação de 3 horas para prosseguir:", e);
@@ -1882,10 +1878,13 @@ app.post('/api/membro/turno', async (req, res) => {
         }
 
         // REGRA DE CONGELAMENTO EM 3 HORAS (10.800 SEGUNDOS) ATÉ CONFIRMAÇÃO:
-        // O turno NÃO é excluído nem resetado. Fica congelado em 3h até a verificação.
+        // Se a verificação foi confirmada, conta todo o tempo ativo real sem teto de 3h.
+        // Se não foi confirmada, trava em no máximo 10.800s.
         const LIMITE_3H_SEGUNDOS = 3 * 3600;
-        const teveVerificacao3h = Array.isArray(membroDoc.comprovantesTurnoAtivo) &&
-            membroDoc.comprovantesTurnoAtivo.some(c => String(c.tipo || '').includes('3 Horas'));
+        const comprovantesRecebidos = Array.isArray(comprovantesVerificacao) ? comprovantesVerificacao : [];
+        const comprovantesBanco = Array.isArray(membroDoc.comprovantesTurnoAtivo) ? membroDoc.comprovantesTurnoAtivo : [];
+        const teveVerificacao3h = comprovantesRecebidos.some(c => String(c.tipo || '').includes('3 Horas')) ||
+            comprovantesBanco.some(c => String(c.tipo || '').includes('3 Horas'));
 
         if (segundosFinais > LIMITE_3H_SEGUNDOS && !teveVerificacao3h) {
             segundosFinais = LIMITE_3H_SEGUNDOS;
