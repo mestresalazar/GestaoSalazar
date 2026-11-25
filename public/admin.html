@@ -1162,14 +1162,37 @@
             renderizarTabelaEfetivo();
         });
 
-        socket.on('atualizar_status_geral_tropa', () => {
-            carregarEfetivo();
+        let timerDebounceSincronizacaoAdm = null;
+        function sincronizarPainelAdmEmTempoReal() {
+            if (timerDebounceSincronizacaoAdm) clearTimeout(timerDebounceSincronizacaoAdm);
+            timerDebounceSincronizacaoAdm = setTimeout(() => {
+                carregarEfetivo();
+                carregarEstatisticasMembros();
+                carregarElegiveisSorteio();
+                carregarElegiveisUmTurno();
+                carregarMembrosInativos();
+                carregarListaCarteirasAdmin();
+                carregarJustificativasAdmin();
+            }, 180);
+        }
+
+        socket.on('operacional:atualizado', (dados) => {
+            sincronizarPainelAdmEmTempoReal();
+        });
+
+        socket.on('membro:promovido', (dados) => {
+            sincronizarPainelAdmEmTempoReal();
+        });
+
+        socket.on('operacional:turno_atualizado', (dados) => {
             carregarEstatisticasMembros();
+            carregarEfetivo();
             carregarElegiveisSorteio();
             carregarElegiveisUmTurno();
-            carregarMembrosInativos();
-            carregarListaCarteirasAdmin();
-            carregarJustificativasAdmin();
+        });
+
+        socket.on('atualizar_status_geral_tropa', () => {
+            sincronizarPainelAdmEmTempoReal();
         });
 
         socket.on('atualizar_justificativas', () => {
@@ -1178,19 +1201,62 @@
 
         socket.on('atualizar_logs_admin', () => { carregarLogsAdmin(); });
 
+        function aplicarAtualizacaoCadastralUsuario(dados) {
+            if (!dados) return;
+            const meuNickAtual = (user.nickname || '').toLowerCase().trim();
+            const nickEvento = String(dados.nickname || '').toLowerCase().trim();
+
+            if (meuNickAtual && nickEvento === meuNickAtual) {
+                let alterou = false;
+
+                if (dados.novoCargo && dados.novoCargo !== user.cargo) {
+                    user.cargo = dados.novoCargo;
+                    alterou = true;
+                } else if (dados.cargo && dados.cargo !== user.cargo) {
+                    user.cargo = dados.cargo;
+                    alterou = true;
+                }
+
+                if (dados.status && dados.status !== user.status) {
+                    user.status = dados.status;
+                    alterou = true;
+                }
+
+                if (dados.role && dados.role !== user.role) {
+                    user.role = dados.role;
+                    alterou = true;
+                }
+
+                if (alterou) {
+                    localStorage.setItem('user', JSON.stringify(user));
+                    atualizarBadgeUsuarioUI();
+                    sincronizarCarteiraEMissoes();
+                    verificarProgressoProvas();
+                }
+            }
+        }
+
+        socket.on('operacional:atualizado', (dados) => {
+            aplicarAtualizacaoCadastralUsuario(dados);
+            atualizarFiscalizacaoServidor();
+        });
+
+        socket.on('membro:promovido', (dados) => {
+            aplicarAtualizacaoCadastralUsuario(dados);
+        });
+
+        socket.on('operacional:turno_atualizado', () => {
+            atualizarFiscalizacaoServidor();
+            carregarRanking();
+        });
+
         socket.on('atualizar_cargo_usuario', (data) => {
-            if (data.nickname.toLowerCase() === user.nickname.toLowerCase()) {
+            if (data && data.nickname && data.nickname.toLowerCase().trim() === user.nickname.toLowerCase().trim()) {
                 user.cargo = data.novoCargo;
                 localStorage.setItem('user', JSON.stringify(user));
-                const temAcesso = user.role === 'admin' || cargosAdminPermitidos.includes(user.cargo);
-                if (!temAcesso) {
-                    alert('O seu cargo foi alterado e já não tem permissão para aceder ao Painel ADM.');
-                    window.location.replace('dashboard.html');
-                } else {
-                    const drawerR = document.getElementById('drawerUserRank');
-                    if (drawerR) drawerR.innerText = `${user.cargo} (Comando)`;
-                    document.documentElement.style.display = '';
-                }
+                atualizarBadgeUsuarioUI();
+                sincronizarCarteiraEMissoes();
+                verificarProgressoProvas();
             }
         });
 
@@ -2768,6 +2834,14 @@
         carregarMembrosInativos();
         carregarListaCarteirasAdmin();
         carregarJustificativasAdmin();
+
+        // Fallback periódico leve a cada 30 segundos para salvaguardar perda de conexão eventual
+        setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                carregarEstatisticasMembros();
+                carregarEfetivo();
+            }
+        }, 30000);
     </script>
 </body>
 </html>

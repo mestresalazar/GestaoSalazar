@@ -1725,7 +1725,15 @@ app.put('/api/membro/status-plantao', async (req, res) => {
             }
         }
 
-        io.emit('atualizar_estado_turno_usuario', { nickname: String(nickname).toLowerCase().trim() });
+        const payloadTurnoStatus = {
+            nickname: String(nickname).toLowerCase().trim(),
+            estadoTurno: estadoTurnoDestino,
+            emPlantao: updateData.emPlantao,
+            segundosAcumulados: updateData.segundosAcumulados
+        };
+
+        io.emit('operacional:turno_atualizado', payloadTurnoStatus);
+        io.emit('atualizar_estado_turno_usuario', payloadTurnoStatus);
         io.emit('atualizar_status_geral_tropa');
 
         res.json({
@@ -2013,6 +2021,13 @@ app.post('/api/membro/turno', async (req, res) => {
         const intervaloSegs = Math.max(0, Math.floor((agoraServidor.getTime() - dataInicioReal.getTime()) / 1000));
         const intervaloFormatado = converterSegundosParaDuracao(intervaloSegs);
 
+        io.emit('operacional:turno_atualizado', {
+            nickname: String(nickname).toLowerCase().trim(),
+            estadoTurno: 'parado',
+            emPlantao: false,
+            duracao: duracaoFormatada,
+            segundosTotais: segundosFinais
+        });
         io.emit('atualizar_estado_turno_usuario', { nickname: String(nickname).toLowerCase().trim() });
         io.emit('atualizar_status_geral_tropa');
         await registarLogAdmin(
@@ -2819,6 +2834,16 @@ app.put('/api/admin/membro/:id', async (req, res) => {
             io.emit('atualizar_cargo_usuario', { nickname: membro.nickname.toLowerCase(), novoCargo: cargo });
         }
 
+        const payloadAtualizacaoMembro = {
+            userId: membro._id,
+            nickname: membro.nickname,
+            cargo: membro.cargo,
+            status: membro.status,
+            role: membro.role || 'user'
+        };
+
+        io.emit('operacional:atualizado', payloadAtualizacaoMembro);
+        io.emit('membro:promovido', payloadAtualizacaoMembro);
         io.emit('atualizar_status_geral_tropa');
         res.json({ success: true, message: 'Membro atualizado com sucesso!', membro });
     } catch (error) {
@@ -2851,6 +2876,11 @@ app.put('/api/admin/membro/forcar-fim-turno/:id', async (req, res) => {
             }
         );
 
+        io.emit('operacional:turno_atualizado', {
+            nickname: membro.nickname.toLowerCase(),
+            estadoTurno: 'parado',
+            emPlantao: false
+        });
         io.emit('atualizar_estado_turno_usuario', { nickname: membro.nickname.toLowerCase() });
         io.emit('atualizar_status_geral_tropa');
         await registarLogAdmin(autor || 'Comando', 'Fim de Turno Forçado', `Turno de ${membro.nickname} encerrado à força por ${autor || 'Comando'}.`);
@@ -3215,6 +3245,14 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
                 url: '/dashboard.html'
             });
 
+            const payloadExame = {
+                userId: membro._id,
+                nickname: nickname,
+                cargo: cargoAlvo,
+                status: 'ativo'
+            };
+            io.emit('operacional:atualizado', payloadExame);
+            io.emit('membro:promovido', payloadExame);
             io.emit('atualizar_status_geral_tropa');
             io.emit('atualizar_cargo_usuario', { nickname: nickname.toLowerCase(), novoCargo: cargoAlvo });
             await registarLogAdmin(nickname, 'Aprovação em Exame', `Membro aprovado em exame e promovido a ${cargoAlvo}.`);
