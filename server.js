@@ -1292,6 +1292,25 @@ app.put('/api/membro/atualizar-avatar', async (req, res) => {
     }
 });
 
+app.put('/api/membro/tutorial-concluido', async (req, res) => {
+    try {
+        const { nickname, userId } = req.body;
+        const query = [];
+        if (userId && String(userId).match(/^[0-9a-fA-F]{24}$/)) query.push({ _id: userId });
+        if (nickname) query.push({ nickname: new RegExp('^' + escaparRegex(String(nickname).trim()) + '$', 'i') });
+
+        if (query.length === 0) {
+            return res.status(400).json({ success: false, message: 'Identificador do membro não informado.' });
+        }
+
+        await User.updateOne({ $or: query }, { $set: { tutorialConcluido: true } });
+        res.json({ success: true, message: 'Tutorial marcado como concluído com sucesso.' });
+    } catch (e) {
+        console.error("Erro ao registrar conclusão do tutorial:", e);
+        res.status(500).json({ success: false, message: 'Erro ao registrar status do tutorial.' });
+    }
+});
+
 app.put('/api/membro/atualizar-perfil', async (req, res) => {
     try {
         if (mongoose.connection.readyState !== 1) {
@@ -3217,17 +3236,17 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
         const membro = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, '_id cargo').lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
-        // Gabaritos oficiais com dificuldade progressiva por cargo conforme regras do EB
+        // Gabaritos oficiais com dificuldade progressiva por cargo conforme Capítulos 4, 5, 6, 7 e Códigos Q
         let gabarito = {};
         if (cargoAlvo === 'Sargento') {
-            // Nível Básico: Autorização prévia, proibição de famílias, proibição teaser/cassetete (FAIL - 4.22)
-            gabarito = { q1: 'b', q2: 'a', q3: 'b' };
+            // Foco: Conduta essencial (Cap. 4), Formação (Cap. 5: 5.1 tempo 5m, 5.2 apenas levantar mão, 5.7 armas), Máscara (4.16), Saída de Base (4.17) e Códigos Q essenciais (QSL, QAP, QTH, QTA, QRX)
+            gabarito = { q1: 'b', q2: 'b', q3: 'c', q4: 'a', q5: 'b', q6: 'b' };
         } else if (cargoAlvo === 'Tenente') {
-            // Nível Intermediário: Antecedência de 24h, horários terça/quinta com pausa 22h-23h, spawn/redores (AAP - 4.17)
-            gabarito = { q1: 'c', q2: 'b', q3: 'c', q4: 'a' };
+            // Foco: Comando de Patrulha, Subordinação (Cap. 6: 6.1 e 6.2), Horários semanais (Cap. 7: 7.1 7h semanais, 7.2 3 dias ausência), Códigos Q de tráfego (QSY, QSP, QTC, QTR, QRT) e Regras Operacionais 4.21/4.22
+            gabarito = { q1: 'c', q2: 'b', q3: 'c', q4: 'a', q5: 'b', q6: 'b' };
         } else if (cargoAlvo === 'Major') {
-            // Nível Avançado: Pacificação sábado vs dom/seg, inatividade 24h/12h às 00h, roubo de maleta e INA - 4.21
-            gabarito = { q1: 'a', q2: 'c', q3: 'b', q4: 'c' };
+            // Foco: Gestão de Efetivo, Disciplina Superior, Sanções Severas (Cap. 4: 4.10 vazamento, 4.20 abuso autoridade, 4.21 INA, 4.23 conluio), Pacificações, C4/COPOM e Códigos Q avançados (QST, QSM, QTE, QSO)
+            gabarito = { q1: 'a', q2: 'c', q3: 'b', q4: 'c', q5: 'b', q6: 'b' };
         } else {
             gabarito = { q1: 'a', q2: 'b', q3: 'b' };
         }
