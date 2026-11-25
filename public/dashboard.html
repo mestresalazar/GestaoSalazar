@@ -1173,16 +1173,16 @@
                 <p id="etapaAtual" style="color: #e2e8f0; font-size: 13px;">Etapa: A carregar horário regulamentar (Brasília)...</p>
 
                 <div class="timer-display" id="timerDisplay">00:00:00</div>
-                <p id="avisoTempoMinimo" style="text-align: center; font-size: 12px; color: #eab308; margin-top: 10px;">⏱️ Horário Oficial de Brasília (17h–02h). Mínimo de <b>30 min</b>. Ao atingir <b>3 horas</b>, confirme a verificação para continuar em plantão.</p>
+                <p id="avisoTempoMinimo" style="text-align: center; font-size: 12px; color: #eab308; margin-top: 10px;">⏱️ Horário Oficial de Brasília (17h–02h). Mínimo de <b>30 min</b>. Ao atingir <b>3 horas</b>, o tempo congela em 03:00:00 até você confirmar para prosseguir.</p>
 
                 <!-- BANNER DE VERIFICAÇÃO DE 3 HORAS PARA CONTINUAR -->
                 <div id="boxVerificacao3h" style="display: none; margin-top: 14px; background: linear-gradient(145deg, rgba(234, 179, 8, 0.18), rgba(15, 23, 42, 0.95)); border: 1.5px solid #eab308; padding: 12px 14px; border-radius: 12px; text-align: left; animation: fadeIn 0.3s ease;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                         <b style="color: #fde047; font-size: 13px;">⚠️ Verificação de 3 Horas de Turno</b>
-                        <span id="badgeMinutosRestantes3h" style="background: rgba(234, 179, 8, 0.25); color: #fde047; font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 700;">Aviso Prévio</span>
+                        <span id="badgeMinutosRestantes3h" style="background: rgba(234, 179, 8, 0.25); color: #fde047; font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 700;">Aviso</span>
                     </div>
-                    <p style="font-size: 12px; color: #e2e8f0; line-height: 1.5; margin-bottom: 10px;">
-                        Você atingiu o período de 3 horas. Para <b>continuar no plantão</b> sem que o tempo deste turno seja zerado, confirme a sua presença abaixo ou finalize agora com o print de Check-out.
+                    <p id="textoDescricao3h" style="font-size: 12px; color: #e2e8f0; line-height: 1.5; margin-bottom: 10px;">
+                        Você atingiu 3 horas. Para <b>continuar contabilizando o plantão</b> além de 03:00:00, confirme a verificação abaixo. Seu tempo não será perdido e você pode finalizar com print de Check-out a qualquer momento.
                     </p>
                     <button id="btnConfirmar3hContinuar" onclick="abrirModalVerificacao3h()" style="background: linear-gradient(135deg, #eab308, #ca8a04); color: #000; border: none; font-weight: 800; font-size: 12px; padding: 9px 16px; border-radius: 8px; cursor: pointer; width: 100%;">
                         ⚡ Confirmar Presença e Continuar Turno
@@ -3451,33 +3451,47 @@
         socket.on('alerta_limite_3h_turno', (dados) => {
             if (dados && dados.nickname && dados.nickname.toLowerCase() === user.nickname.toLowerCase()) {
                 const boxAviso = document.getElementById('boxVerificacao3h');
-                if (boxAviso) boxAviso.style.display = 'block';
+                if (boxAviso && !verificouContinuacao3h) boxAviso.style.display = 'block';
 
                 const badgeRest = document.getElementById('badgeMinutosRestantes3h');
-                if (badgeRest && dados.minutosRestantes) {
-                    badgeRest.innerText = `~${dados.minutosRestantes} min para o limite`;
+                const textoDesc = document.getElementById('textoDescricao3h');
+
+                if (dados.congelado) {
+                    if (badgeRest) badgeRest.innerText = 'Congelado em 03:00:00 ⏸️';
+                    if (textoDesc) {
+                        textoDesc.innerHTML = 'O seu turno atingiu 3 horas e está <b>congelado em 03:00:00</b>. Seu tempo não foi apagado! Confirme abaixo para continuar contabilizando ou encerre com print de check-out.';
+                    }
+                } else if (badgeRest && dados.minutosRestantes !== undefined) {
+                    badgeRest.innerText = `~${dados.minutosRestantes} min para 3h`;
                 }
 
-                dispararNotificacaoNativa('⚠️ Alerta: 3 Horas de Turno Atingidas', {
-                    body: 'Confirme a verificação para continuar o turno ou finalize com o print de check-out.',
+                dispararNotificacaoNativa('⚠️ Alerta: 3 Horas de Turno', {
+                    body: dados.congelado
+                        ? 'Seu turno está congelado em 03:00:00. Confirme para continuar ou finalize com print.'
+                        : 'Seu plantão está próximo de 3 horas. Confirme para prosseguir sem travar em 03:00:00.',
                     tag: 'aviso_previo_3h_' + Date.now(),
                     url: '/dashboard.html'
                 });
 
-                mostrarModalCustomizado(
-                    '⚠️ Turno Atingindo 3 Horas',
-                    'O seu plantão atingiu o período de 3 horas.<br><br>Se deseja <b>prosseguir</b>, confirme a verificação de presença. Caso contrário, finalize com o seu print de check-out para homologar o turno.',
-                    'confirmacao',
-                    () => {
-                        abrirModalVerificacao3h();
-                    }
-                );
+                if (!verificouContinuacao3h) {
+                    mostrarModalCustomizado(
+                        dados.congelado ? '⏸️ Turno Congelado em 3 Horas' : '⚠️ Turno Próximo de 3 Horas',
+                        dados.congelado
+                            ? 'O seu plantão atingiu 3 horas. Para evitar turnos afk sem confirmação, o tempo está <b>congelado em 03:00:00</b> (seu turno <b>não foi apagado</b>).<br><br>Deseja <b>continuar</b> o plantão agora?'
+                            : 'O seu plantão está atingindo 3 horas.<br><br>Se deseja <b>prosseguir além de 3 horas</b>, confirme a verificação de presença.',
+                        'confirmacao',
+                        () => {
+                            abrirModalVerificacao3h();
+                        }
+                    );
+                }
             }
         });
 
         socket.on('atualizar_estado_turno_usuario', (dados) => {
             if (dados && dados.nickname && dados.nickname.toLowerCase() === user.nickname.toLowerCase()) {
                 if (dados.verificacao3hConcluida) {
+                    verificouContinuacao3h = true;
                     const boxAviso = document.getElementById('boxVerificacao3h');
                     if (boxAviso) boxAviso.style.display = 'none';
                 }
@@ -3486,6 +3500,8 @@
                     estadoTurno = 'parado';
                     timestampInicioServer = null;
                     segundosAcumuladosBase = 0;
+                    verificouContinuacao3h = false;
+                    jaAlertou3hClient = false;
                     if (timerInterval) clearInterval(timerInterval);
                     document.getElementById('timerDisplay').innerText = '00:00:00';
                     document.getElementById('btnCheckin').disabled = false;
@@ -3498,14 +3514,6 @@
                     atualizarEtapaTurnoUI();
                     sincronizarCarteiraEMissoes();
                     atualizarFiscalizacaoServidor();
-
-                    if (dados.motivo === 'limite_3h_estourado') {
-                        mostrarModalCustomizado(
-                            '⚠️ Turno Resetado (Limite de 3h Excedido)',
-                            'O seu turno ultrapassou o período de 3 horas sem verificação para prosseguir nem envio do print de finalização.<br><br>O tempo <b>deste turno específico</b> foi zerado conforme o regulamento. O seu tempo geral acumulado anteriormente foi integralmente mantido.',
-                            'alerta'
-                        );
-                    }
                 }
                 restaurarEstadoTurno();
             }
@@ -3821,9 +3829,8 @@
         let processandoCheckin = false, processandoCheckout = false, verificouContinuacao3h = false;
         let jaAlertou3hClient = false;
         const TEMPO_MINIMO_SEGUNDOS = 30 * 60;
-        const LIMITE_MAXIMO_TURNO_SEGUNDOS = 3 * 3600; // Limite rigoroso de 3 horas por turno
+        const LIMITE_3H_SEGUNDOS = 3 * 3600; // 10.800 segundos / 03:00:00
         const AVISO_ANTECEDENCIA_SEGUNDOS_CLIENT = (2 * 3600) + (45 * 60); // 2h45m
-        const TOLERANCIA_MAXIMA_SEGUNDOS = (3 * 3600) + (10 * 60); // 3h10m
 
         function obterInfoEtapaHorarioBrasilia() {
             const comp = obterComponentesBrasilia(new Date());
@@ -3848,7 +3855,7 @@
                     btnCheckinEl.disabled = true;
                     btnCheckinEl.innerText = 'Turno Ativo';
                 }
-                if (avisoTempo) avisoTempo.innerHTML = '⏱️ Tempo mínimo: <b>30 minutos</b> • Limite máximo: <b>3 horas</b> (sem finalizar, o turno é zerado).';
+                if (avisoTempo) avisoTempo.innerHTML = '⏱️ Tempo mínimo: <b>30 minutos</b> • Ao atingir <b>3 horas</b>, o tempo congela até você confirmar para prosseguir.';
             } else if (estadoTurno === 'pausado') {
                 etapaEl.innerHTML = `Etapa: <b style="color: #38bdf8;">${info.nome}</b> • <b style="color: #eab308;">Turno pausado</b>`;
                 if (btnCheckinEl) {
@@ -3872,7 +3879,7 @@
                         btnCheckinEl.disabled = false;
                         btnCheckinEl.innerText = 'Iniciar Turno (Check-in)';
                     }
-                    if (avisoTempo) avisoTempo.innerHTML = '⏱️ Tempo mínimo: <b>30 minutos</b> • Limite máximo: <b>3 horas por turno</b>.';
+                    if (avisoTempo) avisoTempo.innerHTML = '⏱️ Tempo mínimo: <b>30 minutos</b> • Ao atingir <b>3 horas</b>, confirme para continuar contabilizando.';
                 }
             }
             atualizarStatusSorteioUI();
@@ -3893,7 +3900,7 @@
         async function abrirModalVerificacao3h() {
             mostrarModalCustomizado(
                 '⚡ Continuar Turno (3 Horas)',
-                'Você deseja <b>continuar em plantão</b> após 3 horas?<br><br>Ao confirmar, a verificação de presença será registrada e seu turno continuará normalmente sem risco de reset.',
+                'Você deseja <b>continuar em plantão</b> além de 3 horas?<br><br>Ao confirmar, o cronômetro é descongelado e continuará contabilizando normalmente.',
                 'confirmacao',
                 async () => {
                     try {
@@ -3910,7 +3917,7 @@
                             verificouContinuacao3h = true;
                             const boxVerif = document.getElementById('boxVerificacao3h');
                             if (boxVerif) boxVerif.style.display = 'none';
-                            mostrarModalCustomizado('Turno Prorrogado!', 'Verificação confirmada com sucesso. O seu turno continua ativo!');
+                            mostrarModalCustomizado('Turno Descongelado!', 'Verificação confirmada com sucesso. O seu turno continua acumulando normalmente!');
                             restaurarEstadoTurno();
                         } else {
                             mostrarModalCustomizado('Erro', data.message || 'Erro ao validar continuidade.');
@@ -3919,47 +3926,6 @@
                         mostrarModalCustomizado('Erro', 'Falha na conexão ao validar continuidade.');
                     }
                 }
-            );
-        }
-
-        async function tratarEstouroLimite3Horas() {
-            if (processandoCheckout) return;
-            processandoCheckout = true;
-            if (timerInterval) clearInterval(timerInterval);
-
-            estadoTurno = 'parado';
-            timestampInicioServer = null;
-            segundosAcumuladosBase = 0;
-            document.getElementById('timerDisplay').innerText = '00:00:00';
-            document.getElementById('btnCheckin').disabled = false;
-            document.getElementById('btnPausar').style.display = 'none';
-            document.getElementById('btnCheckout').disabled = false;
-
-            limparPrintTurnoLocal();
-            atualizarEtapaTurnoUI();
-
-            try {
-                await fetch('/api/membro/status-plantao', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        nickname: user.nickname,
-                        emPlantao: false,
-                        estadoTurno: 'parado',
-                        segundosAcumulados: 0,
-                        fotoComprovanteAtiva: ''
-                    })
-                });
-            } catch (e) {}
-
-            processandoCheckout = false;
-            sincronizarCarteiraEMissoes();
-            atualizarFiscalizacaoServidor();
-
-            mostrarModalCustomizado(
-                '⚠️ Turno Zerado (Limite de 3h Excedido)',
-                'O seu turno atingiu o limite de <b>3 horas (10.800 segundos)</b> sem ter sido finalizado com print de encerramento.<br><br>Conforme o regulamento, o tempo deste turno específico foi <b>resetado</b> e não foi computado. O seu saldo e tempo acumulado anteriormente permanecem intactos.',
-                'alerta'
             );
         }
 
@@ -3978,13 +3944,27 @@
 
             // Exibição e disparo preventivo do banner de 3h com antecedência
             const boxVerif = document.getElementById('boxVerificacao3h');
+            const badgeRest = document.getElementById('badgeMinutosRestantes3h');
+            const textoDesc = document.getElementById('textoDescricao3h');
+
             if (estadoTurno === 'ativo' || estadoTurno === 'pausado') {
                 if (total >= AVISO_ANTECEDENCIA_SEGUNDOS_CLIENT && !verificouContinuacao3h) {
                     if (boxVerif) boxVerif.style.display = 'block';
+
+                    if (total >= LIMITE_3H_SEGUNDOS) {
+                        if (badgeRest) badgeRest.innerText = 'Congelado em 03:00:00 ⏸️';
+                        if (textoDesc) {
+                            textoDesc.innerHTML = 'O seu turno atingiu 3 horas e está <b>congelado em 03:00:00</b>. Seu tempo não foi apagado! Confirme abaixo para continuar contabilizando ou encerre com print de check-out.';
+                        }
+                    } else if (badgeRest) {
+                        const minRestantes = Math.max(1, Math.ceil((LIMITE_3H_SEGUNDOS - total) / 60));
+                        badgeRest.innerText = `~${minRestantes} min para 3h`;
+                    }
+
                     if (!jaAlertou3hClient) {
                         jaAlertou3hClient = true;
                         dispararNotificacaoNativa('⚠️ Turno próximo de 3 horas', {
-                            body: 'Confirme a verificação para continuar em plantão ou finalize com o print de check-out.',
+                            body: 'Confirme a verificação para continuar o turno após 3h ou finalize com print de check-out.',
                             tag: 'alerta_3h_timer_' + Date.now(),
                             url: '/dashboard.html'
                         });
@@ -3996,10 +3976,10 @@
                 boxVerif.style.display = 'none';
             }
 
-            // Ultrapassou o limite tolerado sem verificação: reseta apenas aquele turno
-            if (total >= TOLERANCIA_MAXIMA_SEGUNDOS && !verificouContinuacao3h) {
-                tratarEstouroLimite3Horas();
-                return 0;
+            // CONGELAMENTO EM 3 HORAS (10.800 SEGUNDOS):
+            // Não exclui nem reseta o turno; apenas mantém congelado em 3h até confirmação da verificação.
+            if (total >= LIMITE_3H_SEGUNDOS && !verificouContinuacao3h) {
+                return LIMITE_3H_SEGUNDOS;
             }
 
             return total;

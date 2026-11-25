@@ -822,7 +822,7 @@ app.post('/api/admin/whatsapp-link', async (req, res) => {
     }
 });
 
-// --- CONTROLE DE TURNOS: AVISO PRÉVIO DE 3 HORAS, VERIFICAÇÃO PARA PROSSEGUIR E ENCERRAMENTO ÀS 02:05 ---
+// --- CONTROLE DE TURNOS: AVISO PRÉVIO DE 3 HORAS, CONGELAMENTO EM 3H SEM EXCLUSÃO E ENCERRAMENTO ÀS 02:05 ---
 const avisosPrevios3hDisparados = new Map();
 
 async function verificarFechamentoAutomaticoTurnos() {
@@ -832,12 +832,11 @@ async function verificarFechamentoAutomaticoTurnos() {
         const agoraMs = Date.now();
         const LIMITE_3H_SEGUNDOS = 3 * 3600; // 10.800 segundos
         const AVISO_ANTECEDENCIA_SEGUNDOS = (2 * 3600) + (45 * 60); // 2h45m (15 minutos antes)
-        const TOLERANCIA_VERIFICACAO_SEGUNDOS = (3 * 3600) + (10 * 60); // 3h10m limite final
 
-        // 1. MONITORAMENTO: AVISO PRÉVIO E VERIFICAÇÃO DE 3 HORAS PARA PROSSEGUIR
+        // 1. MONITORAMENTO: AVISO PRÉVIO E CONGELAMENTO EM 3 HORAS ATÉ CONFIRMAÇÃO
         const operacionaisEmPlantao = await User.find(
             { $or: [{ emPlantao: true }, { estadoTurno: { $in: ['ativo', 'pausado'] } }] },
-            'nickname cargo estadoTurno segundosAcumulados inicioPlantao'
+            'nickname cargo estadoTurno segundosAcumulados inicioPlantao comprovantesTurnoAtivo'
         );
 
         for (const membro of operacionaisEmPlantao) {
@@ -847,20 +846,25 @@ async function verificarFechamentoAutomaticoTurnos() {
                 if (decorrido > 0) segundosTotais += decorrido;
             }
 
+            const teveVerificacao3h = Array.isArray(membro.comprovantesTurnoAtivo) &&
+                membro.comprovantesTurnoAtivo.some(c => String(c.tipo || '').includes('3 Horas'));
+
             const membroChave = String(membro._id);
             const tsInicioRef = membro.inicioPlantao ? new Date(membro.inicioPlantao).getTime() : agoraMs;
             const identificadorTurnoAviso = `${membroChave}_${tsInicioRef}`;
 
-            // DISPARO DE AVISO COM ANTECEDÊNCIA (entre 2h45m e o limite)
-            if (segundosTotais >= AVISO_ANTECEDENCIA_SEGUNDOS && segundosTotais < TOLERANCIA_VERIFICACAO_SEGUNDOS) {
+            // DISPARO DE AVISO COM ANTECEDÊNCIA (a partir de 2h45m sem atraso)
+            if (segundosTotais >= AVISO_ANTECEDENCIA_SEGUNDOS && !teveVerificacao3h) {
                 if (!avisosPrevios3hDisparados.has(identificadorTurnoAviso)) {
                     avisosPrevios3hDisparados.set(identificadorTurnoAviso, agoraMs);
 
-                    const minutosRestantes = Math.max(1, Math.ceil((LIMITE_3H_SEGUNDOS - segundosTotais) / 60));
-                    const msgAviso = `O teu plantão atingiu ${Math.floor(segundosTotais / 3600)}h${Math.floor((segundosTotais % 3600) / 60)}m. Restam cerca de ${minutosRestantes} minutos para atingir o limite de 3 horas. Finalize com print de check-out ou confirme a verificação para continuar o turno.`;
+                    const minutosRestantes = Math.max(0, Math.ceil((LIMITE_3H_SEGUNDOS - segundosTotais) / 60));
+                    const msgAviso = minutosRestantes > 0
+                        ? `O teu plantão atingiu ${Math.floor(segundosTotais / 3600)}h${Math.floor((segundosTotais % 3600) / 60)}m. Restam cerca de ${minutosRestantes} minutos para atingir 3 horas. Confirme a verificação para continuar acumulando ou finalize com print de check-out.`
+                        : `O teu plantão atingiu 3 horas. O tempo está congelado em 03:00:00. Confirme a verificação para continuar contabilizando ou finalize com print de check-out.`;
 
                     await enviarNotificacaoMembro(membro._id, {
-                        titulo: '⚠️ Alerta de 3 Horas de Turno!',
+                        titulo: '⚠️ Alerta: 3 Horas de Turno!',
                         mensagem: msgAviso,
                         tag: 'alerta_3h_previo_' + membro._id,
                         url: '/dashboard.html'
@@ -869,49 +873,9 @@ async function verificarFechamentoAutomaticoTurnos() {
                     io.emit('alerta_limite_3h_turno', {
                         nickname: membro.nickname.toLowerCase(),
                         segundosTotais,
-                        minutosRestantes
+                        minutosRestantes,
+                        congelado: segundosTotais >= LIMITE_3H_SEGUNDOS
                     });
-                }
-            }
-
-            // LIMITE MÁXIMO EXCEDIDO SEM VERIFICAÇÃO NEM FINALIZAÇÃO COM PRINT:
-            // Reseta exclusivamente o tempo daquele turno específico, preservando o histórico anterior intacto
-            if (segundosTotais >= TOLERANCIA_VERIFICACAO_SEGUNDOS) {
-                avisosPrevios3hDisparados.delete(identificadorTurnoAviso);
-
-                const updateReset = await User.updateOne(
-                    { _id: membro._id, $or: [{ emPlantao: true }, { estadoTurno: { $in: ['ativo', 'pausado'] } }] },
-                    {
-                        $set: {
-                            emPlantao: false,
-                            estadoTurno: 'parado',
-                            inicioPlantao: null,
-                            segundosAcumulados: 0,
-                            fotoComprovanteAtiva: '',
-                            comprovantesTurnoAtivo: []
-                        }
-                    }
-                );
-
-                if (updateReset.modifiedCount > 0) {
-                    await enviarNotificacaoMembro(membro._id, {
-                        titulo: '⚠️ Turno Resetado (Limite de 3h Excedido)',
-                        mensagem: 'O teu plantão ultrapassou o limite de 3 horas sem verificação para prosseguir nem finalização com print. O tempo desse turno específico foi zerado conforme o regulamento. O teu histórico anterior e horas acumuladas no perfil foram preservados.',
-                        tag: 'turno_reset_3h_' + Date.now(),
-                        url: '/dashboard.html'
-                    });
-
-                    io.emit('atualizar_estado_turno_usuario', {
-                        nickname: membro.nickname.toLowerCase(),
-                        estadoTurno: 'parado',
-                        motivo: 'limite_3h_estourado'
-                    });
-
-                    await registarLogAdmin(
-                        membro.nickname,
-                        'Turno Resetado (+3h Sem Verificação)',
-                        `Turno de ${membro.nickname} ultrapassou o limite de 3h sem verificação para prosseguir nem print de encerramento. Apenas o turno atual foi zerado.`
-                    );
                 }
             }
         }
@@ -1909,52 +1873,21 @@ app.post('/api/membro/turno', async (req, res) => {
             segundosFinais = Math.min(segundosCliente, 9 * 3600);
         }
 
-        // REGRA DE TOLERÂNCIA DE VERIFICAÇÃO PARA CHECK-OUT (MÁXIMO 3h10m SEM VERIFICAÇÃO):
-        // Caso o operacional tente encerrar após o limite sem ter verificado, reseta apenas aquele turno
-        const LIMITE_TOLERANCIA_SEGUNDOS = (3 * 3600) + (10 * 60);
+        // REGRA DE CONGELAMENTO EM 3 HORAS (10.800 SEGUNDOS) ATÉ CONFIRMAÇÃO:
+        // O turno NÃO é excluído nem resetado. Fica congelado em 3h até a verificação.
+        const LIMITE_3H_SEGUNDOS = 3 * 3600;
         const teveVerificacao3h = Array.isArray(membroDoc.comprovantesTurnoAtivo) &&
             membroDoc.comprovantesTurnoAtivo.some(c => String(c.tipo || '').includes('3 Horas'));
 
-        if (segundosFinais > LIMITE_TOLERANCIA_SEGUNDOS && !teveVerificacao3h) {
-            await User.updateOne(
-                { _id: membroDoc._id },
-                {
-                    $set: {
-                        emPlantao: false,
-                        estadoTurno: 'parado',
-                        inicioPlantao: null,
-                        segundosAcumulados: 0,
-                        fotoComprovanteAtiva: '',
-                        comprovantesTurnoAtivo: []
-                    }
-                }
-            );
-
-            io.emit('atualizar_estado_turno_usuario', {
-                nickname: membroDoc.nickname.toLowerCase().trim(),
-                estadoTurno: 'parado',
-                motivo: 'limite_3h_estourado'
-            });
-            io.emit('atualizar_status_geral_tropa');
-
-            await registarLogAdmin(
-                membroDoc.nickname,
-                'Turno Resetado (+3h no Check-out)',
-                `Operacional tentou encerrar turno após ${converterSegundosParaDuracao(segundosFinais)} sem verificação de continuidade. Apenas esse turno foi zerado, preservando o histórico anterior.`
-            );
-
-            return res.status(400).json({
-                success: false,
-                turnoResetado: true,
-                message: 'O seu turno ultrapassou o limite de 3 horas sem verificação de continuidade para prosseguir. Apenas este turno específico foi resetado, e o seu tempo anterior acumulado foi preservado.'
-            });
+        if (segundosFinais > LIMITE_3H_SEGUNDOS && !teveVerificacao3h) {
+            segundosFinais = LIMITE_3H_SEGUNDOS;
         }
 
         if (segundosFinais < 5) {
             segundosFinais = 5;
         }
 
-        // Se dataInicioReal estiver ausente ou inválida, deduz com precisão subtraindo os segundos reais acumulados
+        // Se dataInicioReal estiver ausente ou inválida, deduz com precisão subtraindo os segundos reais homologados
         if (!dataInicioReal || isNaN(dataInicioReal.getTime()) || dataInicioReal.getTime() >= agoraServidor.getTime()) {
             dataInicioReal = new Date(agoraServidor.getTime() - (segundosFinais * 1000));
         }
