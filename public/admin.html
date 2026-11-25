@@ -197,6 +197,48 @@
             align-items: center;
             gap: 12px;
         }
+        /* --- MOLDURAS TÁTICAS POR CATEGORIA DE CARGO --- */
+        .moldura-general {
+            border: 2.5px solid #e0f2fe !important;
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.95), 0 0 28px rgba(186, 230, 253, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.6) !important;
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.35) 0%, rgba(15, 23, 42, 0.95) 100%) !important;
+            position: relative;
+            animation: brilho-diamante 2.4s infinite alternate ease-in-out;
+        }
+        @keyframes brilho-diamante {
+            0% { filter: drop-shadow(0 0 4px #7dd3fc) drop-shadow(0 0 12px #38bdf8); }
+            100% { filter: drop-shadow(0 0 10px #ffffff) drop-shadow(0 0 20px #38bdf8); }
+        }
+        .moldura-coronel {
+            border: 2.5px solid #ef4444 !important;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.8), inset 0 0 8px rgba(239, 68, 68, 0.4) !important;
+            background: rgba(30, 41, 59, 0.95) !important;
+        }
+        .moldura-major {
+            border: 2.5px solid #f59e0b !important;
+            box-shadow: 0 0 14px rgba(245, 158, 11, 0.75), inset 0 0 6px rgba(245, 158, 11, 0.3) !important;
+            background: rgba(30, 41, 59, 0.95) !important;
+        }
+        .moldura-tenente {
+            border: 2px solid #fbbf24 !important;
+            box-shadow: 0 0 12px rgba(251, 191, 36, 0.6) !important;
+            background: rgba(30, 41, 59, 0.95) !important;
+        }
+        .moldura-sargento {
+            border: 2px solid #38bdf8 !important;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.6) !important;
+            background: rgba(30, 41, 59, 0.95) !important;
+        }
+        .moldura-soldado {
+            border: 2px solid #64748b !important;
+            box-shadow: 0 0 8px rgba(100, 116, 139, 0.5) !important;
+            background: rgba(30, 41, 59, 0.95) !important;
+        }
+        .moldura-privado {
+            border: 1.5px solid #475569 !important;
+            background: rgba(15, 23, 42, 0.9) !important;
+        }
+
         .drawer-avatar-mini {
             width: 44px;
             height: 44px;
@@ -207,6 +249,8 @@
             align-items: center;
             justify-content: center;
             font-size: 20px;
+            overflow: hidden;
+            flex-shrink: 0;
         }
         .drawer-user-name {
             font-size: 14px;
@@ -975,6 +1019,53 @@
         </div>
     </div>
 
+    <!-- MODAL DE APLICAÇÃO DE ADVERTÊNCIA PELO ADM -->
+    <div id="modalAdvertirMembro" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.85); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 10005; padding: 16px;">
+        <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 100%; max-width: 460px; border-radius: 16px; padding: 24px; border: 1px solid rgba(239, 68, 68, 0.45); text-align: left; color: #fff; max-height: 85vh; overflow-y: auto;">
+            <button class="close-modal" onclick="fecharModalAdvertir()">X</button>
+            <h3 style="color: #ef4444; margin-bottom: 6px;">⚠️ Aplicar Advertência Disciplinar</h3>
+            <p id="subAdvertirMembro" style="font-size: 12px; color: #94a3b8; margin-bottom: 16px;">Operacional: -</p>
+
+            <div style="margin-bottom: 12px;">
+                <label style="font-size: 12px; color: #38bdf8; font-weight: 700; display: block; margin-bottom: 4px;">Motivo Principal:</label>
+                <select id="selectMotivoAdvertencia" class="search-input-box" style="margin-bottom: 0;">
+                    <option value="Atraso ou Ausência em Formação (Cap. 5.1)">Atraso ou Ausência em Formação (Cap. 5.1 - 5 min)</option>
+                    <option value="Uso Indevido de Máscara (Cap. 4.16)">Uso Indevido de Máscara (Cap. 4.16)</option>
+                    <option value="Deslocamento sem Comunicar no Rádio (Cap. 4.17)">Deslocamento sem Comunicar no Rádio (Cap. 4.17)</option>
+                    <option value="Insubordinação ou Falta de Respeito (Cap. 4.1/6.1)">Insubordinação ou Falta de Respeito (Cap. 4.1/6.1)</option>
+                    <option value="Quebra de Silêncio ou Fonia Paralela (Cap. 5.4/6.2)">Quebra de Silêncio ou Fonia Paralela (Cap. 5.4/6.2)</option>
+                    <option value="Armamento Fora do Padrão em Formação (Cap. 5.7)">Armamento Fora do Padrão em Formação (Cap. 5.7)</option>
+                    <option value="Uso de Equipamento Não Autorizado (Cap. 4.22)">Uso de Equipamento Não Autorizado (Cap. 4.22)</option>
+                    <option value="Outra Infração Disciplinar">Outra Infração Disciplinar</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 14px;">
+                <label style="font-size: 12px; color: #fca5a5; font-weight: 700; display: block; margin-bottom: 4px;">Opção de Desconto de Saldo:</label>
+                <select id="selectTipoDescontoAdvertencia" class="search-input-box" onchange="alternarCampoDescontoLivreUI()" style="margin-bottom: 0;">
+                    <option value="nenhum">Sem desconto financeiro (Apenas Advertência)</option>
+                    <option value="1000">Descontar R$ 1.000 da Carteira</option>
+                    <option value="500">Descontar R$ 500 da Carteira</option>
+                    <option value="livre">Outro Valor Livre (Definir abaixo)</option>
+                </select>
+            </div>
+
+            <div id="boxDescontoLivreAdvertencia" style="display: none; margin-bottom: 14px;">
+                <label style="font-size: 12px; color: #34d399; font-weight: 700; display: block; margin-bottom: 4px;">Valor Livre do Desconto (R$):</label>
+                <input type="number" id="inputValorLivreAdvertencia" placeholder="Ex: 250" min="1" class="search-input-box" style="margin-bottom: 0;">
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="font-size: 12px; color: #cbd5e1; font-weight: 600; display: block; margin-bottom: 4px;">Observação Adicional / Detalhes:</label>
+                <textarea id="inputObsAdvertencia" rows="3" placeholder="Descreva brevemente a ocorrência..." style="width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; resize: none; outline: none; font-size: 12px;"></textarea>
+            </div>
+
+            <button class="btn-action" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; width: 100%; padding: 12px; font-weight: bold; border-radius: 10px; font-size: 13px;" onclick="confirmarAplicacaoAdvertencia()">
+                ⚠️ Confirmar e Aplicar Advertência
+            </button>
+        </div>
+    </div>
+
     <!-- MODAL DE PERFIL DO OPERACIONAL (COM TELEFONE) -->
     <div id="modalPerfilAdmin" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.85); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 10000; padding: 16px;">
         <div style="background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 100%; max-width: 450px; border-radius: 16px; padding: 24px; border: 1px solid rgba(56, 189, 248, 0.4); text-align: center; color: #fff; max-height: 85vh; overflow-y: auto;">
@@ -1130,6 +1221,11 @@
         const drawerRank = document.getElementById('drawerUserRank');
         if (drawerRank) drawerRank.innerText = `${user.cargo || 'General'} (Comando)`;
 
+        const drawerAvatarEl = document.querySelector('.drawer-avatar-mini');
+        if (drawerAvatarEl) {
+            drawerAvatarEl.classList.add(obterClasseMolduraPorCargo(user.cargo || 'General'));
+        }
+
         if (user.nickname && user.nickname.toLowerCase().trim() === 'mestre') {
             document.getElementById('cardInjecaoMestre').style.display = 'block';
         }
@@ -1141,6 +1237,18 @@
         let usuariosOnlineSocket = [];
         let cacheGlobalLogs = [];
         let membroIdSelecionadoCarteira = null;
+        let membroAlvoAdvertencia = { id: null, nickname: null };
+
+        function obterClasseMolduraPorCargo(cargo) {
+            const c = String(cargo || '').toLowerCase();
+            if (c.includes('general')) return 'moldura-general';
+            if (c.includes('coronel')) return 'moldura-coronel';
+            if (c.includes('major')) return 'moldura-major';
+            if (c.includes('tenente')) return 'moldura-tenente';
+            if (c.includes('sargento')) return 'moldura-sargento';
+            if (c.includes('soldado')) return 'moldura-soldado';
+            return 'moldura-privado';
+        }
 
         const socket = io({
             reconnection: true,
@@ -2149,6 +2257,15 @@
             btnPerfil.onclick = () => { modal.style.display = 'none'; abrirPerfilAdmin(nickname); };
             container.appendChild(btnPerfil);
 
+            const btnAdvertir = document.createElement('button');
+            btnAdvertir.className = 'btn-action btn-demitir';
+            btnAdvertir.style.width = '100%';
+            btnAdvertir.style.padding = '10px';
+            btnAdvertir.style.background = 'linear-gradient(135deg, #ef4444, #b91c1c)';
+            btnAdvertir.innerText = '⚠️ Aplicar Advertência Disciplinar (Desconto)';
+            btnAdvertir.onclick = () => { modal.style.display = 'none'; abrirModalAdvertir(id, nickname); };
+            container.appendChild(btnAdvertir);
+
             const btnPromover = document.createElement('button');
             btnPromover.className = 'btn-action btn-promover';
             btnPromover.style.width = '100%';
@@ -2193,6 +2310,10 @@
         async function efetuarPagamentoCarteira() {
             if (!membroIdSelecionadoCarteira) return;
 
+            // Oculta/fecha imediatamente o modal de carteira para não bloquear a visão do painel
+            const modalCart = document.getElementById('modalAdminCarteira');
+            if (modalCart) modalCart.style.display = 'none';
+
             mostrarModalCustomizado(
                 'Efetuar Pagamento',
                 'Tem a certeza que efetuou o pagamento em dinheiro do jogo e deseja zerar o saldo desta carteira?',
@@ -2206,8 +2327,12 @@
                         });
                         const data = await res.json();
                         if (data.success) {
-                            document.getElementById('modalAdminCarteira').style.display = 'none';
-                            mostrarModalCustomizado('Sucesso', data.message || 'Pagamento registado com sucesso!');
+                            // Atualiza os dados instantaneamente na interface
+                            const idx = cacheListaCarteiras.findIndex(c => String(c._id) === String(membroIdSelecionadoCarteira));
+                            if (idx >= 0) cacheListaCarteiras[idx].saldo = 0;
+                            filtrarTabelaCarteiras();
+
+                            mostrarModalCustomizado('Sucesso', data.message || 'Pagamento registado e saldo zerado com sucesso!');
                             carregarEfetivo();
                             carregarLogsAdmin();
                             carregarListaCarteirasAdmin();
@@ -2219,6 +2344,65 @@
                     }
                 }
             );
+        }
+
+        function abrirModalAdvertir(id, nickname) {
+            membroAlvoAdvertencia = { id, nickname };
+            const sub = document.getElementById('subAdvertirMembro');
+            if (sub) sub.innerText = `Operacional: ${nickname}`;
+            document.getElementById('selectMotivoAdvertencia').value = 'Atraso ou Ausência em Formação (Cap. 5.1)';
+            document.getElementById('selectTipoDescontoAdvertencia').value = 'nenhum';
+            document.getElementById('inputValorLivreAdvertencia').value = '';
+            document.getElementById('inputObsAdvertencia').value = '';
+            alternarCampoDescontoLivreUI();
+            document.getElementById('modalAdvertirMembro').style.display = 'flex';
+        }
+
+        function fecharModalAdvertir() {
+            const m = document.getElementById('modalAdvertirMembro');
+            if (m) m.style.display = 'none';
+        }
+
+        function alternarCampoDescontoLivreUI() {
+            const tipo = document.getElementById('selectTipoDescontoAdvertencia')?.value;
+            const box = document.getElementById('boxDescontoLivreAdvertencia');
+            if (box) box.style.display = (tipo === 'livre') ? 'block' : 'none';
+        }
+
+        async function confirmarAplicacaoAdvertencia() {
+            if (!membroAlvoAdvertencia.id) return;
+            const motivo = document.getElementById('selectMotivoAdvertencia')?.value;
+            const tipoDesconto = document.getElementById('selectTipoDescontoAdvertencia')?.value;
+            const valorLivre = document.getElementById('inputValorLivreAdvertencia')?.value;
+            const observacao = document.getElementById('inputObsAdvertencia')?.value?.trim();
+
+            fecharModalAdvertir();
+
+            try {
+                const res = await fetch('/api/admin/membro/advertir', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        adminNickname: user.nickname,
+                        targetId: membroAlvoAdvertencia.id,
+                        targetNickname: membroAlvoAdvertencia.nickname,
+                        motivo,
+                        tipoDesconto,
+                        valorLivre,
+                        observacao
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    mostrarModalCustomizado('Advertência Aplicada', data.message || 'Advertência registada com sucesso!');
+                    carregarListaCarteirasAdmin();
+                    carregarLogsAdmin();
+                } else {
+                    mostrarModalCustomizado('Erro', data.message || 'Erro ao aplicar advertência.');
+                }
+            } catch (e) {
+                mostrarModalCustomizado('Erro', 'Falha na conexão ao aplicar advertência.');
+            }
         }
 
         async function abrirPerfilAdmin(nickname) {

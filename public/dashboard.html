@@ -161,6 +161,48 @@
             align-items: center;
             gap: 12px;
         }
+        /* --- MOLDURAS TÁTICAS POR CATEGORIA DE CARGO --- */
+        .moldura-general {
+            border: 2.5px solid #e0f2fe !important;
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.95), 0 0 28px rgba(186, 230, 253, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.6) !important;
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.35) 0%, rgba(15, 23, 42, 0.95) 100%) !important;
+            position: relative;
+            animation: brilho-diamante 2.4s infinite alternate ease-in-out;
+        }
+        @keyframes brilho-diamante {
+            0% { filter: drop-shadow(0 0 4px #7dd3fc) drop-shadow(0 0 12px #38bdf8); }
+            100% { filter: drop-shadow(0 0 10px #ffffff) drop-shadow(0 0 20px #38bdf8); }
+        }
+        .moldura-coronel {
+            border: 2.5px solid #ef4444 !important;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.8), inset 0 0 8px rgba(239, 68, 68, 0.4) !important;
+            background: rgba(30, 41, 59, 0.95) !important;
+        }
+        .moldura-major {
+            border: 2.5px solid #f59e0b !important;
+            box-shadow: 0 0 14px rgba(245, 158, 11, 0.75), inset 0 0 6px rgba(245, 158, 11, 0.3) !important;
+            background: rgba(30, 41, 59, 0.95) !important;
+        }
+        .moldura-tenente {
+            border: 2px solid #fbbf24 !important;
+            box-shadow: 0 0 12px rgba(251, 191, 36, 0.6) !important;
+            background: rgba(30, 41, 59, 0.95) !important;
+        }
+        .moldura-sargento {
+            border: 2px solid #38bdf8 !important;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.6) !important;
+            background: rgba(30, 41, 59, 0.95) !important;
+        }
+        .moldura-soldado {
+            border: 2px solid #64748b !important;
+            box-shadow: 0 0 8px rgba(100, 116, 139, 0.5) !important;
+            background: rgba(30, 41, 59, 0.95) !important;
+        }
+        .moldura-privado {
+            border: 1.5px solid #475569 !important;
+            background: rgba(15, 23, 42, 0.9) !important;
+        }
+
         .drawer-avatar-mini {
             width: 44px;
             height: 44px;
@@ -172,6 +214,8 @@
             justify-content: center;
             font-size: 20px;
             object-fit: cover;
+            overflow: hidden;
+            flex-shrink: 0;
         }
         .drawer-user-name {
             font-size: 14px;
@@ -1500,11 +1544,155 @@
     <div id="aba-regras-cronograma" class="tab-content">
         <!-- NAVEGAÇÃO INTERNA ENTRE SEÇÕES DE REGRAS -->
         <div class="tactical-subnav-container">
-            <button class="tactical-tab-btn active" id="btnSubSecaoRegras" onclick="alternarSubSecaoRegras('regras', this)">⚖️ Cap. 4: Proibições Gerais</button>
+            <button class="tactical-tab-btn active" id="btnSubSecaoDiretrizes" onclick="alternarSubSecaoRegras('diretrizes-gerais', this)">🪖 Turno, Liderança & Cap. 1</button>
+            <button class="tactical-tab-btn" id="btnSubSecaoDeveresPermissoes" onclick="alternarSubSecaoRegras('deveres-permissoes', this)">📋 Cap. 2 e 3: Deveres & Permissões</button>
+            <button class="tactical-tab-btn" id="btnSubSecaoRegras" onclick="alternarSubSecaoRegras('regras', this)">⚖️ Cap. 4: Proibições Gerais</button>
             <button class="tactical-tab-btn" id="btnSubSecaoFormacao" onclick="alternarSubSecaoRegras('formacao', this)">🎖️ Cap. 5, 6 e 7: Formação & Conduta</button>
             <button class="tactical-tab-btn" id="btnSubSecaoCodigosQ" onclick="alternarSubSecaoRegras('codigos-q', this)">📻 Códigos Q & Termos</button>
             <button class="tactical-tab-btn" id="btnSubSecaoCronograma" onclick="alternarSubSecaoRegras('cronograma', this)">📅 Cronograma Semanal</button>
             <button class="tactical-tab-btn" id="btnSubSecaoPremiacao" onclick="alternarSubSecaoRegras('premiacao', this)">🏆 Classificação & Prêmios</button>
+        </div>
+
+        <!-- SEÇÃO: TURNO DE TRABALHO, LIDERANÇA E CAPÍTULO 1 (DISPOSIÇÕES GERAIS) -->
+        <div id="subsecao-diretrizes-gerais" class="subsecao-regras-bloco">
+            <!-- CARD DE TURNO E LIDERANÇA -->
+            <div class="card" style="border: 2px solid #38bdf8; background: linear-gradient(145deg, rgba(56, 189, 248, 0.08), rgba(15, 23, 42, 0.95)); margin-bottom: 18px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(56, 189, 248, 0.3); padding-bottom: 10px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                    <h3 style="color: #38bdf8; border: none; margin: 0; padding: 0;">⏱️ TURNO REGULAMENTAR & ESTRUTURA DE LIDERANÇA</h3>
+                    <span style="background: rgba(56, 189, 248, 0.25); color: #7dd3fc; border: 1px solid #38bdf8; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 800;">17:00 ÀS 02:00</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 10px; font-size: 13px;">
+                    <div style="background: rgba(7, 13, 22, 0.7); padding: 12px 14px; border-radius: 10px; border-left: 4px solid #38bdf8;">
+                        <b style="color: #7dd3fc;">• TURNO DE TRABALHO (17:00 ÀS 02:00):</b> O horário oficial de serviço é das <b>17:00 às 02:00</b> (horário de Brasília). Todos os membros devem estar <b>obrigatoriamente de serviço e devidamente uniformizados</b>. Solicitação de folga ou dispensa deve ser submetida e aprovada exclusivamente com o <b>General ou Coronéis</b>.
+                    </div>
+                    <div style="background: rgba(7, 13, 22, 0.7); padding: 12px 14px; border-radius: 10px; border-left: 4px solid #eab308;">
+                        <b style="color: #fde047;">• AUTONOMIA DISCIPLINAR:</b> <b>Nota:</b> O General e os Coronéis têm o direito e autoridade de relatar à administração ou aplicar ações disciplinares de forma independente e sumária caso detectem qualquer infrator na tropa.
+                    </div>
+                    <div style="background: rgba(7, 13, 22, 0.7); padding: 12px 14px; border-radius: 10px; border-left: 4px solid #ef4444;">
+                        <b style="color: #fca5a5;">• LIMITE MÁXIMO DE LIDERANÇA:</b> A estrutura de comando superior comporta no máximo <b>7 Coronéis + 1 Líder (General)</b>, totalizando rigorosamente <b>8 líderes</b> na cúpula do Exército Brasileiro.
+                    </div>
+                </div>
+            </div>
+
+            <!-- CAPÍTULO 1 — DISPOSIÇÕES GERAIS -->
+            <div class="card" style="border: 2px solid #ef4444; background: linear-gradient(145deg, rgba(239, 68, 68, 0.08), rgba(15, 23, 42, 0.95));">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(239, 68, 68, 0.3); padding-bottom: 10px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                    <h3 style="color: #ef4444; border: none; margin: 0; padding: 0;">📜 CAPÍTULO 1 — DISPOSIÇÕES GERAIS</h3>
+                    <span style="background: rgba(239, 68, 68, 0.25); color: #fca5a5; border: 1px solid #ef4444; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 800;">DIRETRIZES 1.1 A 1.4</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <b>1.1</b> — O funcionário do Exército é obrigado a cumprir todas as disposições desta Carta e regulamentos da corporação.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <b>1.2</b> — Pelo descumprimento de artigos desta Carta, o funcionário estará sujeito às seguintes ações disciplinares: <b>advertência</b>, <b>repreensão</b>, <b>demissão</b> ou <b>demissão com inclusão na Lista Negra</b>.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <b>1.3</b> — Todo funcionário tem o direito fundamental de apelar de qualquer ação disciplinar imposta diretamente ao Comando Superior.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <b>1.4</b> — O turno de trabalho ocorre das 17:00 às 02:00. Todos devem estar de serviço e com o uniforme militar regulamentar. Solicitações de folga ou afastamento devem ser feitas diretamente ao <b>General ou aos Coronéis</b>.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SEÇÃO: CAPÍTULO 2 (DEVERES) E CAPÍTULO 3 (PERMISSÕES) -->
+        <div id="subsecao-deveres-permissoes" class="subsecao-regras-bloco" style="display: none;">
+            <!-- CAPÍTULO 2 -->
+            <div class="card" style="border: 2px solid #38bdf8; background: linear-gradient(145deg, rgba(56, 189, 248, 0.08), rgba(15, 23, 42, 0.95)); margin-bottom: 18px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(56, 189, 248, 0.3); padding-bottom: 10px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                    <h3 style="color: #38bdf8; border: none; margin: 0; padding: 0;">🛡️ CAPÍTULO 2 — PRINCIPAIS DEVERES DOS FUNCIONÁRIOS DO EXÉRCITO</h3>
+                    <span style="background: rgba(56, 189, 248, 0.25); color: #7dd3fc; border: 1px solid #38bdf8; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 800;">DEVERES 2.1 A 2.13</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                        <b>2.1</b> — Conhecer e cumprir rigorosamente as leis do estado e as disposições desta Carta.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                        <b>2.2</b> — Proteger prioritariamente a vida e a integridade dos cidadãos e colegas de farda.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                        <b>2.3</b> — Obedecer sem hesitação a todas as ordens legais emanadas de superiores hierárquicos.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                        <b>2.4</b> — Respeitar e manter a cadeia de comando institucional sem desvios.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                        <b>2.5</b> — Manter a ordem interna, disciplina e asseio das dependências militares.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                        <b>2.6</b> — Comunicar-se com civis e visitantes de forma educada, diplomática e serena.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                        <b>2.7</b> — Reparar imediatamente o veículo de trabalho (VTR) em caso de dano intencional ou acidental.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                        <b>2.8</b> — Conhecer todos os seus superiores hierárquicos por rosto e nome.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                        <b>2.9</b> — Proteger os bens, viaturas, munições e valores sob guarda do Exército.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                        <b>2.10</b> — Apresentar documentos de identificação militar em postos de controle.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                        <b>2.11</b> — Verificar os documentos de identificação de todos os civis que se aproximarem ou chegarem à base.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                        <b>2.12</b> — Apresentar-se formalmente (posto e nome) antes de solicitar ou verificar documentos de terceiros.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                        <b>2.13</b> — Guardar e patrulhar o território diariamente conforme a escala ou distribuição estabelecida pelo adjunto ou líder.
+                    </div>
+                </div>
+            </div>
+
+            <!-- CAPÍTULO 3 -->
+            <div class="card" style="border: 2px solid #22c55e; background: linear-gradient(145deg, rgba(34, 197, 94, 0.08), rgba(15, 23, 42, 0.95));">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(34, 197, 94, 0.3); padding-bottom: 10px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                    <h3 style="color: #34d399; border: none; margin: 0; padding: 0;">⚡ CAPÍTULO 3 — OS FUNCIONÁRIOS DO EXÉRCITO PODEM</h3>
+                    <span style="background: rgba(34, 197, 94, 0.25); color: #86efac; border: 1px solid #22c55e; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 800;">PERMISSÕES 3.1 A 3.12</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #22c55e;">
+                        <b>3.1</b> — Abrir fogo contra civis que entrem ou tentem adentrar ilegalmente no território restrito do quartel.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #22c55e;">
+                        <b>3.2</b> — Prestar auxílio operacional a outras facções e corporações governamentais em eventos e ações integradas.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #22c55e;">
+                        <b>3.3</b> — Verificar documentos de identidade de civis e de outros funcionários em procedimentos operacionais.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #22c55e;">
+                        <b>3.4</b> — Fazer perguntas, tirar dúvidas e solicitar orientações a superiores hierárquicos.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #22c55e;">
+                        <b>3.5</b> — Treinar tiro e calibragem de armas fora do horário obrigatório de trabalho em áreas designadas.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #22c55e;">
+                        <b>3.6</b> — Solicitar apoio tático ou assistência imediata através do rádio militar.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #22c55e;">
+                        <b>3.7</b> — Atirar em civis que apontem arma de fogo contra outro cidadão ou contra autoridade policial.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #22c55e;">
+                        <b>3.8</b> — Tirar folga ou férias, com prévia autorização e homologação do <b>General ou Coronéis</b>, por período de até duas semanas.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #22c55e;">
+                        <b>3.9</b> — Bloquear estradas estratégicas para prevenir ou conter crimes, tais como entrega ilegal de guaraná por máfias.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #22c55e;">
+                        <b>3.10</b> — Colidir ou atirar em veículos suspeitos com o objetivo tático de prevenir ou impedir crimes, como entrega de guaraná por máfias.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #22c55e;">
+                        <b>3.11</b> — Transportar e armazenar armas regulamentares em qualquer local operacional determinado pelo comando.
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #22c55e;">
+                        <b>3.12</b> — Estacionar veículos pessoais nos setores apropriados dentro do território da organização militar.
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- SEÇÃO: CAPÍTULO 4 - É PROIBIDO AOS FUNCIONÁRIOS DO EXÉRCITO -->
@@ -2680,6 +2868,23 @@
             window.location.href = 'index.html';
         }
 
+        function obterClasseMolduraPorCargo(cargo) {
+            const c = String(cargo || '').toLowerCase();
+            if (c.includes('general')) return 'moldura-general';
+            if (c.includes('coronel')) return 'moldura-coronel';
+            if (c.includes('major')) return 'moldura-major';
+            if (c.includes('tenente')) return 'moldura-tenente';
+            if (c.includes('sargento')) return 'moldura-sargento';
+            if (c.includes('soldado')) return 'moldura-soldado';
+            return 'moldura-privado';
+        }
+
+        function aplicarMolduraAvatar(elContainer, cargo) {
+            if (!elContainer) return;
+            elContainer.classList.remove('moldura-general', 'moldura-coronel', 'moldura-major', 'moldura-tenente', 'moldura-sargento', 'moldura-soldado', 'moldura-privado');
+            elContainer.classList.add(obterClasseMolduraPorCargo(cargo));
+        }
+
         function atualizarBadgeUsuarioUI() {
             const cargosAdminPermitidos = ['General', 'Coronel All'];
             const temPermissaoAdmin = user.role === 'admin' || cargosAdminPermitidos.includes(user.cargo);
@@ -2693,10 +2898,58 @@
             const drawerRank = document.getElementById('drawerUserRank');
             if (drawerRank) drawerRank.innerText = `${user.cargo || 'Privado'} (${(user.status || 'ativo').toUpperCase()})`;
 
+            const drawerAv = document.getElementById('drawerAvatarMini');
+            if (drawerAv) aplicarMolduraAvatar(drawerAv, user.cargo);
+
+            const avatarPreview = document.getElementById('imgAvatarVisualizar');
+            if (avatarPreview) aplicarMolduraAvatar(avatarPreview, user.cargo);
+
             const navAdmin = document.getElementById('navAdminLink');
             if (navAdmin) navAdmin.style.display = temPermissaoAdmin ? 'flex' : 'none';
         }
         atualizarBadgeUsuarioUI();
+
+        // Carregamento imediato da foto de perfil no menu lateral logo na inicialização
+        async function carregarFotoPerfilMenuImediata() {
+            try {
+                const ident = user._id || user.nickname;
+                if (!ident) return;
+                const res = await fetch(`/api/membro/perfil/${encodeURIComponent(ident)}?_=${Date.now()}`);
+                const data = await res.json();
+                if (data.success && data.perfil) {
+                    const p = data.perfil;
+                    const cargoEfetivo = p.cargo || user.cargo;
+                    const drawerAv = document.getElementById('drawerAvatarMini');
+                    const headerAv = document.getElementById('headerUserAvatarMini');
+                    const modalAv = document.getElementById('imgAvatarVisualizar');
+
+                    if (drawerAv) aplicarMolduraAvatar(drawerAv, cargoEfetivo);
+                    if (modalAv) aplicarMolduraAvatar(modalAv, cargoEfetivo);
+
+                    if (p.avatar) {
+                        if (drawerAv) {
+                            const img = document.createElement('img');
+                            img.src = p.avatar;
+                            img.style.cssText = 'width: 100%; height: 100%; border-radius: 50%; object-fit: cover;';
+                            drawerAv.replaceChildren(img);
+                        }
+                        if (headerAv) {
+                            const imgH = document.createElement('img');
+                            imgH.src = p.avatar;
+                            imgH.style.cssText = 'width: 20px; height: 20px; border-radius: 50%; object-fit: cover;';
+                            headerAv.replaceChildren(imgH);
+                        }
+                        if (modalAv) {
+                            const imgM = document.createElement('img');
+                            imgM.src = p.avatar;
+                            imgM.style.cssText = 'width: 100%; height: 100%; border-radius: 50%; object-fit: cover;';
+                            modalAv.replaceChildren(imgM);
+                        }
+                    }
+                }
+            } catch (e) {}
+        }
+        carregarFotoPerfilMenuImediata();
 
         let linkGrupoWhatsappGlobal = '';
         let telefoneMembroAtualCache = '';
@@ -3433,10 +3686,16 @@
             ultimosAlertasProcessados.add(tagAlerta);
             setTimeout(() => ultimosAlertasProcessados.delete(tagAlerta), 15000);
 
+            const corpoLimpo = String(opcoes.body || 'Alerta emitido pelo Comando Salazar!')
+                .replace(/<br\s*\/?>/gi, '\n')
+                .replace(/&nbsp;/gi, ' ')
+                .replace(/<[^>]*>?/gm, '')
+                .trim();
+
             const opcoesPadrao = {
-                body: opcoes.body || 'Alerta emitido pelo Comando Salazar!',
-                icon: opcoes.icon || '/background.jpg',
-                badge: opcoes.badge || '/background.jpg',
+                body: corpoLimpo,
+                icon: opcoes.icon || '/icons/salazar-shield.svg',
+                badge: opcoes.badge || '/icons/salazar-shield.svg',
                 vibrate: [200, 100, 200, 100, 400],
                 tag: tagAlerta,
                 renotify: false,

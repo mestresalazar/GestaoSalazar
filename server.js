@@ -479,11 +479,19 @@ async function enviarNotificacaoMembro(membroIdOuNick, { titulo, mensagem, tag, 
 
         // Dispara Web Push exclusivo para este membro se possuir subscrição ativa
         if (membro.pushSubscription && membro.pushSubscription.endpoint) {
+            const corpoFormatado = notifObj.mensagem
+                .replace(/<br\s*\/?>/gi, '\n')
+                .replace(/&nbsp;/gi, ' ')
+                .replace(/<[^>]*>?/gm, '')
+                .trim();
+
             const pushPayload = JSON.stringify({
                 id: tagFinal,
                 tag: tagFinal,
                 title: notifObj.titulo,
-                body: notifObj.mensagem.replace(/<[^>]*>?/gm, ''),
+                body: corpoFormatado,
+                icon: '/icons/salazar-shield.svg',
+                badge: '/icons/salazar-shield.svg',
                 url: url || '/dashboard.html'
             });
 
@@ -2378,7 +2386,7 @@ app.post('/api/admin/carteira/bonificar', async (req, res) => {
             const registroExtrato = {
                 data: new Date(),
                 ciclo: cicloAtual,
-                motivo: `${categoriaTipo}: +R$ ${valorNumerico.toLocaleString('pt-BR')}${obsFinal ? ` (${obsFinal})` : ''}`,
+                motivo: `${categoriaTipo}: +R$ ${valorNumerico.toLocaleString('pt-BR')}${obsFinal ? ` • Observação: ${obsFinal}` : ''}`,
                 tipo: categoriaTipo,
                 valor: valorNumerico,
                 autor: autor,
@@ -2398,9 +2406,11 @@ app.post('/api/admin/carteira/bonificar', async (req, res) => {
                 }
             );
 
+            const textoMsgBonus = `Você recebeu uma bonificação de <b>R$ ${valorNumerico.toLocaleString('pt-BR')}</b> na sua carteira digital!<br><br><b>Responsável:</b> ${autor}${obsFinal ? `<br><b>Observação:</b> ${obsFinal}` : ''}`;
+
             await enviarNotificacaoMembro(membro._id, {
                 titulo: `💳 ${categoriaTipo}!`,
-                mensagem: `Você recebeu uma bonificação de <b>R$ ${valorNumerico.toLocaleString('pt-BR')}</b> na sua carteira digital!<br>Responsável: ${autor}${obsFinal ? `<br>Observação: ${obsFinal}` : ''}`,
+                mensagem: textoMsgBonus,
                 tag: 'bonus_' + Date.now(),
                 url: '/dashboard.html'
             });
@@ -2438,7 +2448,7 @@ app.post('/api/admin/carteira/bonificar', async (req, res) => {
             const registroExtratoColetivo = {
                 data: new Date(),
                 ciclo: cicloAtual,
-                motivo: `${categoriaTipo} (Coletivo): +R$ ${valorNumerico.toLocaleString('pt-BR')}${obsFinal ? ` (${obsFinal})` : ''}`,
+                motivo: `${categoriaTipo} (Coletivo): +R$ ${valorNumerico.toLocaleString('pt-BR')}${obsFinal ? ` • Observação: ${obsFinal}` : ''}`,
                 tipo: categoriaTipo,
                 valor: valorNumerico,
                 autor: autor,
@@ -2458,11 +2468,12 @@ app.post('/api/admin/carteira/bonificar', async (req, res) => {
                 }
             );
 
-            // Notifica individualmente cada membro bonificado
+            // Notifica individualmente cada membro bonificado com formatação espaçada
             for (const m of membrosEmPlantao) {
+                const msgColetiva = `O Comando creditou <b>R$ ${valorNumerico.toLocaleString('pt-BR')}</b> para todo o efetivo em plantão!<br><br><b>Responsável:</b> ${autor}${obsFinal ? `<br><b>Observação:</b> ${obsFinal}` : ''}`;
                 await enviarNotificacaoMembro(m._id, {
                     titulo: `💳 ${categoriaTipo} (Coletivo)!`,
-                    mensagem: `O Comando creditou <b>R$ ${valorNumerico.toLocaleString('pt-BR')}</b> para todo o efetivo em plantão!<br>Responsável: ${autor}${obsFinal ? `<br>Observação: ${obsFinal}` : ''}`,
+                    mensagem: msgColetiva,
                     tag: 'bonus_col_' + Date.now(),
                     url: '/dashboard.html'
                 });
@@ -2490,6 +2501,99 @@ app.post('/api/admin/carteira/bonificar', async (req, res) => {
     } catch (e) {
         console.error("Erro na bonificação de plantão:", e);
         res.status(500).json({ success: false, message: 'Erro interno ao processar bonificação: ' + e.message });
+    }
+});
+
+// --- ROTA DE APLICAÇÃO DE ADVERTÊNCIA PELO ADM COM DESCONTO DE SALDO OPCIONAL ---
+app.post('/api/admin/membro/advertir', async (req, res) => {
+    try {
+        const { adminNickname, targetId, targetNickname, motivo, observacao, tipoDesconto, valorLivre } = req.body;
+        const autor = adminNickname || 'Comando';
+
+        let query = null;
+        if (targetId && String(targetId).match(/^[0-9a-fA-F]{24}$/)) {
+            query = { _id: targetId };
+        } else if (targetNickname) {
+            query = { nickname: new RegExp('^' + escaparRegex(String(targetNickname).trim()) + '$', 'i') };
+        }
+
+        if (!query) {
+            return res.status(400).json({ success: false, message: 'Operacional alvo não informado.' });
+        }
+
+        const membro = await User.findOne(query, '_id nickname cargo carteiraSaldo');
+        if (!membro) {
+            return res.status(404).json({ success: false, message: 'Operacional não encontrado.' });
+        }
+
+        const motivoFinal = motivo ? String(motivo).trim() : 'Infração Disciplinar';
+        const obsFinal = observacao ? String(observacao).trim() : '';
+
+        // Calcula o desconto de saldo solicitado
+        let valorDesconto = 0;
+        if (tipoDesconto === '1000') valorDesconto = 1000;
+        else if (tipoDesconto === '500') valorDesconto = 500;
+        else if (tipoDesconto === 'livre') valorDesconto = Math.max(0, parseInt(valorLivre, 10) || 0);
+
+        const saldoAtual = Number(membro.carteiraSaldo || 0);
+        let novoSaldo = saldoAtual;
+
+        const updateOps = {};
+        const cicloAtual = obterDataCicloBrasil();
+
+        if (valorDesconto > 0) {
+            novoSaldo = saldoAtual - valorDesconto;
+            updateOps.$inc = { carteiraSaldo: -valorDesconto };
+
+            const registroDesconto = {
+                data: new Date(),
+                ciclo: cicloAtual,
+                motivo: `⚠️ Multa por Advertência: -R$ ${valorDesconto.toLocaleString('pt-BR')} (${motivoFinal})${obsFinal ? ` • Observação: ${obsFinal}` : ''}`,
+                tipo: 'Multa Disciplinar',
+                valor: -valorDesconto,
+                autor: autor,
+                comprovante: ''
+            };
+
+            updateOps.$push = {
+                historicoMissoes: {
+                    $each: [registroDesconto],
+                    $slice: -40
+                }
+            };
+        }
+
+        if (Object.keys(updateOps).length > 0) {
+            await User.updateOne({ _id: membro._id }, updateOps);
+        }
+
+        const valorDescontoFormatado = valorDesconto > 0 ? ` Desconto no saldo: <b>-R$ ${valorDesconto.toLocaleString('pt-BR')}</b>.` : '';
+        const msgNotifAdv = `Você recebeu uma <b>Advertência Disciplinar</b> da administração.<br><br><b>Motivo:</b> ${motivoFinal}${obsFinal ? `<br><b>Observação:</b> ${obsFinal}` : ''}<br><b>Responsável:</b> ${autor}.${valorDescontoFormatado}`;
+
+        await enviarNotificacaoMembro(membro._id, {
+            titulo: '⚠️ Advertência Disciplinar Recebida!',
+            mensagem: msgNotifAdv,
+            tag: 'advertencia_' + Date.now(),
+            url: '/dashboard.html'
+        });
+
+        await registarLogAdmin(
+            autor,
+            'Advertência Disciplinar Aplicada',
+            `Advertência aplicada ao operacional ${membro.nickname}. Motivo: "${motivoFinal}". Desconto: R$ ${valorDesconto.toLocaleString('pt-BR')}. Obs: "${obsFinal || 'Sem observações'}"`
+        );
+
+        io.emit('atualizar_carteira_membro', { nickname: membro.nickname });
+        io.emit('atualizar_status_geral_tropa');
+
+        res.json({
+            success: true,
+            message: `Advertência aplicada com sucesso a ${membro.nickname}!${valorDesconto > 0 ? ` Desconto de R$ ${valorDesconto.toLocaleString('pt-BR')} debitado do saldo.` : ''}`,
+            novoSaldo
+        });
+    } catch (e) {
+        console.error("Erro ao aplicar advertência:", e);
+        res.status(500).json({ success: false, message: 'Erro interno ao aplicar advertência: ' + e.message });
     }
 });
 
