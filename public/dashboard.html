@@ -1173,20 +1173,10 @@
                 <p id="etapaAtual" style="color: #e2e8f0; font-size: 13px;">Etapa: A carregar horário regulamentar (Brasília)...</p>
 
                 <div class="timer-display" id="timerDisplay">00:00:00</div>
-                <p id="avisoTempoMinimo" style="text-align: center; font-size: 12px; color: #eab308; margin-top: 10px;">⏱️ Horário Oficial de Brasília (17h–02h). Verificação com print a cada <b>1 hora</b>.</p>
-
-                <!-- ALERTA / FORMULÁRIO DE VERIFICAÇÃO DE 1 HORA (60 MINUTOS) -->
-                <div id="boxVerificacaoHora" style="display: none; margin-top: 14px; padding: 14px; background: rgba(234, 179, 8, 0.12); border: 1px solid rgba(234, 179, 8, 0.4); border-radius: 12px;">
-                    <b id="tituloVerificacaoHora" style="color: #fde047; font-size: 13px; display: block; margin-bottom: 6px;">📸 Verificação de Presença (1h de Turno)</b>
-                    <p style="font-size: 12px; color: #cbd5e1; line-height: 1.4; margin-bottom: 10px;">Você completou mais 1 hora de plantão. Anexe o print da sua tela no jogo para registrar a verificação de presença.</p>
-                    <input type="file" id="fotoVerificacaoHora" accept="image/*" style="width: 100%; padding: 8px; background: rgba(7, 13, 22, 0.85); border: 1px solid rgba(234, 179, 8, 0.4); border-radius: 8px; color: white; font-size: 12px;" onchange="converterFotoVerificacaoHora(this)">
-                    <button id="btnEnviarVerificacaoHora" onclick="enviarPrintVerificacaoHora()" class="btn-action" style="margin-top: 10px; padding: 9px; font-size: 12px; background: linear-gradient(135deg, #eab308, #ca8a04); color: #000; font-weight: 700;">
-                        ✅ Confirmar Print da Hora
-                    </button>
-                </div>
+                <p id="avisoTempoMinimo" style="text-align: center; font-size: 12px; color: #eab308; margin-top: 10px;">⏱️ Horário Oficial de Brasília (17h–02h). Mínimo de <b>30 min</b> e limite de <b>3h por turno</b>.</p>
 
                 <div style="margin-top: 18px;">
-                    <label style="font-size: 13px; color: #e2e8f0; font-weight: 500;">Anexar Print do Jogo (Obrigatório no Check-in ou Saída)</label>
+                    <label style="font-size: 13px; color: #e2e8f0; font-weight: 500;">Anexar Print do Jogo (Obrigatório no Check-in e Check-out)</label>
                     <input type="file" id="fotoComprovante" accept="image/*" style="width: 100%; padding: 10px; margin-top: 6px; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 13px;" onchange="converterFotoLocal(this)">
                     <div id="statusAnexo" style="font-size: 12px; color: #22c55e; margin-top: 6px;"></div>
                 </div>
@@ -3456,16 +3446,17 @@
                     document.getElementById('btnPausar').style.display = 'none';
                     document.getElementById('btnCheckout').disabled = false;
 
-                    const boxH = document.getElementById('boxVerificacaoHora');
-                    if (boxH) boxH.style.display = 'none';
-                    if (timerExpiracaoVerificacao) {
-                        clearInterval(timerExpiracaoVerificacao);
-                        timerExpiracaoVerificacao = null;
-                    }
-
                     atualizarEtapaTurnoUI();
                     sincronizarCarteiraEMissoes();
                     atualizarFiscalizacaoServidor();
+
+                    if (dados.motivo === 'limite_3h_estourado') {
+                        mostrarModalCustomizado(
+                            '⚠️ Turno Resetado (Limite de 3h Excedido)',
+                            'O seu turno ultrapassou <b>3 horas consecutivas</b> sem envio do print de finalização.<br><br>O tempo desse turno específico foi <b>zerado/resetado</b> conforme o regulamento. O seu tempo geral acumulado anteriormente foi mantido.',
+                            'alerta'
+                        );
+                    }
                 }
                 restaurarEstadoTurno();
             }
@@ -4111,21 +4102,10 @@
                         ? new Date(data.membro.inicioPlantao).getTime()
                         : null;
 
-                    // Restaura as verificações horárias persistidas no banco de dados para não repetir após F5
-                    horasVerificadasLocal.clear();
-                    if (Array.isArray(data.membro.comprovantesTurnoAtivo)) {
-                        data.membro.comprovantesTurnoAtivo.forEach(item => {
-                            if (item.horaNumero) {
-                                horasVerificadasLocal.add(Number(item.horaNumero));
-                            }
-                        });
-                    }
-
                     if (estadoTurno === 'ativo' || estadoTurno === 'pausado') {
                         fotoComprovanteBase64 = data.membro.fotoComprovanteAtiva || '';
                     } else {
                         fotoComprovanteBase64 = '';
-                        horasVerificadasLocal.clear();
                     }
                 }
             } catch (e) {}
@@ -4154,12 +4134,6 @@
                 document.getElementById('btnCheckout').disabled = false;
                 if (timerInterval) clearInterval(timerInterval);
                 document.getElementById('timerDisplay').innerText = '00:00:00';
-                const boxH = document.getElementById('boxVerificacaoHora');
-                if (boxH) boxH.style.display = 'none';
-                if (timerExpiracaoVerificacao) {
-                    clearInterval(timerExpiracaoVerificacao);
-                    timerExpiracaoVerificacao = null;
-                }
             }
 
             atualizarEtapaTurnoUI();
@@ -4227,17 +4201,6 @@
                 if (!res.ok || data.success === false) {
                     throw new Error(data.message || 'Falha ao registar check-in no servidor.');
                 }
-
-                // Limpa integralmente qualquer histórico residual de verificações horárias anteriores
-                horasVerificadasLocal.clear();
-                avisosPrevia10mDisparados.clear();
-                fotoVerificacaoHoraBase64 = '';
-                if (timerExpiracaoVerificacao) {
-                    clearInterval(timerExpiracaoVerificacao);
-                    timerExpiracaoVerificacao = null;
-                }
-                const boxH = document.getElementById('boxVerificacaoHora');
-                if (boxH) boxH.style.display = 'none';
 
                 estadoTurno = 'ativo';
                 timestampInicioServer = agora;
@@ -4339,13 +4302,6 @@
                         document.getElementById('btnCheckin').disabled = false;
                         document.getElementById('btnPausar').style.display = 'none';
                         document.getElementById('btnCheckout').disabled = false;
-
-                        const boxH = document.getElementById('boxVerificacaoHora');
-                        if (boxH) boxH.style.display = 'none';
-                        if (timerExpiracaoVerificacao) {
-                            clearInterval(timerExpiracaoVerificacao);
-                            timerExpiracaoVerificacao = null;
-                        }
 
                         atualizarEtapaTurnoUI();
 
@@ -4587,20 +4543,12 @@
                                             <div>📌 <b>Motivo/Registro:</b> <span style="color: #eab308;">${escapeHTML(motivo)}</span></div>
                                         </div>
 
-                                        ${(t.fotoComprovante && t.fotoComprovante.startsWith('data:image')) || (Array.isArray(t.comprovantesVerificacao) && t.comprovantesVerificacao.length > 0) ? `
+                                        ${t.fotoComprovante && t.fotoComprovante.startsWith('data:image') ? `
                                             <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(56, 189, 248, 0.15);">
-                                                ${t.fotoComprovante && t.fotoComprovante.startsWith('data:image') ? `
-                                                    <div style="text-align: center;">
-                                                        <span style="font-size: 10px; color: #38bdf8; display: block; font-weight: 600;">Comprovante</span>
-                                                        <img src="${t.fotoComprovante}" style="max-width: 90px; max-height: 60px; border-radius: 6px; border: 1px solid #38bdf8; cursor: pointer; object-fit: cover;" onclick="window.open('${t.fotoComprovante}')">
-                                                    </div>
-                                                ` : ''}
-                                                ${Array.isArray(t.comprovantesVerificacao) ? t.comprovantesVerificacao.filter(v => v && v.fotoComprovante && v.fotoComprovante.startsWith('data:image')).map(v => `
-                                                    <div style="text-align: center;">
-                                                        <span style="font-size: 10px; color: #fde047; display: block; font-weight: 600;">${v.horaNumero || 1}ª Hora</span>
-                                                        <img src="${v.fotoComprovante}" style="max-width: 90px; max-height: 60px; border-radius: 6px; border: 1px solid #eab308; cursor: pointer; object-fit: cover;" onclick="window.open('${v.fotoComprovante}')">
-                                                    </div>
-                                                `).join('') : ''}
+                                                <div style="text-align: center;">
+                                                    <span style="font-size: 10px; color: #38bdf8; display: block; font-weight: 600;">Comprovante</span>
+                                                    <img src="${t.fotoComprovante}" style="max-width: 90px; max-height: 60px; border-radius: 6px; border: 1px solid #38bdf8; cursor: pointer; object-fit: cover;" onclick="window.open('${t.fotoComprovante}')">
+                                                </div>
                                             </div>
                                         ` : ''}
                                     </div>

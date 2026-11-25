@@ -2303,18 +2303,10 @@
                                 <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(56, 189, 248, 0.15);">
                                     ${t.fotoComprovante && t.fotoComprovante.startsWith('data:image') ? `
                                         <div style="text-align: center;">
-                                            <span style="font-size: 10px; color: #38bdf8; display: block; font-weight: 600;">Print Encerramento</span>
+                                            <span style="font-size: 10px; color: #38bdf8; display: block; font-weight: 600;">Print Comprovante</span>
                                             <img src="${t.fotoComprovante}" style="max-width: 110px; max-height: 75px; border-radius: 6px; border: 1px solid #38bdf8; cursor: pointer;" onclick="window.open('${t.fotoComprovante}')">
                                         </div>
                                     ` : (t.fotoComprovante ? `<span style="font-size: 11px; color: #94a3b8;">${escapeHTML(t.fotoComprovante)}</span>` : '')}
-                                    ${Array.isArray(t.comprovantesVerificacao) && t.comprovantesVerificacao.length > 0 ? t.comprovantesVerificacao.map(v => `
-                                        ${v && v.fotoComprovante && v.fotoComprovante.startsWith('data:image') ? `
-                                            <div style="text-align: center;">
-                                                <span style="font-size: 10px; color: #fde047; display: block; font-weight: 600;">Verificação ${v.horaNumero || 1}ª Hora</span>
-                                                <img src="${v.fotoComprovante}" style="max-width: 110px; max-height: 75px; border-radius: 6px; border: 1px solid #eab308; cursor: pointer;" onclick="window.open('${v.fotoComprovante}')">
-                                            </div>
-                                        ` : ''}
-                                    `).join('') : ''}
                                 </div>
                             </div>
                             `;
