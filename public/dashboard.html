@@ -2778,6 +2778,13 @@
                 const data = await res.json();
                 if (data.success && data.perfil) {
                     const p = data.perfil;
+                    if (p.tutorialConcluido === true) {
+                        window.__tutorialFinalizadoDefinitivamente = true;
+                        if (user) {
+                            user.tutorialConcluido = true;
+                            localStorage.setItem('user', JSON.stringify(user));
+                        }
+                    }
                     if (inputNick) inputNick.value = p.nickname || user.nickname;
                     document.getElementById('inputTelefonePerfil').value = p.telefone || '';
                     telefoneMembroAtualCache = p.telefone || '';
@@ -3968,8 +3975,8 @@
                     sincronizarCarteiraEMissoes();
                     verificarProgressoProvas();
 
-                    // Se a conta acabou de ser aprovada pelo Comando durante a sessão ativa, verifica tour
-                    if (dados.status === 'ativo') {
+                    // Se a conta acabou de ser aprovada pelo Comando durante a sessão ativa, verifica tour apenas se nunca concluiu
+                    if (dados.status === 'ativo' && !jaConcluiuTutorialDefinitivo()) {
                         setTimeout(verificarInicioTutorialOnboarding, 600);
                     }
                 }
@@ -5172,7 +5179,6 @@
         let indicePassoTutorialAtual = 0;
         let tutorialAtivo = false;
         let elementoAlvoFocadoAnterior = null;
-        window.__tutorialFinalizadoDefinitivamente = false;
 
         function obterChavesTutorialUsuario() {
             const nick = (user && user.nickname) ? user.nickname.toLowerCase().trim() : 'padrao';
@@ -5180,34 +5186,42 @@
             return {
                 chaveNick: `tutorial_concluido_${nick}`,
                 chaveId: id ? `tutorial_concluido_${id}` : null,
-                chaveSessao: `tutorial_concluido_sessao_${nick}`
+                chaveSessao: `tutorial_concluido_sessao_${nick}`,
+                chaveGlobal: 'tutorial_concluido_global'
             };
         }
 
         function jaConcluiuTutorialDefinitivo() {
-            if (window.__tutorialFinalizadoDefinitivamente) return true;
-            if (user && user.tutorialConcluido === true) return true;
+            if (window.__tutorialFinalizadoDefinitivamente === true) return true;
+            if (user && user.tutorialConcluido === true) {
+                window.__tutorialFinalizadoDefinitivamente = true;
+                return true;
+            }
 
             const chaves = obterChavesTutorialUsuario();
-            if (localStorage.getItem(chaves.chaveNick) === 'true') return true;
-            if (chaves.chaveId && localStorage.getItem(chaves.chaveId) === 'true') return true;
-            if (sessionStorage.getItem(chaves.chaveSessao) === 'true') return true;
+            if (localStorage.getItem(chaves.chaveNick) === 'true' ||
+                (chaves.chaveId && localStorage.getItem(chaves.chaveId) === 'true') ||
+                sessionStorage.getItem(chaves.chaveSessao) === 'true') {
+                window.__tutorialFinalizadoDefinitivamente = true;
+                return true;
+            }
 
             return false;
         }
 
         function verificarInicioTutorialOnboarding() {
-            // Regra estrita 1: NUNCA exibe enquanto o status for pendente ou não aprovado
-            if (!user || user.status === 'pendente' || user.status !== 'ativo') return;
+            // Regra 1: NUNCA exibe enquanto status for pendente ou diferente de ativo
+            if (!user || user.status !== 'ativo' || user.status === 'pendente') return;
 
-            // Regra estrita 2: NUNCA reabre caso já tenha sido concluído ou pulado
+            // Regra 2: Bloqueio absoluto se já concluído/pulado no localStorage, sessionStorage, memória ou banco
             if (jaConcluiuTutorialDefinitivo()) return;
 
+            // Inicia apenas se ainda estiver comprovadamente pendente de tour no primeiro acesso após aprovação
             setTimeout(() => {
-                if (!jaConcluiuTutorialDefinitivo() && user && user.status === 'ativo') {
+                if (!jaConcluiuTutorialDefinitivo() && user && user.status === 'ativo' && !tutorialAtivo) {
                     iniciarTutorialGuiado();
                 }
-            }, 750);
+            }, 800);
         }
 
         function limparFocoElementoAlvo() {
@@ -5218,7 +5232,8 @@
         }
 
         function iniciarTutorialGuiado() {
-            if (user && user.status === 'pendente') return;
+            // Travas de segurança: nunca abre se o status não for 'ativo' ou se já foi finalizado
+            if (!user || user.status !== 'ativo' || jaConcluiuTutorialDefinitivo() || tutorialAtivo) return;
             tutorialAtivo = true;
             indicePassoTutorialAtual = 0;
 
@@ -5367,7 +5382,7 @@
                 localStorage.setItem('user', JSON.stringify(user));
             }
 
-            // Notifica o backend para persistir no banco de dados do usuário
+            // Persiste no banco de dados
             fetch('/api/membro/tutorial-concluido', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -5385,7 +5400,6 @@
             if (spotlight) spotlight.style.display = 'none';
             if (popover) popover.style.display = 'none';
 
-            // Retorna à aba padrão de turnos
             mudarAba('turnos');
         }
 

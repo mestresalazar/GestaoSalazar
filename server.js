@@ -1151,7 +1151,8 @@ app.post('/api/auth/login', async (req, res) => {
                 cargo: user.cargo,
                 role: user.role,
                 status: user.status,
-                telefone: user.telefone || ''
+                telefone: user.telefone || '',
+                tutorialConcluido: !!user.tutorialConcluido
             }
         });
     } catch (e) {
@@ -1227,7 +1228,7 @@ app.get('/api/membro/perfil/:nickname', async (req, res) => {
 
         let membro = await User.findOne(
             { $or: conditions },
-            'nickname cargo status avatar telefone historicoTurnos.duracao historicoTurnos.data'
+            'nickname cargo status avatar telefone tutorialConcluido historicoTurnos.duracao historicoTurnos.data'
         ).lean();
 
         // Caso o usuário esteja autenticado mas não possua documento salvo, sincroniza automaticamente
@@ -1268,7 +1269,8 @@ app.get('/api/membro/perfil/:nickname', async (req, res) => {
                 telefone: membro.telefone || '',
                 totalHoras: totalHorasFormatado,
                 tempoGestao: tempoGestaoStr,
-                ultimoPlantao: ultimoTurno
+                ultimoPlantao: ultimoTurno,
+                tutorialConcluido: !!membro.tutorialConcluido
             }
         });
     } catch (e) {
