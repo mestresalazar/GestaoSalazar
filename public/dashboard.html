@@ -1027,91 +1027,98 @@
         .tour-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(3, 7, 18, 0.78);
+            background: rgba(3, 7, 18, 0.82);
             z-index: 99990;
             display: none;
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
             pointer-events: auto;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.25s ease;
         }
         .tour-spotlight {
             position: fixed;
-            border-radius: 14px;
+            border-radius: 16px;
             border: 2px solid #38bdf8;
-            box-shadow: 0 0 0 9999px rgba(3, 7, 18, 0.78), 0 0 24px rgba(56, 189, 248, 0.55);
+            box-shadow: 0 0 0 9999px rgba(3, 7, 18, 0.82), 0 0 28px rgba(56, 189, 248, 0.65);
             z-index: 99992;
             pointer-events: none;
-            transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-            animation: pulse-tour-spotlight 2s infinite alternate;
+            transition: top 0.22s ease-out, left 0.22s ease-out, width 0.22s ease-out, height 0.22s ease-out;
+            animation: pulse-tour-spotlight 2.2s infinite alternate;
+        }
+        .tour-target-focused {
+            position: relative !important;
+            z-index: 99993 !important;
+            box-shadow: 0 0 25px rgba(56, 189, 248, 0.45) !important;
+            transition: z-index 0.2s ease;
         }
         @keyframes pulse-tour-spotlight {
-            0% { box-shadow: 0 0 0 9999px rgba(3, 7, 18, 0.78), 0 0 16px rgba(56, 189, 248, 0.4); border-color: #38bdf8; }
-            100% { box-shadow: 0 0 0 9999px rgba(3, 7, 18, 0.78), 0 0 28px rgba(239, 68, 68, 0.6); border-color: #ef4444; }
+            0% { border-color: #38bdf8; box-shadow: 0 0 0 9999px rgba(3, 7, 18, 0.82), 0 0 16px rgba(56, 189, 248, 0.45); }
+            100% { border-color: #ef4444; box-shadow: 0 0 0 9999px rgba(3, 7, 18, 0.82), 0 0 26px rgba(239, 68, 68, 0.55); }
         }
         .tour-popover {
             position: fixed;
-            z-index: 99995;
-            background: linear-gradient(160deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99));
-            border: 1px solid rgba(56, 189, 248, 0.4);
+            z-index: 99996;
+            background: linear-gradient(160deg, rgba(15, 23, 42, 0.99), rgba(7, 13, 22, 1));
+            border: 1px solid rgba(56, 189, 248, 0.5);
             border-radius: 16px;
-            padding: 18px 20px;
+            padding: 16px 18px;
             width: 320px;
-            max-width: calc(100vw - 24px);
-            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.9), 0 0 20px rgba(56, 189, 248, 0.2);
+            max-width: calc(100vw - 20px);
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.95), 0 0 24px rgba(56, 189, 248, 0.3);
             display: none;
             flex-direction: column;
             gap: 10px;
             color: #fff;
-            animation: fadeIn 0.25s ease-out;
-            transition: top 0.25s ease, left 0.25s ease;
+            animation: fadeIn 0.22s ease-out;
+            transition: top 0.22s ease-out, left 0.22s ease-out;
         }
         .tour-arrow {
             position: absolute;
             width: 0;
             height: 0;
             border-style: solid;
+            pointer-events: none;
         }
         .tour-arrow.arrow-top {
             top: -10px;
-            left: calc(50% - 10px);
-            border-width: 0 10px 10px 10px;
-            border-color: transparent transparent rgba(56, 189, 248, 0.5) transparent;
+            border-width: 0 9px 10px 9px;
+            border-color: transparent transparent rgba(56, 189, 248, 0.7) transparent;
         }
         .tour-arrow.arrow-bottom {
             bottom: -10px;
-            left: calc(50% - 10px);
-            border-width: 10px 10px 0 10px;
-            border-color: rgba(56, 189, 248, 0.5) transparent transparent transparent;
+            border-width: 10px 9px 0 9px;
+            border-color: rgba(56, 189, 248, 0.7) transparent transparent transparent;
         }
         .tour-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 8px;
-            border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+            border-bottom: 1px solid rgba(56, 189, 248, 0.22);
             padding-bottom: 8px;
         }
         .tour-title {
-            font-size: 14px;
+            font-size: 13.5px;
             font-weight: 800;
             color: #38bdf8;
             display: flex;
             align-items: center;
             gap: 6px;
+            line-height: 1.3;
         }
         .tour-step-counter {
             font-size: 11px;
-            font-weight: 700;
-            background: rgba(56, 189, 248, 0.15);
+            font-weight: 800;
+            background: rgba(56, 189, 248, 0.2);
             color: #7dd3fc;
-            padding: 2px 8px;
+            padding: 3px 8px;
             border-radius: 6px;
-            border: 1px solid rgba(56, 189, 248, 0.3);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            white-space: nowrap !important;
+            flex-shrink: 0 !important;
+            line-height: 1.1;
         }
         .tour-body {
             font-size: 12px;
-            color: #e2e8f0;
+            color: #f1f5f9;
             line-height: 1.55;
         }
         .tour-footer {
@@ -1119,7 +1126,7 @@
             align-items: center;
             justify-content: space-between;
             gap: 8px;
-            margin-top: 6px;
+            margin-top: 4px;
             padding-top: 8px;
             border-top: 1px solid rgba(255, 255, 255, 0.08);
             flex-wrap: wrap;
@@ -1142,7 +1149,7 @@
             align-items: center;
         }
         .tour-btn {
-            padding: 6px 12px;
+            padding: 7px 12px;
             font-size: 11px;
             font-weight: 700;
             border-radius: 8px;
@@ -1151,15 +1158,15 @@
             transition: all 0.2s;
         }
         .tour-btn-prev {
-            background: rgba(30, 41, 59, 0.85);
-            border-color: rgba(56, 189, 248, 0.25);
+            background: rgba(30, 41, 59, 0.9);
+            border-color: rgba(56, 189, 248, 0.3);
             color: #cbd5e1;
         }
-        .tour-btn-prev:hover { background: rgba(51, 65, 85, 0.9); }
+        .tour-btn-prev:hover { background: rgba(51, 65, 85, 0.95); }
         .tour-btn-next {
             background: linear-gradient(135deg, #ef4444, #dc2626);
             color: #fff;
-            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
         }
         .tour-btn-next:hover {
             background: linear-gradient(135deg, #dc2626, #b91c1c);
@@ -4734,14 +4741,14 @@
                 aba: 'turnos',
                 seletor: '#aba-turnos .card',
                 titulo: '🪖 Módulo de Turnos & Ponto',
-                texto: 'Horário regulamentar oficial de Brasília (<b>17h às 02h</b>). São exigidos apenas <b>1 print para Check-in</b> e <b>1 print para Check-out</b> (mínimo de 30m). Se atingir <b>3 horas</b>, o tempo congela até confirmar a presença para prosseguir, sem apagar o turno!',
+                texto: 'Horário regulamentar oficial de Brasília (<b>17h às 02h</b>). Exigidos apenas <b>1 print no Check-in</b> e <b>1 print no Check-out</b> (mínimo de 30m). Se atingir <b>3 horas</b>, o tempo congela até confirmar a presença para prosseguir, sem apagar o turno!',
                 posicaoSeta: 'bottom'
             },
             {
                 aba: 'carteira',
                 seletor: '#aba-carteira .card:first-child',
                 titulo: '💳 Carteira & Bonificações',
-                texto: 'Aqui você acompanha o seu saldo acumulado em tempo real, bonificações recebidas do Comando e o extrato completo das missões diárias concluídas com print.',
+                texto: 'Acompanhe seu saldo em tempo real, bonificações recebidas do Comando e o extrato completo das missões diárias com print anexado.',
                 posicaoSeta: 'bottom'
             },
             {
@@ -4749,18 +4756,18 @@
                 seletor: '#aba-ranking .card',
                 titulo: '🏆 Ranking da Tropa & Pódio',
                 texto: 'Consulte os líderes operacionais e a sua posição no pódio da semana. O tempo regulamentar é contabilizado até às 02:00 de Brasília e premia os três primeiros colocados!',
-                posicaoSeta: 'top'
+                posicaoSeta: 'bottom'
             },
             {
                 aba: 'turnos',
-                seletor: '.drawer-nav-item[onclick*="abrirHistorico"]',
+                seletor: '.app-header',
                 titulo: '📜 Histórico Operacional Completo',
-                texto: 'No menu lateral (ou botão de histórico) você consulta detalhadamente cada turno homologado com horário exato de início, encerramento, intervalo decorrido e comprovantes anexados.',
-                posicaoSeta: 'top'
+                texto: 'No menu principal ou através do botão de histórico você consulta detalhadamente cada turno homologado com horário exato de início, encerramento, intervalo decorrido e comprovantes anexados.',
+                posicaoSeta: 'bottom'
             },
             {
                 aba: 'tropa',
-                seletor: '#aba-tropa .chat-main-panel',
+                seletor: '#aba-tropa .card:last-child',
                 titulo: '💬 Tropa & Rádio Tático',
                 texto: 'Transmita mensagens no rádio tático para toda a tropa, confira operacionais online e acompanhe quem está em plantão ativo na fiscalização instantânea.',
                 posicaoSeta: 'top'
@@ -4769,6 +4776,7 @@
 
         let indicePassoTutorialAtual = 0;
         let tutorialAtivo = false;
+        let elementoAlvoFocadoAnterior = null;
 
         function obterChaveTutorialUsuario() {
             const nick = (user && user.nickname) ? user.nickname.toLowerCase().trim() : 'padrao';
@@ -4787,6 +4795,13 @@
             }
         }
 
+        function limparFocoElementoAlvo() {
+            if (elementoAlvoFocadoAnterior) {
+                elementoAlvoFocadoAnterior.classList.remove('tour-target-focused');
+                elementoAlvoFocadoAnterior = null;
+            }
+        }
+
         function iniciarTutorialGuiado() {
             if (user && user.status === 'pendente') return;
             tutorialAtivo = true;
@@ -4802,27 +4817,33 @@
             if (indice < 0 || indice >= etapasTutorial.length) return;
             const passo = etapasTutorial[indice];
 
+            limparFocoElementoAlvo();
+
             // 1. Troca automaticamente para a aba da seção do passo
             if (passo.aba) {
                 mudarAba(passo.aba);
             }
 
-            // Aguarda renderização da aba para cálculo preciso do bounding box
+            // Aguarda renderização da aba para cálculo de scroll e dimensões
             setTimeout(() => {
                 let elAlvo = document.querySelector(passo.seletor);
 
-                // Fallback caso seletor seja o botão do menu lateral
                 if (!elAlvo || elAlvo.offsetParent === null) {
                     elAlvo = document.querySelector(`#aba-${passo.aba} .card`) || document.querySelector('.card');
                 }
                 if (!elAlvo) return;
 
+                // Eleva o elemento alvo para ficar 100% visível, nítido e acima da penumbra
+                elAlvo.classList.add('tour-target-focused');
+                elementoAlvoFocadoAnterior = elAlvo;
+
+                // Rola a tela suavemente até o elemento alvo ficar visível
                 elAlvo.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
                 setTimeout(() => {
                     posicionarElementosTutorial(elAlvo, passo, indice);
-                }, 220);
-            }, 100);
+                }, 260);
+            }, 120);
         }
 
         function posicionarElementosTutorial(elAlvo, passo, indice) {
@@ -4832,7 +4853,7 @@
             if (!spotlight || !popover || !arrow) return;
 
             const rect = elAlvo.getBoundingClientRect();
-            const padding = 8;
+            const padding = 6;
 
             spotlight.style.display = 'block';
             spotlight.style.top = `${Math.max(0, rect.top - padding)}px`;
@@ -4861,28 +4882,40 @@
 
             popover.style.display = 'flex';
             const popoverRect = popover.getBoundingClientRect();
-            const margem = 12;
+            const margemMin = 10;
+            const larguraTela = window.innerWidth;
+            const alturaTela = window.innerHeight;
 
+            // Centraliza o balão com relação ao alvo e restringe dentro da viewport sem estourar laterais
+            let centroAlvoX = rect.left + (rect.width / 2);
+            let leftPos = centroAlvoX - (popoverRect.width / 2);
+            leftPos = Math.max(margemMin, Math.min(larguraTela - popoverRect.width - margemMin, leftPos));
+
+            // Decisão inteligente de posição vertical (topo vs bottom)
             let topPos = 0;
-            let leftPos = Math.max(margem, Math.min(window.innerWidth - popoverRect.width - margem, rect.left + (rect.width / 2) - (popoverRect.width / 2)));
-            let posicaoSeta = passo.posicaoSeta || 'bottom';
+            const espacoAbaixo = alturaTela - (rect.bottom + padding + 14);
+            const espacoAcima = rect.top - padding - 14;
+            let colocarAcima = false;
 
-            // Decide posicionamento dinâmico vertical
-            const espacoAbaixo = window.innerHeight - (rect.bottom + padding + 16);
-            const espacoAcima = rect.top - padding - 16;
-
-            if (posicaoSeta === 'top' || espacoAbaixo < popoverRect.height + 20) {
-                if (espacoAcima >= popoverRect.height + 10) {
-                    topPos = Math.max(10, rect.top - padding - popoverRect.height - 12);
-                    arrow.className = 'tour-arrow arrow-bottom';
-                } else {
-                    topPos = Math.max(10, (window.innerHeight / 2) - (popoverRect.height / 2));
-                    arrow.className = 'tour-arrow';
-                }
+            if (passo.posicaoSeta === 'top') {
+                colocarAcima = espacoAcima >= popoverRect.height + 10;
             } else {
-                topPos = Math.min(window.innerHeight - popoverRect.height - margem, rect.bottom + padding + 12);
+                colocarAcima = (espacoAbaixo < popoverRect.height + 10) && (espacoAcima >= popoverRect.height + 10);
+            }
+
+            if (colocarAcima) {
+                topPos = Math.max(margemMin, rect.top - padding - popoverRect.height - 12);
+                arrow.className = 'tour-arrow arrow-bottom';
+            } else {
+                topPos = Math.min(alturaTela - popoverRect.height - margemMin, rect.bottom + padding + 12);
+                topPos = Math.max(margemMin, topPos);
                 arrow.className = 'tour-arrow arrow-top';
             }
+
+            // Alinha a seta exatamente para o centro do elemento alvo
+            let arrowLeft = centroAlvoX - leftPos - 9;
+            arrowLeft = Math.max(16, Math.min(popoverRect.width - 32, arrowLeft));
+            arrow.style.left = `${arrowLeft}px`;
 
             popover.style.top = `${topPos}px`;
             popover.style.left = `${leftPos}px`;
@@ -4906,6 +4939,7 @@
 
         function encerrarTutorial(foiPulado = false) {
             tutorialAtivo = false;
+            limparFocoElementoAlvo();
             localStorage.setItem(obterChaveTutorialUsuario(), 'true');
 
             const overlay = document.getElementById('tourOverlay');
@@ -4921,9 +4955,23 @@
         }
 
         // Recalcula dinamicamente em caso de rotação, resize ou scroll na tela
-        window.addEventListener('resize', () => {
-            if (tutorialAtivo) renderizarPassoTutorial(indicePassoTutorialAtual);
-        });
+        let timerRecalculoTour = null;
+        function agendarRecalculoPosicaoTour() {
+            if (!tutorialAtivo) return;
+            if (timerRecalculoTour) cancelAnimationFrame(timerRecalculoTour);
+            timerRecalculoTour = requestAnimationFrame(() => {
+                const passo = etapasTutorial[indicePassoTutorialAtual];
+                if (!passo) return;
+                let elAlvo = document.querySelector(passo.seletor);
+                if (!elAlvo || elAlvo.offsetParent === null) {
+                    elAlvo = document.querySelector(`#aba-${passo.aba} .card`) || document.querySelector('.card');
+                }
+                if (elAlvo) posicionarElementosTutorial(elAlvo, passo, indicePassoTutorialAtual);
+            });
+        }
+
+        window.addEventListener('resize', agendarRecalculoPosicaoTour, { passive: true });
+        window.addEventListener('scroll', agendarRecalculoPosicaoTour, { passive: true });
 
         // Disparo automático condicional ao carregar a página
         window.addEventListener('load', () => {
