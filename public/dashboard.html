@@ -161,45 +161,50 @@
             align-items: center;
             gap: 12px;
         }
-        /* --- MOLDURAS TÁTICAS POR CATEGORIA DE CARGO --- */
+        /* --- MOLDURAS PROFISSIONAIS E SÓBRIAS POR CATEGORIA DE CARGO --- */
         .moldura-general {
-            border: 2.5px solid #e0f2fe !important;
-            box-shadow: 0 0 16px rgba(56, 189, 248, 0.95), 0 0 28px rgba(186, 230, 253, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.6) !important;
-            background: radial-gradient(circle, rgba(56, 189, 248, 0.35) 0%, rgba(15, 23, 42, 0.95) 100%) !important;
+            border: 2px solid #e2e8f0 !important;
+            outline: 1.5px solid rgba(56, 189, 248, 0.5) !important;
+            outline-offset: 1px !important;
+            background: linear-gradient(135deg, rgba(226, 232, 240, 0.15), rgba(15, 23, 42, 0.95)) !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6), inset 0 0 4px rgba(255, 255, 255, 0.25) !important;
             position: relative;
-            animation: brilho-diamante 2.4s infinite alternate ease-in-out;
-        }
-        @keyframes brilho-diamante {
-            0% { filter: drop-shadow(0 0 4px #7dd3fc) drop-shadow(0 0 12px #38bdf8); }
-            100% { filter: drop-shadow(0 0 10px #ffffff) drop-shadow(0 0 20px #38bdf8); }
         }
         .moldura-coronel {
-            border: 2.5px solid #ef4444 !important;
-            box-shadow: 0 0 15px rgba(239, 68, 68, 0.8), inset 0 0 8px rgba(239, 68, 68, 0.4) !important;
-            background: rgba(30, 41, 59, 0.95) !important;
+            border: 2px solid #dc2626 !important;
+            outline: 1px solid rgba(239, 68, 68, 0.4) !important;
+            outline-offset: 1px !important;
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(15, 23, 42, 0.95)) !important;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5) !important;
         }
         .moldura-major {
-            border: 2.5px solid #f59e0b !important;
-            box-shadow: 0 0 14px rgba(245, 158, 11, 0.75), inset 0 0 6px rgba(245, 158, 11, 0.3) !important;
-            background: rgba(30, 41, 59, 0.95) !important;
+            border: 2px solid #d97706 !important;
+            outline: 1px solid rgba(245, 158, 11, 0.35) !important;
+            outline-offset: 1px !important;
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.15), rgba(15, 23, 42, 0.95)) !important;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5) !important;
         }
         .moldura-tenente {
-            border: 2px solid #fbbf24 !important;
-            box-shadow: 0 0 12px rgba(251, 191, 36, 0.6) !important;
-            background: rgba(30, 41, 59, 0.95) !important;
+            border: 2px solid #ca8a04 !important;
+            outline: 1px solid rgba(234, 179, 8, 0.3) !important;
+            outline-offset: 1px !important;
+            background: linear-gradient(135deg, rgba(202, 138, 4, 0.15), rgba(15, 23, 42, 0.95)) !important;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5) !important;
         }
         .moldura-sargento {
-            border: 2px solid #38bdf8 !important;
-            box-shadow: 0 0 12px rgba(56, 189, 248, 0.6) !important;
-            background: rgba(30, 41, 59, 0.95) !important;
+            border: 2px solid #0284c7 !important;
+            outline: 1px solid rgba(56, 189, 248, 0.35) !important;
+            outline-offset: 1px !important;
+            background: linear-gradient(135deg, rgba(2, 132, 199, 0.15), rgba(15, 23, 42, 0.95)) !important;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5) !important;
         }
         .moldura-soldado {
-            border: 2px solid #64748b !important;
-            box-shadow: 0 0 8px rgba(100, 116, 139, 0.5) !important;
+            border: 1.5px solid #475569 !important;
             background: rgba(30, 41, 59, 0.95) !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4) !important;
         }
         .moldura-privado {
-            border: 1.5px solid #475569 !important;
+            border: 1px solid #334155 !important;
             background: rgba(15, 23, 42, 0.9) !important;
         }
 
@@ -207,7 +212,7 @@
             width: 44px;
             height: 44px;
             border-radius: 50%;
-            border: 2px solid #ef4444;
+            border: 1.5px solid #475569;
             background: rgba(30, 41, 59, 0.9);
             display: flex;
             align-items: center;
@@ -216,6 +221,8 @@
             object-fit: cover;
             overflow: hidden;
             flex-shrink: 0;
+            padding: 2px;
+            box-sizing: border-box;
         }
         .drawer-user-name {
             font-size: 14px;
@@ -5400,7 +5407,20 @@
             }
         }
         function fecharHistorico() { document.getElementById('modalHistorico').style.display = 'none'; }
-        async function logout() { localStorage.clear(); window.location.href = 'index.html'; }
+        async function logout() {
+            // Preserva a isenção definitiva do tutorial mesmo após o logout
+            const chaves = obterChavesTutorialUsuario();
+            const nickConcluido = localStorage.getItem(chaves.chaveNick);
+            const idConcluido = chaves.chaveId ? localStorage.getItem(chaves.chaveId) : null;
+
+            localStorage.removeItem('user');
+            sessionStorage.clear();
+
+            if (nickConcluido) localStorage.setItem(chaves.chaveNick, nickConcluido);
+            if (idConcluido && chaves.chaveId) localStorage.setItem(chaves.chaveId, idConcluido);
+
+            window.location.href = 'index.html';
+        }
 
         /* ================================================================ */
         /* --- SISTEMA DE TUTORIAL GUIADO INTERATIVO (ONBOARDING TOUR) --- */
@@ -5529,7 +5549,7 @@
 
         function jaConcluiuTutorialDefinitivo() {
             if (window.__tutorialFinalizadoDefinitivamente === true) return true;
-            if (user && user.tutorialConcluido === true) {
+            if (user && (user.tutorialConcluido === true || user.tutorialConcluido === 'true')) {
                 window.__tutorialFinalizadoDefinitivamente = true;
                 return true;
             }
@@ -5549,7 +5569,7 @@
             // Regra 1: NUNCA exibe enquanto status for pendente ou diferente de ativo
             if (!user || user.status !== 'ativo' || user.status === 'pendente') return;
 
-            // Regra 2: Bloqueio absoluto se já concluído/pulado no localStorage, sessionStorage, memória ou banco
+            // Regra 2: Bloqueio absoluto se já concluído/pulado no banco, localStorage ou memória
             if (jaConcluiuTutorialDefinitivo()) return;
 
             // Inicia apenas se ainda estiver comprovadamente pendente de tour no primeiro acesso após aprovação

@@ -1132,7 +1132,7 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(503).json({ success: false, message: 'Conexão com a base de dados indisponível no momento. Tente novamente em instantes.' });
         }
 
-        const user = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') }, 'nickname password cargo role status').lean();
+        const user = await User.findOne({ nickname: new RegExp('^' + nickname.trim() + '$', 'i') }, 'nickname password cargo role status tutorialConcluido').lean();
         if (!user) return res.status(400).json({ success: false, message: 'Utilizador não encontrado.' });
         if (user.password && user.password !== passFinal) {
             return res.status(400).json({ success: false, message: 'Senha incorreta.' });
@@ -1313,8 +1313,8 @@ app.put('/api/membro/tutorial-concluido', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Identificador do membro não informado.' });
         }
 
-        await User.updateOne({ $or: query }, { $set: { tutorialConcluido: true } });
-        res.json({ success: true, message: 'Tutorial marcado como concluído com sucesso.' });
+        await User.updateMany({ $or: query }, { $set: { tutorialConcluido: true } });
+        res.json({ success: true, message: 'Tutorial marcado como concluído com sucesso definitivo.' });
     } catch (e) {
         console.error("Erro ao registrar conclusão do tutorial:", e);
         res.status(500).json({ success: false, message: 'Erro ao registrar status do tutorial.' });
