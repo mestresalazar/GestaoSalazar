@@ -1176,11 +1176,50 @@
             }, 180);
         }
 
+        function processarNovoRegistroOuAtualizacaoEfetivo(novoMembro) {
+            if (!novoMembro) return;
+            const idx = listaMembrosCache.findIndex(m =>
+                (m._id && novoMembro._id && String(m._id) === String(novoMembro._id)) ||
+                (m.nickname && novoMembro.nickname && m.nickname.toLowerCase() === novoMembro.nickname.toLowerCase())
+            );
+
+            if (idx >= 0) {
+                listaMembrosCache[idx] = Object.assign({}, listaMembrosCache[idx], novoMembro);
+            } else {
+                listaMembrosCache.unshift({
+                    _id: novoMembro._id || novoMembro.userId,
+                    nickname: novoMembro.nickname,
+                    cargo: novoMembro.cargo || 'Privado',
+                    status: novoMembro.status || 'pendente',
+                    emPlantao: !!novoMembro.emPlantao,
+                    ultimoPlantao: novoMembro.ultimoPlantao || 'Aguardando aprovação'
+                });
+            }
+
+            filtrarTabelaEfetivo();
+            carregarEstatisticasMembros();
+        }
+
+        socket.on('registro:solicitado', (dados) => {
+            processarNovoRegistroOuAtualizacaoEfetivo(dados);
+        });
+
+        socket.on('efetivo:atualizado', (dados) => {
+            processarNovoRegistroOuAtualizacaoEfetivo(dados);
+        });
+
+        socket.on('usuario:atualizado', (dados) => {
+            processarNovoRegistroOuAtualizacaoEfetivo(dados);
+            sincronizarPainelAdmEmTempoReal();
+        });
+
         socket.on('operacional:atualizado', (dados) => {
+            processarNovoRegistroOuAtualizacaoEfetivo(dados);
             sincronizarPainelAdmEmTempoReal();
         });
 
         socket.on('membro:promovido', (dados) => {
+            processarNovoRegistroOuAtualizacaoEfetivo(dados);
             sincronizarPainelAdmEmTempoReal();
         });
 

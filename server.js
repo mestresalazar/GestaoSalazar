@@ -1186,6 +1186,21 @@ app.post('/api/auth/register', async (req, res) => {
 
         await novoUtilizador.save();
         await registarLogAdmin(nickname.trim(), 'Registo de Conta', `Novo registo de conta pendente para ${nickname.trim()}.`);
+
+        const payloadNovoRegistro = {
+            _id: novoUtilizador._id,
+            userId: novoUtilizador._id,
+            nickname: novoUtilizador.nickname,
+            cargo: novoUtilizador.cargo || 'Privado',
+            status: novoUtilizador.status || 'pendente',
+            emPlantao: false,
+            ultimoPlantao: 'Aguardando aprovação'
+        };
+
+        io.emit('registro:solicitado', payloadNovoRegistro);
+        io.emit('efetivo:atualizado', payloadNovoRegistro);
+        io.emit('atualizar_status_geral_tropa');
+
         res.json({ success: true, message: 'Conta registada com sucesso! Aguarde aprovação.' });
     } catch (error) {
         console.error("Erro no registro:", error);
@@ -2808,7 +2823,7 @@ app.put('/api/admin/membro/:id', async (req, res) => {
         if (status) updateData.status = status;
         if (cargo) updateData.cargo = cargo;
 
-        const membro = await User.findByIdAndUpdate(id, { $set: updateData }, { new: true, select: 'nickname cargo status' }).lean();
+        const membro = await User.findByIdAndUpdate(id, { $set: updateData }, { returnDocument: 'after', select: 'nickname cargo status role' }).lean();
         const nomeAutor = autor || 'Comando';
 
         if (cargo && cargo !== membroAntigo.cargo) {
@@ -2835,12 +2850,14 @@ app.put('/api/admin/membro/:id', async (req, res) => {
 
         const payloadAtualizacaoMembro = {
             userId: membro._id,
+            _id: membro._id,
             nickname: membro.nickname,
             cargo: membro.cargo,
             status: membro.status,
             role: membro.role || 'user'
         };
 
+        io.emit('usuario:atualizado', payloadAtualizacaoMembro);
         io.emit('operacional:atualizado', payloadAtualizacaoMembro);
         io.emit('membro:promovido', payloadAtualizacaoMembro);
         io.emit('atualizar_status_geral_tropa');
@@ -2894,7 +2911,7 @@ app.put('/api/admin/membro/resetar-turnos/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { autor } = req.body;
-        const membro = await User.findByIdAndUpdate(id, { $set: { historicoTurnos: [] } }, { new: true, select: 'nickname' }).lean();
+        const membro = await User.findByIdAndUpdate(id, { $set: { historicoTurnos: [] } }, { returnDocument: 'after', select: 'nickname' }).lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
         io.emit('atualizar_status_geral_tropa');
         await registarLogAdmin(autor || 'Comando', 'Reset de Turnos', `Histórico de turnos de ${membro.nickname} foi limpo por ${autor || 'Comando'}.`);
@@ -2911,7 +2928,7 @@ app.delete('/api/admin/membro/:id/turno/:turnoId', async (req, res) => {
         const membro = await User.findByIdAndUpdate(
             id,
             { $pull: { historicoTurnos: { _id: turnoId } } },
-            { new: true, select: 'nickname' }
+            { returnDocument: 'after', select: 'nickname' }
         ).lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
@@ -3246,10 +3263,12 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
 
             const payloadExame = {
                 userId: membro._id,
+                _id: membro._id,
                 nickname: nickname,
                 cargo: cargoAlvo,
                 status: 'ativo'
             };
+            io.emit('usuario:atualizado', payloadExame);
             io.emit('operacional:atualizado', payloadExame);
             io.emit('membro:promovido', payloadExame);
             io.emit('atualizar_status_geral_tropa');
