@@ -1022,6 +1022,148 @@
             .podium-nick { font-size: 12px; }
             .podium-time { font-size: 12px; }
         }
+
+        /* --- SISTEMA DE TUTORIAL GUIADO INTERATIVO (ONBOARDING TOUR) --- */
+        .tour-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(3, 7, 18, 0.78);
+            z-index: 99990;
+            display: none;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            pointer-events: auto;
+            transition: opacity 0.3s ease;
+        }
+        .tour-spotlight {
+            position: fixed;
+            border-radius: 14px;
+            border: 2px solid #38bdf8;
+            box-shadow: 0 0 0 9999px rgba(3, 7, 18, 0.78), 0 0 24px rgba(56, 189, 248, 0.55);
+            z-index: 99992;
+            pointer-events: none;
+            transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: pulse-tour-spotlight 2s infinite alternate;
+        }
+        @keyframes pulse-tour-spotlight {
+            0% { box-shadow: 0 0 0 9999px rgba(3, 7, 18, 0.78), 0 0 16px rgba(56, 189, 248, 0.4); border-color: #38bdf8; }
+            100% { box-shadow: 0 0 0 9999px rgba(3, 7, 18, 0.78), 0 0 28px rgba(239, 68, 68, 0.6); border-color: #ef4444; }
+        }
+        .tour-popover {
+            position: fixed;
+            z-index: 99995;
+            background: linear-gradient(160deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99));
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            border-radius: 16px;
+            padding: 18px 20px;
+            width: 320px;
+            max-width: calc(100vw - 24px);
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.9), 0 0 20px rgba(56, 189, 248, 0.2);
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            color: #fff;
+            animation: fadeIn 0.25s ease-out;
+            transition: top 0.25s ease, left 0.25s ease;
+        }
+        .tour-arrow {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-style: solid;
+        }
+        .tour-arrow.arrow-top {
+            top: -10px;
+            left: calc(50% - 10px);
+            border-width: 0 10px 10px 10px;
+            border-color: transparent transparent rgba(56, 189, 248, 0.5) transparent;
+        }
+        .tour-arrow.arrow-bottom {
+            bottom: -10px;
+            left: calc(50% - 10px);
+            border-width: 10px 10px 0 10px;
+            border-color: rgba(56, 189, 248, 0.5) transparent transparent transparent;
+        }
+        .tour-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+            padding-bottom: 8px;
+        }
+        .tour-title {
+            font-size: 14px;
+            font-weight: 800;
+            color: #38bdf8;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .tour-step-counter {
+            font-size: 11px;
+            font-weight: 700;
+            background: rgba(56, 189, 248, 0.15);
+            color: #7dd3fc;
+            padding: 2px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+        .tour-body {
+            font-size: 12px;
+            color: #e2e8f0;
+            line-height: 1.55;
+        }
+        .tour-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: 6px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            flex-wrap: wrap;
+        }
+        .tour-btn-skip {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 6px 8px;
+            border-radius: 6px;
+            transition: color 0.2s;
+        }
+        .tour-btn-skip:hover { color: #f87171; text-decoration: underline; }
+        .tour-nav-btns {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .tour-btn {
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+        .tour-btn-prev {
+            background: rgba(30, 41, 59, 0.85);
+            border-color: rgba(56, 189, 248, 0.25);
+            color: #cbd5e1;
+        }
+        .tour-btn-prev:hover { background: rgba(51, 65, 85, 0.9); }
+        .tour-btn-next {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
+        }
+        .tour-btn-next:hover {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+        }
     </style>
     <script src="/socket.io/socket.io.js"></script>
 </head>
@@ -1840,6 +1982,25 @@
             <h3 id="modalCustomTitle" style="color: #38bdf8; margin-bottom: 12px; font-size: 18px;">Gestão Salazar</h3>
             <p id="modalCustomMessage" style="color: #e2e8f0; font-size: 14px; margin-bottom: 22px; line-height: 1.5;"></p>
             <div id="modalCustomButtons" style="display: flex; gap: 12px; justify-content: center;"></div>
+        </div>
+    </div>
+
+    <!-- ELEMENTOS DO TUTORIAL GUIADO INTERATIVO (TOUR) -->
+    <div id="tourOverlay" class="tour-overlay"></div>
+    <div id="tourSpotlight" class="tour-spotlight" style="display: none;"></div>
+    <div id="tourPopover" class="tour-popover">
+        <div id="tourArrow" class="tour-arrow arrow-top"></div>
+        <div class="tour-header">
+            <span id="tourTitle" class="tour-title">🪖 Passo Tutorial</span>
+            <span id="tourStepBadge" class="tour-step-counter">1 de 5</span>
+        </div>
+        <div id="tourBody" class="tour-body">Descrição do passo...</div>
+        <div class="tour-footer">
+            <button class="tour-btn-skip" onclick="encerrarTutorial(true)">Pular Tutorial</button>
+            <div class="tour-nav-btns">
+                <button id="tourBtnPrev" class="tour-btn tour-btn-prev" onclick="retrocederPassoTutorial()">Anterior</button>
+                <button id="tourBtnNext" class="tour-btn tour-btn-next" onclick="avancarPassoTutorial()">Próximo</button>
+            </div>
         </div>
     </div>
 
@@ -3404,6 +3565,11 @@
 
                     sincronizarCarteiraEMissoes();
                     verificarProgressoProvas();
+
+                    // Se a conta acabou de ser aprovada pelo Comando durante a sessão ativa, verifica tour
+                    if (dados.status === 'ativo') {
+                        setTimeout(verificarInicioTutorialOnboarding, 600);
+                    }
                 }
             }
         }
@@ -4559,6 +4725,210 @@
         }
         function fecharHistorico() { document.getElementById('modalHistorico').style.display = 'none'; }
         async function logout() { localStorage.clear(); window.location.href = 'index.html'; }
+
+        /* ================================================================ */
+        /* --- SISTEMA DE TUTORIAL GUIADO INTERATIVO (ONBOARDING TOUR) --- */
+        /* ================================================================ */
+        const etapasTutorial = [
+            {
+                aba: 'turnos',
+                seletor: '#aba-turnos .card',
+                titulo: '🪖 Módulo de Turnos & Ponto',
+                texto: 'Horário regulamentar oficial de Brasília (<b>17h às 02h</b>). São exigidos apenas <b>1 print para Check-in</b> e <b>1 print para Check-out</b> (mínimo de 30m). Se atingir <b>3 horas</b>, o tempo congela até confirmar a presença para prosseguir, sem apagar o turno!',
+                posicaoSeta: 'bottom'
+            },
+            {
+                aba: 'carteira',
+                seletor: '#aba-carteira .card:first-child',
+                titulo: '💳 Carteira & Bonificações',
+                texto: 'Aqui você acompanha o seu saldo acumulado em tempo real, bonificações recebidas do Comando e o extrato completo das missões diárias concluídas com print.',
+                posicaoSeta: 'bottom'
+            },
+            {
+                aba: 'ranking',
+                seletor: '#aba-ranking .card',
+                titulo: '🏆 Ranking da Tropa & Pódio',
+                texto: 'Consulte os líderes operacionais e a sua posição no pódio da semana. O tempo regulamentar é contabilizado até às 02:00 de Brasília e premia os três primeiros colocados!',
+                posicaoSeta: 'top'
+            },
+            {
+                aba: 'turnos',
+                seletor: '.drawer-nav-item[onclick*="abrirHistorico"]',
+                titulo: '📜 Histórico Operacional Completo',
+                texto: 'No menu lateral (ou botão de histórico) você consulta detalhadamente cada turno homologado com horário exato de início, encerramento, intervalo decorrido e comprovantes anexados.',
+                posicaoSeta: 'top'
+            },
+            {
+                aba: 'tropa',
+                seletor: '#aba-tropa .chat-main-panel',
+                titulo: '💬 Tropa & Rádio Tático',
+                texto: 'Transmita mensagens no rádio tático para toda a tropa, confira operacionais online e acompanhe quem está em plantão ativo na fiscalização instantânea.',
+                posicaoSeta: 'top'
+            }
+        ];
+
+        let indicePassoTutorialAtual = 0;
+        let tutorialAtivo = false;
+
+        function obterChaveTutorialUsuario() {
+            const nick = (user && user.nickname) ? user.nickname.toLowerCase().trim() : 'padrao';
+            return `tutorial_concluido_${nick}`;
+        }
+
+        function verificarInicioTutorialOnboarding() {
+            // Regra estrita: NUNCA exibe enquanto o status for pendente ou não aprovado
+            if (!user || user.status === 'pendente') return;
+
+            const jaConcluiu = localStorage.getItem(obterChaveTutorialUsuario()) === 'true';
+            if (!jaConcluiu) {
+                setTimeout(() => {
+                    iniciarTutorialGuiado();
+                }, 750);
+            }
+        }
+
+        function iniciarTutorialGuiado() {
+            if (user && user.status === 'pendente') return;
+            tutorialAtivo = true;
+            indicePassoTutorialAtual = 0;
+
+            const overlay = document.getElementById('tourOverlay');
+            if (overlay) overlay.style.display = 'block';
+
+            renderizarPassoTutorial(indicePassoTutorialAtual);
+        }
+
+        function renderizarPassoTutorial(indice) {
+            if (indice < 0 || indice >= etapasTutorial.length) return;
+            const passo = etapasTutorial[indice];
+
+            // 1. Troca automaticamente para a aba da seção do passo
+            if (passo.aba) {
+                mudarAba(passo.aba);
+            }
+
+            // Aguarda renderização da aba para cálculo preciso do bounding box
+            setTimeout(() => {
+                let elAlvo = document.querySelector(passo.seletor);
+
+                // Fallback caso seletor seja o botão do menu lateral
+                if (!elAlvo || elAlvo.offsetParent === null) {
+                    elAlvo = document.querySelector(`#aba-${passo.aba} .card`) || document.querySelector('.card');
+                }
+                if (!elAlvo) return;
+
+                elAlvo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                setTimeout(() => {
+                    posicionarElementosTutorial(elAlvo, passo, indice);
+                }, 220);
+            }, 100);
+        }
+
+        function posicionarElementosTutorial(elAlvo, passo, indice) {
+            const spotlight = document.getElementById('tourSpotlight');
+            const popover = document.getElementById('tourPopover');
+            const arrow = document.getElementById('tourArrow');
+            if (!spotlight || !popover || !arrow) return;
+
+            const rect = elAlvo.getBoundingClientRect();
+            const padding = 8;
+
+            spotlight.style.display = 'block';
+            spotlight.style.top = `${Math.max(0, rect.top - padding)}px`;
+            spotlight.style.left = `${Math.max(0, rect.left - padding)}px`;
+            spotlight.style.width = `${rect.width + (padding * 2)}px`;
+            spotlight.style.height = `${rect.height + (padding * 2)}px`;
+
+            // Atualiza conteúdos de texto e passos
+            document.getElementById('tourTitle').innerHTML = passo.titulo;
+            document.getElementById('tourStepBadge').innerText = `${indice + 1} de ${etapasTutorial.length}`;
+            document.getElementById('tourBody').innerHTML = passo.texto;
+
+            const btnPrev = document.getElementById('tourBtnPrev');
+            const btnNext = document.getElementById('tourBtnNext');
+
+            if (btnPrev) btnPrev.style.display = indice === 0 ? 'none' : 'inline-block';
+            if (btnNext) {
+                if (indice === etapasTutorial.length - 1) {
+                    btnNext.innerText = 'Concluir ✅';
+                    btnNext.style.background = 'linear-gradient(135deg, #16a34a, #15803d)';
+                } else {
+                    btnNext.innerText = 'Próximo ➔';
+                    btnNext.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                }
+            }
+
+            popover.style.display = 'flex';
+            const popoverRect = popover.getBoundingClientRect();
+            const margem = 12;
+
+            let topPos = 0;
+            let leftPos = Math.max(margem, Math.min(window.innerWidth - popoverRect.width - margem, rect.left + (rect.width / 2) - (popoverRect.width / 2)));
+            let posicaoSeta = passo.posicaoSeta || 'bottom';
+
+            // Decide posicionamento dinâmico vertical
+            const espacoAbaixo = window.innerHeight - (rect.bottom + padding + 16);
+            const espacoAcima = rect.top - padding - 16;
+
+            if (posicaoSeta === 'top' || espacoAbaixo < popoverRect.height + 20) {
+                if (espacoAcima >= popoverRect.height + 10) {
+                    topPos = Math.max(10, rect.top - padding - popoverRect.height - 12);
+                    arrow.className = 'tour-arrow arrow-bottom';
+                } else {
+                    topPos = Math.max(10, (window.innerHeight / 2) - (popoverRect.height / 2));
+                    arrow.className = 'tour-arrow';
+                }
+            } else {
+                topPos = Math.min(window.innerHeight - popoverRect.height - margem, rect.bottom + padding + 12);
+                arrow.className = 'tour-arrow arrow-top';
+            }
+
+            popover.style.top = `${topPos}px`;
+            popover.style.left = `${leftPos}px`;
+        }
+
+        function avancarPassoTutorial() {
+            if (indicePassoTutorialAtual < etapasTutorial.length - 1) {
+                indicePassoTutorialAtual++;
+                renderizarPassoTutorial(indicePassoTutorialAtual);
+            } else {
+                encerrarTutorial(false);
+            }
+        }
+
+        function retrocederPassoTutorial() {
+            if (indicePassoTutorialAtual > 0) {
+                indicePassoTutorialAtual--;
+                renderizarPassoTutorial(indicePassoTutorialAtual);
+            }
+        }
+
+        function encerrarTutorial(foiPulado = false) {
+            tutorialAtivo = false;
+            localStorage.setItem(obterChaveTutorialUsuario(), 'true');
+
+            const overlay = document.getElementById('tourOverlay');
+            const spotlight = document.getElementById('tourSpotlight');
+            const popover = document.getElementById('tourPopover');
+
+            if (overlay) overlay.style.display = 'none';
+            if (spotlight) spotlight.style.display = 'none';
+            if (popover) popover.style.display = 'none';
+
+            // Retorna à aba padrão de turnos
+            mudarAba('turnos');
+        }
+
+        // Recalcula dinamicamente em caso de rotação, resize ou scroll na tela
+        window.addEventListener('resize', () => {
+            if (tutorialAtivo) renderizarPassoTutorial(indicePassoTutorialAtual);
+        });
+
+        // Disparo automático condicional ao carregar a página
+        window.addEventListener('load', () => {
+            verificarInicioTutorialOnboarding();
+        });
     </script>
 </body>
 </html>
