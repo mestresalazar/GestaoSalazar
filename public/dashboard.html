@@ -5140,38 +5140,103 @@
         /* ================================================================ */
         const etapasTutorial = [
             {
+                id: 'tour-turnos',
                 aba: 'turnos',
-                seletor: '#aba-turnos .card',
-                titulo: '🪖 Módulo de Turnos & Ponto',
-                texto: 'Horário regulamentar oficial de Brasília (<b>17h às 02h</b>). Exigidos apenas <b>1 print no Check-in</b> e <b>1 print no Check-out</b> (mínimo de 30m). Se atingir <b>3 horas</b>, o tempo congela até confirmar a presença para prosseguir, sem apagar o turno!',
+                seletor: '#aba-turnos .card:first-child',
+                titulo: '🪖 1. Turnos & Bate-Ponto',
+                texto: 'Horário regulamentar oficial de Brasília (<b>17:00 às 02:00</b>). São necessários <b>apenas 1 print ao iniciar (Check-in)</b> e <b>1 print ao finalizar (Check-out)</b>, sem necessidade de confirmações de 1 em 1 hora! Ao atingir <b>3 horas</b>, o tempo <b>congela em 03:00:00</b> sem excluir o seu turno até que confirme a presença.',
                 posicaoSeta: 'bottom'
             },
             {
+                id: 'tour-carteira',
                 aba: 'carteira',
                 seletor: '#aba-carteira .card:first-child',
-                titulo: '💳 Carteira & Bonificações',
-                texto: 'Acompanhe seu saldo em tempo real, bonificações recebidas do Comando e o extrato completo das missões diárias com print anexado.',
+                titulo: '💳 2. Carteira Digital & Bonificações',
+                texto: 'Acompanhe seu saldo em tempo real, os ganhos do dia e o extrato de bonificações creditadas pelo Comando. Missões concluídas e bônus de plantão são consolidados diretamente aqui.',
                 posicaoSeta: 'bottom'
             },
             {
-                aba: 'ranking',
-                seletor: '#aba-ranking .card',
-                titulo: '🏆 Ranking da Tropa & Pódio',
-                texto: 'Consulte os líderes operacionais e a sua posição no pódio da semana. O tempo regulamentar é contabilizado até às 02:00 de Brasília e premia os três primeiros colocados!',
+                id: 'tour-missoes',
+                aba: 'missoes',
+                seletor: '#aba-missoes .card',
+                titulo: '📋 3. Missões Diárias do QG',
+                texto: 'Confira as missões operacionais específicas para a sua patente. Cada atividade concluída e comprovada com <b>print da ação</b> adiciona o valor correspondente na sua Carteira Digital.',
                 posicaoSeta: 'bottom'
             },
             {
-                aba: 'turnos',
-                seletor: '.app-header',
-                titulo: '📜 Histórico Operacional Completo',
-                texto: 'No menu principal ou através do botão de histórico você consulta detalhadamente cada turno homologado com horário exato de início, encerramento, intervalo decorrido e comprovantes anexados.',
-                posicaoSeta: 'bottom'
-            },
-            {
+                id: 'tour-tropa-radio',
                 aba: 'tropa',
                 seletor: '#aba-tropa .card:last-child',
-                titulo: '💬 Tropa & Rádio Tático',
-                texto: 'Transmita mensagens no rádio tático para toda a tropa, confira operacionais online e acompanhe quem está em plantão ativo na fiscalização instantânea.',
+                titulo: '👀 4. Tropa & Rádio Tático',
+                texto: 'Acompanhe em tempo real quem está em plantão ativo na <b>Fiscalização</b>, confira operacionais online e transmita informes no canal oficial de <b>Rádio Tático</b>.',
+                posicaoSeta: 'top'
+            },
+            {
+                id: 'tour-voz',
+                aba: 'voz',
+                seletor: '#aba-voz .card',
+                titulo: '🎙️ 5. Central de Voz (Call)',
+                texto: 'Comunicação tática estilo Discord integrada diretamente no navegador. Conecte-se à <b>Sala de Reunião Geral</b>, ative ou mute seu microfone e acompanhe os operadores conectados.',
+                posicaoSeta: 'bottom'
+            },
+            {
+                id: 'tour-ranking',
+                aba: 'ranking',
+                seletor: '#aba-ranking .card',
+                titulo: '🏆 6. Ranking da Tropa & Pódio',
+                texto: 'Acompanhe o pódio semanal e a sua colocação. Apenas o <b>tempo ativo efetivo</b> cumprido no horário regulamentar (17h–02h) sem pausas pontua no ranking, premiando os 3 primeiros colocados!',
+                posicaoSeta: 'bottom'
+            },
+            {
+                id: 'tour-regras',
+                aba: 'regras-cronograma',
+                subAba: 'regras',
+                seletor: '#aba-regras-cronograma',
+                titulo: '📖 7. Regras & Cronograma',
+                texto: 'Diretrizes disciplinares completas: <b>Capítulo 4</b> (proibições gerais, máscara e deslocamento), <b>Capítulo 5</b> (formações em 5 min e armamento), <b>Capítulo 6</b> (hierarquia e rádio), <b>Capítulo 7</b> (7h semanais e ausência máxima) e cronograma semanal alinhado.',
+                posicaoSeta: 'bottom'
+            },
+            {
+                id: 'tour-justificativas',
+                aba: 'justificativas',
+                seletor: '#aba-justificativas .card:first-child',
+                titulo: '📝 8. Justificativas de Ausência',
+                texto: 'Não poderá comparecer ao serviço? Envie sua justificativa com antecedência indicando o motivo e período. Lembre-se: ausência injustificada superior a <b>3 dias consecutivos</b> gera exoneração (Cap. 7.2).',
+                posicaoSeta: 'bottom'
+            },
+            {
+                id: 'tour-historico',
+                aba: 'turnos',
+                abrirModal: 'historico',
+                seletor: '#modalHistorico .modal-content',
+                titulo: '📜 9. Histórico Operacional Completo',
+                texto: 'Consulte detalhadamente todos os seus plantões homologados: data, horário de início, horário de término, tempo ativo decorrido, motivo e os prints comprovatórios vinculados.',
+                posicaoSeta: 'bottom'
+            },
+            {
+                id: 'tour-perfil',
+                aba: 'turnos',
+                abrirModal: 'perfil',
+                seletor: '#modalPerfil > div',
+                titulo: '👤 10. Meu Perfil & WhatsApp',
+                texto: 'Gerencie seu nickname, avatar e cadastre obrigatoriamente o seu <b>número do WhatsApp</b> para liberar seu acesso ao Grupo Oficial da Tropa, além de visualizar seu tempo total de casa.',
+                posicaoSeta: 'bottom'
+            },
+            {
+                id: 'tour-estudar',
+                aba: 'turnos',
+                abrirModal: 'guiaEstudo',
+                seletor: '#modalGuiaEstudo > div',
+                titulo: '📖 11. Onde Estudar (Guia Rápido & Códigos Q)',
+                texto: 'Área dedicada para revisão e consulta rápida com busca em tempo real de todos os <b>Códigos Q regulamentares (QRA a QTU)</b> e as principais regras dos Capítulos 4, 5, 6 e 7.',
+                posicaoSeta: 'bottom'
+            },
+            {
+                id: 'tour-provas',
+                aba: 'turnos',
+                seletor: '#cardModuloProvas',
+                titulo: '🎓 12. Onde Fazer a Prova',
+                texto: 'Módulo de exames oficiais do Exército Brasileiro! Ao atingir as horas de plantão exigidas para sua patente, o botão de realização da prova para <b>Sargento, Tenente ou Major</b> é desbloqueado aqui.',
                 posicaoSeta: 'top'
             }
         ];
@@ -5249,31 +5314,71 @@
 
             limparFocoElementoAlvo();
 
-            // 1. Troca automaticamente para a aba da seção do passo
+            // 1. Fecha modais de passos anteriores caso não sejam os exigidos neste passo
+            const modalHist = document.getElementById('modalHistorico');
+            const modalPerf = document.getElementById('modalPerfil');
+            const modalGuia = document.getElementById('modalGuiaEstudo');
+
+            if (passo.abrirModal !== 'historico' && modalHist) modalHist.style.display = 'none';
+            if (passo.abrirModal !== 'perfil' && modalPerf) modalPerf.style.display = 'none';
+            if (passo.abrirModal !== 'guiaEstudo' && modalGuia) modalGuia.style.display = 'none';
+
+            // 2. Troca para a aba correspondente
             if (passo.aba) {
                 mudarAba(passo.aba);
             }
 
-            // Aguarda renderização da aba para cálculo de scroll e dimensões
+            // 3. Ativa subaba de regras caso configurada
+            if (passo.subAba && typeof alternarSubSecaoRegras === 'function') {
+                const btnSub = document.getElementById('btnSubSecaoRegras');
+                alternarSubSecaoRegras(passo.subAba, btnSub);
+            }
+
+            // 4. Se for o passo de provas, certifica visibilidade do módulo
+            if (passo.id === 'tour-provas') {
+                const cardProvas = document.getElementById('cardModuloProvas');
+                if (cardProvas) cardProvas.style.display = 'block';
+            }
+
+            // 5. Aciona abertura controlada de modal caso requerido
+            if (passo.abrirModal === 'historico' && typeof abrirHistorico === 'function') {
+                abrirHistorico();
+            } else if (passo.abrirModal === 'perfil' && typeof abrirPerfilModal === 'function') {
+                abrirPerfilModal();
+            } else if (passo.abrirModal === 'guiaEstudo' && typeof abrirGuiaRapidoEstudo === 'function') {
+                abrirGuiaRapidoEstudo();
+            }
+
+            // Aguarda renderização para cálculo exato de dimensões e scroll
             setTimeout(() => {
-                let elAlvo = document.querySelector(passo.seletor);
+                let elAlvo = null;
+                if (passo.seletor) {
+                    try {
+                        elAlvo = document.querySelector(passo.seletor);
+                    } catch (e) {}
+                }
 
                 if (!elAlvo || elAlvo.offsetParent === null) {
-                    elAlvo = document.querySelector(`#aba-${passo.aba} .card`) || document.querySelector('.card');
+                    if (passo.abrirModal === 'historico') elAlvo = document.getElementById('modalHistorico');
+                    else if (passo.abrirModal === 'perfil') elAlvo = document.getElementById('modalPerfil');
+                    else if (passo.abrirModal === 'guiaEstudo') elAlvo = document.getElementById('modalGuiaEstudo');
+                    else elAlvo = document.querySelector(`#aba-${passo.aba} .card`) || document.querySelector('.card') || document.body;
                 }
                 if (!elAlvo) return;
 
-                // Eleva o elemento alvo para ficar 100% visível, nítido e acima da penumbra
+                // Eleva o elemento alvo para ficar 100% nítido e visível acima da penumbra
                 elAlvo.classList.add('tour-target-focused');
                 elementoAlvoFocadoAnterior = elAlvo;
 
-                // Rola a tela suavemente até o elemento alvo ficar visível
-                elAlvo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Scroll suave até o elemento
+                if (typeof elAlvo.scrollIntoView === 'function') {
+                    elAlvo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
 
                 setTimeout(() => {
                     posicionarElementosTutorial(elAlvo, passo, indice);
-                }, 260);
-            }, 120);
+                }, 240);
+            }, 140);
         }
 
         function posicionarElementosTutorial(elAlvo, passo, indice) {
@@ -5372,6 +5477,14 @@
             window.__tutorialFinalizadoDefinitivamente = true;
             limparFocoElementoAlvo();
 
+            // Fecha eventuais modais que tenham sido abertos durante o tour
+            const modalHist = document.getElementById('modalHistorico');
+            const modalPerf = document.getElementById('modalPerfil');
+            const modalGuia = document.getElementById('modalGuiaEstudo');
+            if (modalHist) modalHist.style.display = 'none';
+            if (modalPerf) modalPerf.style.display = 'none';
+            if (modalGuia) modalGuia.style.display = 'none';
+
             const chaves = obterChavesTutorialUsuario();
             localStorage.setItem(chaves.chaveNick, 'true');
             if (chaves.chaveId) localStorage.setItem(chaves.chaveId, 'true');
@@ -5382,7 +5495,7 @@
                 localStorage.setItem('user', JSON.stringify(user));
             }
 
-            // Persiste no banco de dados
+            // Persiste no banco de dados via API
             fetch('/api/membro/tutorial-concluido', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
