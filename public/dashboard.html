@@ -3771,6 +3771,7 @@
         let timerInterval = null, estadoTurno = 'parado', segundosAcumuladosBase = 0, timestampInicioServer = null, fotoComprovanteBase64 = '';
         let processandoCheckin = false, processandoCheckout = false;
         const TEMPO_MINIMO_SEGUNDOS = 30 * 60;
+        const LIMITE_MAXIMO_TURNO_SEGUNDOS = 3 * 3600; // Limite rigoroso de 3 horas por turno
 
         function obterInfoEtapaHorarioBrasilia() {
             const comp = obterComponentesBrasilia(new Date());
@@ -3795,7 +3796,7 @@
                     btnCheckinEl.disabled = true;
                     btnCheckinEl.innerText = 'Turno Ativo';
                 }
-                if (avisoTempo) avisoTempo.innerHTML = '⏱️ Tempo mínimo para computar horas: <b>30 minutos</b>.';
+                if (avisoTempo) avisoTempo.innerHTML = '⏱️ Tempo mínimo: <b>30 minutos</b> • Limite máximo: <b>3 horas</b> (sem finalizar, o turno é zerado).';
             } else if (estadoTurno === 'pausado') {
                 etapaEl.innerHTML = `Etapa: <b style="color: #38bdf8;">${info.nome}</b> • <b style="color: #eab308;">Turno pausado</b>`;
                 if (btnCheckinEl) {
@@ -3819,7 +3820,7 @@
                         btnCheckinEl.disabled = false;
                         btnCheckinEl.innerText = 'Iniciar Turno (Check-in)';
                     }
-                    if (avisoTempo) avisoTempo.innerHTML = '⏱️ Tempo mínimo para computar horas: <b>30 minutos</b>.';
+                    if (avisoTempo) avisoTempo.innerHTML = '⏱️ Tempo mínimo: <b>30 minutos</b> • Limite máximo: <b>3 horas por turno</b>.';
                 }
             }
             atualizarStatusSorteioUI();
@@ -3833,165 +3834,11 @@
             if (statusAnexoEl) statusAnexoEl.innerText = '';
         }
 
-        let horasVerificadasLocal = new Set();
-        let avisosPrevia10mDisparados = new Set();
-        let fotoVerificacaoHoraBase64 = '';
-        let timerExpiracaoVerificacao = null;
-
-        function converterFotoVerificacaoHora(input) {
-            if (input.files && input.files[0]) {
-                comprimirImagemBase64(input.files[0], function(base64) {
-                    fotoVerificacaoHoraBase64 = base64;
-                });
-            }
-        }
-
-        async function enviarPrintVerificacaoHora() {
-            if (!fotoVerificacaoHoraBase64) {
-                mostrarModalCustomizado('Atenção', 'Anexe o print do jogo para confirmar a verificação da hora.');
-                return;
-            }
-
-            const btnEnviar = document.getElementById('btnEnviarVerificacaoHora');
-            if (btnEnviar) {
-                btnEnviar.disabled = true;
-                btnEnviar.innerText = 'A enviar comprovante...';
-            }
-
-            const total = calcularSegundosTotais();
-            const horaAtual = Math.floor(total / 3600);
-
-            try {
-                const res = await fetch('/api/membro/turno/verificacao-hora', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        nickname: user.nickname,
-                        fotoComprovante: fotoVerificacaoHoraBase64,
-                        horaNumero: horaAtual,
-                        segundosDecorridos: total
-                    })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    horasVerificadasLocal.add(horaAtual);
-                    document.getElementById('boxVerificacaoHora').style.display = 'none';
-                    fotoVerificacaoHoraBase64 = '';
-                    if (timerExpiracaoVerificacao) {
-                        clearInterval(timerExpiracaoVerificacao);
-                        timerExpiracaoVerificacao = null;
-                    }
-                    mostrarModalCustomizado('Verificação Confirmada', `Print de presença da ${horaAtual}ª hora registado no sistema com sucesso!`);
-                } else {
-                    mostrarModalCustomizado('Erro', escapeHTML(data.message || 'Erro ao registrar verificação.'));
-                }
-            } catch (e) {
-                mostrarModalCustomizado('Erro', 'Erro de ligação ao enviar comprovante de verificação.');
-            } finally {
-                if (btnEnviar) {
-                    btnEnviar.disabled = false;
-                    btnEnviar.innerText = '✅ Confirmar Print da Hora';
-                }
-            }
-        }
-
-        function verificarDisparoVerificacaoHora(totalSegundos) {
-            if (estadoTurno !== 'ativo') {
-                const box = document.getElementById('boxVerificacaoHora');
-                if (box) box.style.display = 'none';
-                if (timerExpiracaoVerificacao) {
-                    clearInterval(timerExpiracaoVerificacao);
-                    timerExpiracaoVerificacao = null;
-                }
-                return;
-            }
-
-            // SEGURANÇA ESTRITA: Se o tempo for inferior a 60 minutos (3600s), oculta qualquer box e nunca finaliza
-            if (totalSegundos < 3600) {
-                const box = document.getElementById('boxVerificacaoHora');
-                if (box && box.style.display !== 'none') {
-                    box.style.display = 'none';
-                }
-                // Aviso prévio de 10 minutos para a 1ª hora (entre 50min e 60min)
-                if (totalSegundos >= 3000 && !avisosPrevia10mDisparados.has(1)) {
-                    avisosPrevia10mDisparados.add(1);
-                    dispararNotificacaoNativa(`⏱️ Aviso: 1ª Hora em 10 Minutos`, {
-                        body: `Faltam 10 minutos para completar a tua 1ª hora de turno. Prepare o print do jogo.`,
-                        tag: `aviso_previo_1h`
-                    });
-                }
-                return;
-            }
-
-            // 1. Notificação prévia 10 minutos antes da próxima hora cheia (a partir da 2ª hora em diante)
-            const proximaHora = Math.floor(totalSegundos / 3600) + 1;
-            const segundosAteProximaHora = (proximaHora * 3600) - totalSegundos;
-            if (segundosAteProximaHora <= 600 && segundosAteProximaHora > 0 && !avisosPrevia10mDisparados.has(proximaHora)) {
-                avisosPrevia10mDisparados.add(proximaHora);
-                dispararNotificacaoNativa(`⏱️ Aviso: ${proximaHora}ª Hora em 10 Minutos`, {
-                    body: `Faltam 10 minutos para completar a sua ${proximaHora}ª hora de turno. Prepare o print do jogo.`,
-                    tag: `aviso_previo_${proximaHora}h`
-                });
-            }
-
-            // 2. Cobrança de confirmação com print ao completar cada 1 hora cheia com 5 minutos de tolerância
-            const horaAtual = Math.floor(totalSegundos / 3600);
-            if (horaAtual >= 1 && totalSegundos >= (horaAtual * 3600) && !horasVerificadasLocal.has(horaAtual)) {
-                const segundosPassadosDaHora = totalSegundos - (horaAtual * 3600);
-                const segundosRestantes5Min = Math.max(0, 300 - segundosPassadosDaHora);
-
-                // Notificação no exato início da janela de 5 minutos
-                if (segundosPassadosDaHora <= 2) {
-                    dispararNotificacaoNativa(`🚨 Verificação de Presença (${horaAtual}h)`, {
-                        body: `Completou ${horaAtual}h de plantão! Confirme o print do jogo nos próximos 5 minutos.`,
-                        tag: `verificacao_ativa_${horaAtual}h`
-                    });
-                }
-
-                // Se esgotar os 5 minutos (300 segundos) sem envio E tempo total for condizente, finaliza o turno
-                if (segundosRestantes5Min <= 0 && totalSegundos >= (horaAtual * 3600) + 300) {
-                    if (timerExpiracaoVerificacao) {
-                        clearInterval(timerExpiracaoVerificacao);
-                        timerExpiracaoVerificacao = null;
-                    }
-                    document.getElementById('boxVerificacaoHora').style.display = 'none';
-                    encerrarTurnoPorFaltaDeVerificacao(horaAtual, totalSegundos);
-                    return;
-                }
-
-                const box = document.getElementById('boxVerificacaoHora');
-                if (box) {
-                    box.style.display = 'block';
-                    const minRestantes = String(Math.floor(segundosRestantes5Min / 60)).padStart(2, '0');
-                    const segRestantes = String(segundosRestantes5Min % 60).padStart(2, '0');
-                    document.getElementById('tituloVerificacaoHora').innerHTML = `📸 Verificação de Presença (${horaAtual}ª Hora de Turno) • <span style="color: #ef4444; font-weight: 800;">Prazo: ${minRestantes}:${segRestantes}</span>`;
-                }
-            } else {
-                const box = document.getElementById('boxVerificacaoHora');
-                if (box && box.style.display !== 'none') {
-                    box.style.display = 'none';
-                }
-            }
-        }
-
-        async function encerrarTurnoPorFaltaDeVerificacao(horaNumero, totalSegundos) {
+        async function tratarEstouroLimite3Horas() {
             if (processandoCheckout) return;
-
-            // Trava de segurança: impede finalização prematura se o turno tiver menos de 60 minutos
-            if (!totalSegundos || totalSegundos < 3600 || horaNumero < 1 || totalSegundos < (horaNumero * 3600) + 300) {
-                console.warn("Tentativa de encerramento por falta de verificação bloqueada (tempo inferior a 60 minutos):", totalSegundos);
-                return;
-            }
-
             processandoCheckout = true;
             if (timerInterval) clearInterval(timerInterval);
 
-            const duracaoTxt = document.getElementById('timerDisplay').innerText;
-            const compBrt = obterComponentesBrasilia(new Date());
-            const horaBrtStr = `${String(compBrt.hora).padStart(2, '0')}:${String(compBrt.minuto).padStart(2, '0')}:${String(compBrt.segundo).padStart(2, '0')}`;
-            const comprovanteExpirado = `Fechamento Automático (Limite de 5 min da ${horaNumero}ª hora expirado às ${horaBrtStr} no horário de Brasília)`;
-
-            // Interrompe imediatamente o cronômetro visual e redefine os controles na tela
             estadoTurno = 'parado';
             timestampInicioServer = null;
             segundosAcumuladosBase = 0;
@@ -4000,49 +3847,32 @@
             document.getElementById('btnPausar').style.display = 'none';
             document.getElementById('btnCheckout').disabled = false;
 
-            const boxH = document.getElementById('boxVerificacaoHora');
-            if (boxH) boxH.style.display = 'none';
-            if (timerExpiracaoVerificacao) {
-                clearInterval(timerExpiracaoVerificacao);
-                timerExpiracaoVerificacao = null;
-            }
-
             limparPrintTurnoLocal();
             atualizarEtapaTurnoUI();
 
             try {
-                const res = await fetch('/api/membro/turno', {
-                    method: 'POST',
+                await fetch('/api/membro/status-plantao', {
+                    method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         nickname: user.nickname,
-                        duracao: duracaoTxt,
-                        segundosTotais: totalSegundos,
-                        inicioPlantao: timestampInicioServer,
-                        fotoComprovante: comprovanteExpirado
+                        emPlantao: false,
+                        estadoTurno: 'parado',
+                        segundosAcumulados: 0,
+                        fotoComprovanteAtiva: ''
                     })
                 });
-                const data = await res.json().catch(() => ({}));
+            } catch (e) {}
 
-                processandoCheckout = false;
-                sincronizarCarteiraEMissoes();
-                atualizarFiscalizacaoServidor();
+            processandoCheckout = false;
+            sincronizarCarteiraEMissoes();
+            atualizarFiscalizacaoServidor();
 
-                mostrarModalCustomizado(
-                    'Turno Encerrado Automaticamente',
-                    `O teu plantão foi encerrado pois o print da <b>${horaNumero}ª hora</b> não foi confirmado dentro do prazo de 5 minutos.<br><br>Tempo salvo até a finalização: <b>${duracaoTxt}</b>.`,
-                    'alerta'
-                );
-            } catch (e) {
-                processandoCheckout = false;
-                sincronizarCarteiraEMissoes();
-                atualizarFiscalizacaoServidor();
-                mostrarModalCustomizado(
-                    'Turno Encerrado',
-                    `O teu plantão foi encerrado por tempo de verificação expirado. Tempo registrado: <b>${duracaoTxt}</b>.`,
-                    'alerta'
-                );
-            }
+            mostrarModalCustomizado(
+                '⚠️ Turno Zerado (Limite de 3h Excedido)',
+                'O seu turno atingiu o limite de <b>3 horas (10.800 segundos)</b> sem ter sido finalizado com print de encerramento.<br><br>Conforme o regulamento, o tempo deste turno específico foi <b>resetado</b> e não foi computado. O seu saldo e tempo acumulado anteriormente permanecem intactos.',
+                'alerta'
+            );
         }
 
         function calcularSegundosTotais() {
@@ -4056,8 +3886,18 @@
                 const fimEfetivo = Math.min(agora, limite02hMs);
                 const decorrido = Math.floor((fimEfetivo - timestampInicioServer) / 1000);
                 const total = segundosAcumuladosBase + (decorrido > 0 ? decorrido : 0);
-                verificarDisparoVerificacaoHora(total);
+
+                // REGRA: Limite de 3 horas por turno (10.800s). Ultrapassou sem finalizar = turno resetado
+                if (total >= LIMITE_MAXIMO_TURNO_SEGUNDOS) {
+                    tratarEstouroLimite3Horas();
+                    return 0;
+                }
+
                 return total;
+            }
+            if (segundosAcumuladosBase >= LIMITE_MAXIMO_TURNO_SEGUNDOS) {
+                tratarEstouroLimite3Horas();
+                return 0;
             }
             return segundosAcumuladosBase;
         }
