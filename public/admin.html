@@ -2295,6 +2295,7 @@
                                             <span>🟢 <b>Início:</b> ${inicioFormatado} &nbsp;|&nbsp; 🔴 <b>Fim:</b> ${fimFormatado} <span style="color: #94a3b8; font-size: 11px;">(Brasília / America/Sao_Paulo)</span></span>
                                             <span>🏛️ <b>Origem:</b> <span style="color: ${ehManual ? '#fde047' : '#38bdf8'}; font-weight: 700;">${escapeHTML(origemTexto)}</span></span>
                                             <span>📌 <b>Motivo:</b> <span style="color: #eab308; font-weight: 600;">${escapeHTML(motivo)}</span></span>
+                                            ${Array.isArray(t.comprovantesVerificacao) && t.comprovantesVerificacao.length > 0 ? `<span>⚡ <b>Verificações Realizadas:</b> <b style="color: #34d399;">${t.comprovantesVerificacao.length} (Continuidade de 3h confirmada)</b></span>` : ''}
                                         </div>
                                     </div>
                                     ${turnoId ? `<button class="btn-action btn-demitir" style="padding: 5px 10px; font-size: 11px; margin-left: 8px;" onclick="excluirTurnoEspecifico('${id}', '${turnoId}', '${escapeHTML(nickname)}')">🗑️ Apagar</button>` : ''}
