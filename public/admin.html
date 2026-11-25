@@ -2240,7 +2240,7 @@
                         <button class="btn-action btn-demitir" onclick="resetarTurnosMembro('${membroIdAtualModal}')">🗑️ Resetar TODOS os Turnos</button>
                     </div>
                     <div style="background: rgba(7, 13, 22, 0.7); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2);">
-                        <h4 style="color: #38bdf8; margin-bottom: 8px;">🛡️ Auditoria de Turnos e Verificações Horárias (${listaTurnos.length})</h4>
+                        <h4 style="color: #38bdf8; margin-bottom: 8px;">🛡️ Auditoria de Turnos e Continuidade (${listaTurnos.length})</h4>
                         ${listaTurnos.length > 0 ? listaTurnos.slice().reverse().map((t) => {
                             let dataFim = t.fimEm ? new Date(t.fimEm) : (t.data ? new Date(t.data) : null);
                             let dataInicio = t.inicioEm ? new Date(t.inicioEm) : null;

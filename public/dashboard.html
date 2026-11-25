@@ -1173,16 +1173,16 @@
                 <p id="etapaAtual" style="color: #e2e8f0; font-size: 13px;">Etapa: A carregar horário regulamentar (Brasília)...</p>
 
                 <div class="timer-display" id="timerDisplay">00:00:00</div>
-                <p id="avisoTempoMinimo" style="text-align: center; font-size: 12px; color: #eab308; margin-top: 10px;">⏱️ Horário Oficial de Brasília (17h–02h). Mínimo de <b>30 min</b>. Ao atingir <b>3 horas</b>, o tempo congela em 03:00:00 até você confirmar para prosseguir.</p>
+                <p id="avisoTempoMinimo" style="text-align: center; font-size: 12px; color: #eab308; margin-top: 10px;">⏱️ Horário Oficial de Brasília (17h–02h). Mínimo de <b>30 min</b>. Ao atingir <b>3 horas</b>, o tempo congela em 03:00:00 até você confirmar para prosseguir (sem exclusão de turno).</p>
 
                 <!-- BANNER DE VERIFICAÇÃO DE 3 HORAS PARA CONTINUAR -->
                 <div id="boxVerificacao3h" style="display: none; margin-top: 14px; background: linear-gradient(145deg, rgba(234, 179, 8, 0.18), rgba(15, 23, 42, 0.95)); border: 1.5px solid #eab308; padding: 12px 14px; border-radius: 12px; text-align: left; animation: fadeIn 0.3s ease;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                         <b style="color: #fde047; font-size: 13px;">⚠️ Verificação de 3 Horas de Turno</b>
-                        <span id="badgeMinutosRestantes3h" style="background: rgba(234, 179, 8, 0.25); color: #fde047; font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 700;">Aviso</span>
+                        <span id="badgeMinutosRestantes3h" style="background: rgba(234, 179, 8, 0.25); color: #fde047; font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 700;">Aviso Prévio</span>
                     </div>
                     <p id="textoDescricao3h" style="font-size: 12px; color: #e2e8f0; line-height: 1.5; margin-bottom: 10px;">
-                        Você atingiu 3 horas. Para <b>continuar contabilizando o plantão</b> além de 03:00:00, confirme a verificação abaixo. Seu tempo não será perdido e você pode finalizar com print de Check-out a qualquer momento.
+                        O seu turno atingiu 3 horas. Para <b>continuar contabilizando</b> além de 03:00:00, confirme a sua presença abaixo. O seu turno não será excluído e você pode encerrar com o print de Check-out quando desejar.
                     </p>
                     <button id="btnConfirmar3hContinuar" onclick="abrirModalVerificacao3h()" style="background: linear-gradient(135deg, #eab308, #ca8a04); color: #000; border: none; font-weight: 800; font-size: 12px; padding: 9px 16px; border-radius: 8px; cursor: pointer; width: 100%;">
                         ⚡ Confirmar Presença e Continuar Turno
@@ -1190,7 +1190,7 @@
                 </div>
 
                 <div style="margin-top: 18px;">
-                    <label style="font-size: 13px; color: #e2e8f0; font-weight: 500;">Anexar Print do Jogo (1 no Check-in e 1 no Check-out)</label>
+                    <label style="font-size: 13px; color: #e2e8f0; font-weight: 500;">Anexar Print do Jogo (1 para Iniciar e 1 para Finalizar)</label>
                     <input type="file" id="fotoComprovante" accept="image/*" style="width: 100%; padding: 10px; margin-top: 6px; background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 13px;" onchange="converterFotoLocal(this)">
                     <div id="statusAnexo" style="font-size: 12px; color: #22c55e; margin-top: 6px;"></div>
                 </div>

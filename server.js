@@ -1814,11 +1814,11 @@ app.post('/api/membro/turno/verificacao-prosseguir', async (req, res) => {
     }
 });
 
-// Resposta de compatibilidade para eventuais chamadas legadas
-app.post('/api/membro/turno/verificacao-hora', async (req, res) => {
+// Endpoint mantido apenas para compatibilidade de rotas antigas
+app.post('/api/membro/turno/verificacao-hora', (req, res) => {
     res.json({
         success: true,
-        message: '1 print no Check-in e 1 print no Check-out. Ao atingir 3h utilize a verificação de continuidade.'
+        message: 'O turno utiliza apenas 1 print no check-in e 1 print no check-out.'
     });
 });
 
