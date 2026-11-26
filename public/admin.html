@@ -1474,6 +1474,28 @@
 
         socket.on('atualizar_logs_admin', () => { carregarLogsAdmin(); });
 
+        async function atualizarFiscalizacaoServidor() {
+            try {
+                const res = await fetch('/api/membro/em-plantao?_=' + Date.now());
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data && data.success && Array.isArray(data.emPlantao)) {
+                    // Atualiza contador de membros em plantão se presente
+                    const elPlantao = document.getElementById('counterPlantao');
+                    if (elPlantao) elPlantao.innerText = data.emPlantao.length;
+                    // Atualiza lista em tela caso exista container de fiscalização
+                    const container = document.getElementById('listaFiscalizacaoPlantao');
+                    if (container) {
+                        if (typeof filtrarFiscalizacaoPlantao === 'function') {
+                            filtrarFiscalizacaoPlantao();
+                        }
+                    }
+                }
+            } catch (e) {
+                // Silencia falha sem interromper execução dos listeners
+            }
+        }
+
         function aplicarAtualizacaoCadastralUsuario(dados) {
             if (!dados) return;
             const meuNickAtual = (user.nickname || '').toLowerCase().trim();
@@ -1502,25 +1524,43 @@
 
                 if (alterou) {
                     localStorage.setItem('user', JSON.stringify(user));
-                    atualizarBadgeUsuarioUI();
-                    sincronizarCarteiraEMissoes();
-                    verificarProgressoProvas();
+                    if (typeof atualizarBadgeUsuarioUI === 'function') atualizarBadgeUsuarioUI();
+                    if (typeof sincronizarCarteiraEMissoes === 'function') sincronizarCarteiraEMissoes();
+                    if (typeof verificarProgressoProvas === 'function') verificarProgressoProvas();
                 }
             }
         }
 
         socket.on('operacional:atualizado', (dados) => {
-            aplicarAtualizacaoCadastralUsuario(dados);
-            atualizarFiscalizacaoServidor();
+            try {
+                aplicarAtualizacaoCadastralUsuario(dados);
+                if (typeof atualizarFiscalizacaoServidor === 'function') {
+                    atualizarFiscalizacaoServidor();
+                }
+            } catch (err) {
+                console.warn('[Socket: operacional:atualizado] Aviso tratado:', err);
+            }
         });
 
         socket.on('membro:promovido', (dados) => {
-            aplicarAtualizacaoCadastralUsuario(dados);
+            try {
+                aplicarAtualizacaoCadastralUsuario(dados);
+            } catch (err) {
+                console.warn('[Socket: membro:promovido] Aviso tratado:', err);
+            }
         });
 
         socket.on('operacional:turno_atualizado', () => {
-            atualizarFiscalizacaoServidor();
-            carregarRanking();
+            try {
+                if (typeof atualizarFiscalizacaoServidor === 'function') {
+                    atualizarFiscalizacaoServidor();
+                }
+                if (typeof carregarRanking === 'function') {
+                    carregarRanking();
+                }
+            } catch (err) {
+                console.warn('[Socket: operacional:turno_atualizado] Aviso tratado:', err);
+            }
         });
 
         socket.on('atualizar_cargo_usuario', (data) => {
