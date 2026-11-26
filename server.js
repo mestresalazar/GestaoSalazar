@@ -12,6 +12,7 @@ const BatePonto = require('./models/BatePonto');
 const ConfigSorteio = require('./models/ConfigSorteio');
 const LogAdmin = require('./models/LogAdmin');
 const Justificativa = require('./models/Justificativa');
+const TurnoCoronel = require('./models/TurnoCoronel');
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 dotenv.config(); // Fallback para diretório atual
@@ -791,6 +792,256 @@ app.put('/api/admin/justificativa/:id/status', async (req, res) => {
     } catch (e) {
         console.error("Erro ao atualizar status da justificativa:", e);
         res.status(500).json({ success: false, message: 'Erro ao atualizar status da justificativa.' });
+    }
+});
+
+// --- ROTAS DO MÓDULO EXCLUSIVO: PLANTÃO / TURNO DE CORONEL (3 HORAS) ---
+function ehCargoCoronelOuSuperior(cargo) {
+    const c = String(cargo || '').trim().toLowerCase();
+    return c.includes('coronel') || c.includes('general');
+}
+
+// 1. Obter estado atual das 3 vagas e plantões de Coronel
+app.get('/api/coronel/status', async (req, res) => {
+    try {
+        const agora = new Date();
+        // Finaliza automaticamente plantões ativos que ultrapassaram as 3 horas
+        const expirados = await TurnoCoronel.find({ status: 'ativo', fimPrevistoEm: { $lte: agora } });
+        for (const exp of expirados) {
+            exp.status = 'concluido';
+            exp.fimRealEm = exp.fimPrevistoEm;
+            await exp.save();
+        }
+
+        const plantoesAtivos = await TurnoCoronel.find({ status: 'ativo' }).sort({ vaga: 1 }).lean();
+
+        const vagas = {
+            1: plantoesAtivos.find(p => p.vaga === 1) || null,
+            2: plantoesAtivos.find(p => p.vaga === 2) || null,
+            3: plantoesAtivos.find(p => p.vaga === 3) || null
+        };
+
+        res.json({
+            success: true,
+            vagas,
+            totalAtivos: plantoesAtivos.length
+        });
+    } catch (e) {
+        console.error("Erro ao buscar status do plantão de Coronel:", e);
+        res.status(500).json({ success: false, message: 'Erro ao carregar plantão de coronel.' });
+    }
+});
+
+// 2. Assumir plantão de Coronel de 3 horas em uma das 3 vagas
+app.post('/api/coronel/assumir', async (req, res) => {
+    try {
+        const { nickname, vagaDesejada } = req.body;
+        if (!nickname) {
+            return res.status(400).json({ success: false, message: 'Nickname do membro é obrigatório.' });
+        }
+
+        const vagaNum = parseInt(vagaDesejada, 10);
+        if (![1, 2, 3].includes(vagaNum)) {
+            return res.status(400).json({ success: false, message: 'Selecione uma vaga válida (1, 2 ou 3).' });
+        }
+
+        const membro = await User.findOne({ nickname: new RegExp('^' + escaparRegex(String(nickname).trim()) + '$', 'i') }, '_id nickname cargo role').lean();
+        if (!membro) {
+            return res.status(404).json({ success: false, message: 'Operacional não encontrado.' });
+        }
+
+        if (!ehCargoCoronelOuSuperior(membro.cargo) && membro.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Acesso restrito: Apenas Coronel, Coronel All ou General podem assumir a vaga de Coronel do Turno.'
+            });
+        }
+
+        const agora = new Date();
+
+        // Limpa plantões anteriores expirados deste usuário se existirem
+        await TurnoCoronel.updateMany(
+            { coronelId: membro._id, status: 'ativo', fimPrevistoEm: { $lte: agora } },
+            { $set: { status: 'concluido', fimRealEm: agora } }
+        );
+
+        // Limite de 1 turno ativo por coronel
+        const turnoExistente = await TurnoCoronel.findOne({ coronelId: membro._id, status: 'ativo' });
+        if (turnoExistente) {
+            return res.status(400).json({
+                success: false,
+                message: `Você já está com um plantão de Coronel ativo na Vaga ${turnoExistente.vaga}. Finalize-o antes de assumir outro.`
+            });
+        }
+
+        // Verifica se a vaga específica já está ocupada
+        const vagaOcupada = await TurnoCoronel.findOne({ vaga: vagaNum, status: 'ativo', fimPrevistoEm: { $gt: agora } });
+        if (vagaOcupada) {
+            return res.status(400).json({
+                success: false,
+                message: `A Vaga ${vagaNum} já está ocupada por ${vagaOcupada.coronelNickname}. Escolha outra vaga disponível.`
+            });
+        }
+
+        const DURACAO_3H_MS = 3 * 3600 * 1000;
+        const fimPrevisto = new Date(agora.getTime() + DURACAO_3H_MS);
+
+        const novoTurnoCoronel = new TurnoCoronel({
+            coronelId: membro._id,
+            coronelNickname: membro.nickname,
+            coronelCargo: membro.cargo || 'Coronel',
+            vaga: vagaNum,
+            inicioEm: agora,
+            fimPrevistoEm: fimPrevisto,
+            status: 'ativo'
+        });
+        await novoTurnoCoronel.save();
+
+        const horaInicioStr = agora.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+        const horaFimStr = fimPrevisto.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+
+        const mensagemMural = `🚨 <b>CORONEL DE TURNO ASSUMIDO!</b><br><br>O <b>${membro.cargo} ${membro.nickname}</b> assumiu a <b>Vaga ${vagaNum}</b> do Plantão Oficial de 3 Horas (${horaInicioStr} às ${horaFimStr}).<br><br><b>Responsabilidades do Coronel de Turno:</b> Recrutamento da tropa, verificação de fardamento militar, condução e fiscalização das missões do efetivo e elaboração do relatório final.`;
+
+        // Salva aviso na caixa de entrada de todos os membros
+        const notifGeralCoronel = {
+            titulo: `👑 Coronel de Turno: ${membro.nickname}`,
+            mensagem: mensagemMural,
+            data: new Date()
+        };
+        await User.updateMany(
+            {},
+            {
+                $push: {
+                    caixaEntrada: {
+                        $each: [notifGeralCoronel],
+                        $slice: -30
+                    }
+                }
+            }
+        );
+
+        // Emite alerta em tempo real via Socket.IO para todos os clientes
+        io.emit('coronel_assumiu_plantao', {
+            id: novoTurnoCoronel._id,
+            coronelNickname: membro.nickname,
+            coronelCargo: membro.cargo,
+            vaga: vagaNum,
+            inicioEm: agora,
+            fimPrevistoEm: fimPrevisto,
+            mensagem: mensagemMural
+        });
+        io.emit('atualizar_turno_coronel');
+        io.emit('atualizar_status_geral_tropa');
+
+        await registarLogAdmin(
+            membro.nickname,
+            'Assumiu Plantão de Coronel (3h)',
+            `Vaga ${vagaNum} assumida por ${membro.nickname} (${membro.cargo}). Horário: ${horaInicioStr} até ${horaFimStr} (Brasília).`
+        );
+
+        res.json({
+            success: true,
+            message: `Você assumiu com sucesso a Vaga ${vagaNum} do Plantão de Coronel por 3 horas!`,
+            turno: novoTurnoCoronel
+        });
+    } catch (e) {
+        console.error("Erro ao assumir plantão de Coronel:", e);
+        res.status(500).json({ success: false, message: 'Erro ao assumir plantão de coronel: ' + e.message });
+    }
+});
+
+// 3. Submeter Relatório de Recrutamento e Fardamento do Plantão
+app.post('/api/coronel/relatorio', async (req, res) => {
+    try {
+        const { turnoId, nickname, recrutamentos, missoesSupervisionadas, resumoGeral, fardamentoStatus } = req.body;
+        if (!turnoId) {
+            return res.status(400).json({ success: false, message: 'Identificador do turno de coronel não fornecido.' });
+        }
+
+        const turno = await TurnoCoronel.findById(turnoId);
+        if (!turno) {
+            return res.status(404).json({ success: false, message: 'Plantão de coronel não encontrado.' });
+        }
+
+        const listaRecrutados = Array.isArray(recrutamentos) ? recrutamentos.map(r => ({
+            nome: String(r.nome || '').trim(),
+            level: String(r.level || 'Não informado').trim(),
+            whatsapp: String(r.whatsapp || 'Não possui/não informado').trim(),
+            fardaEntregue: r.fardaEntregue !== false,
+            observacoes: String(r.observacoes || '').trim()
+        })).filter(r => r.nome !== '') : [];
+
+        turno.relatorioEnviado = true;
+        turno.relatorio = {
+            recrutamentos: listaRecrutados,
+            totalRecrutados: listaRecrutados.length,
+            missoesSupervisionadas: String(missoesSupervisionadas || '').trim(),
+            resumoGeral: String(resumoGeral || '').trim(),
+            fardamentoStatus: String(fardamentoStatus || 'Entregue e Padronizado').trim(),
+            enviadoEm: new Date()
+        };
+
+        await turno.save();
+
+        await registarLogAdmin(
+            turno.coronelNickname,
+            'Relatório de Coronel Enviado',
+            `Turno Vaga ${turno.vaga}: ${listaRecrutados.length} recrutado(s), fardamento: ${turno.relatorio.fardamentoStatus}.`
+        );
+
+        io.emit('atualizar_turno_coronel');
+        io.emit('atualizar_status_geral_tropa');
+
+        res.json({
+            success: true,
+            message: 'Relatório de recrutamento e fardamento do plantão salvo com sucesso!',
+            relatorio: turno.relatorio
+        });
+    } catch (e) {
+        console.error("Erro ao salvar relatório de coronel:", e);
+        res.status(500).json({ success: false, message: 'Erro ao registrar relatório de coronel.' });
+    }
+});
+
+// 4. Finalizar plantão de Coronel
+app.post('/api/coronel/finalizar', async (req, res) => {
+    try {
+        const { turnoId, nickname } = req.body;
+        const turno = await TurnoCoronel.findById(turnoId);
+        if (!turno) {
+            return res.status(404).json({ success: false, message: 'Plantão não encontrado.' });
+        }
+
+        turno.status = 'concluido';
+        turno.fimRealEm = new Date();
+        await turno.save();
+
+        await registarLogAdmin(
+            nickname || turno.coronelNickname,
+            'Finalizou Plantão de Coronel',
+            `Plantão da Vaga ${turno.vaga} concluído por ${turno.coronelNickname}. Relatório: ${turno.relatorioEnviado ? 'Enviado' : 'Sem relatório'}.`
+        );
+
+        io.emit('atualizar_turno_coronel');
+        io.emit('atualizar_status_geral_tropa');
+
+        res.json({ success: true, message: 'Plantão de Coronel finalizado com sucesso!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao finalizar plantão.' });
+    }
+});
+
+// 5. Histórico de relatórios de plantão de Coronel para auditoria e cobrança
+app.get('/api/coronel/relatorios-historico', async (req, res) => {
+    try {
+        const relatorios = await TurnoCoronel.find({ relatorioEnviado: true })
+            .sort({ 'relatorio.enviadoEm': -1, dataCriacao: -1 })
+            .limit(50)
+            .lean();
+
+        res.json({ success: true, relatorios });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Erro ao listar histórico de relatórios.' });
     }
 });
 
