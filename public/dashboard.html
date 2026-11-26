@@ -2202,6 +2202,23 @@
     <!-- ========================================== -->
     <div id="aba-coronel-plantao" class="tab-content">
         <div style="max-width: 720px; margin: 0 auto;">
+            <!-- BANNER DE AVALIAÇÃO DE CORONEL PENDENTE -->
+            <div id="bannerAvaliacaoPendenteCoronel" style="display: none; background: linear-gradient(145deg, rgba(234, 179, 8, 0.2), rgba(15, 23, 42, 0.95)); border: 1.5px solid #eab308; border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; box-shadow: 0 4px 16px rgba(234, 179, 8, 0.25);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 20px;">⭐</span>
+                        <b style="color: #facc15; font-size: 13px;">Avaliação de Coronel Pendente</b>
+                    </div>
+                    <span id="badgeQtdAvaliacoesPendentes" style="background: rgba(234, 179, 8, 0.3); color: #fde047; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">1 Pendente</span>
+                </div>
+                <p id="textoBannerAvaliacaoPendente" style="font-size: 12px; color: #cbd5e1; margin-bottom: 10px; line-height: 1.5;">
+                    Você tem plantão de Coronel aguardando sua avaliação de 1 a 5 estrelas. Ajude a avaliar a condução das missões e a disciplina!
+                </p>
+                <button onclick="abrirPrimeiraAvaliacaoPendente()" class="btn-action" style="margin: 0; padding: 10px; font-size: 12px; font-weight: 800; background: linear-gradient(135deg, #eab308, #ca8a04); color: #000;">
+                    ⭐ Avaliar Agora o Plantão
+                </button>
+            </div>
+
             <!-- CARD DE APRESENTAÇÃO E RESPONSABILIDADES -->
             <div class="card" style="border: 2px solid #eab308; background: linear-gradient(145deg, rgba(234, 179, 8, 0.12), rgba(15, 23, 42, 0.96));">
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(234, 179, 8, 0.3); padding-bottom: 10px; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
@@ -3267,6 +3284,47 @@
         /* --- AVALIAÇÃO DE CORONÉIS DA TROPA (1 A 5 ESTRELAS) --- */
         let turnoIdParaAvaliarAtual = null;
         let estrelasSelecionadasAvaliacao = 5;
+        let listaAvaliacoesPendentesCache = [];
+
+        async function verificarAvaliacoesCoronelPendentes() {
+            if (!user || !user.nickname) return;
+            try {
+                const res = await fetch(`/api/coronel/avaliacoes-pendentes/${encodeURIComponent(user.nickname)}?_=${Date.now()}`);
+                const data = await res.json();
+                if (!data.success) return;
+
+                listaAvaliacoesPendentesCache = Array.isArray(data.pendentes) ? data.pendentes : [];
+                const banner = document.getElementById('bannerAvaliacaoPendenteCoronel');
+                const badge = document.getElementById('badgeQtdAvaliacoesPendentes');
+                const texto = document.getElementById('textoBannerAvaliacaoPendente');
+
+                if (listaAvaliacoesPendentesCache.length > 0) {
+                    if (banner) banner.style.display = 'block';
+                    if (badge) badge.innerText = `${listaAvaliacoesPendentesCache.length} Pendente(s)`;
+
+                    const primeiro = listaAvaliacoesPendentesCache[0];
+                    if (texto) {
+                        texto.innerHTML = `O <b>${escapeHTML(primeiro.coronelCargo || 'Coronel')} ${escapeHTML(primeiro.coronelNickname)}</b> encerrou o plantão (Vaga ${primeiro.vaga}). Deixe sua avaliação de 1 a 5 estrelas sobre a condução das missões!`;
+                    }
+
+                    // Se não estiver em plantão e o modal não estiver aberto, abre para o membro
+                    const modalEl = document.getElementById('modalAvaliarCoronel');
+                    if (modalEl && modalEl.style.display !== 'flex' && sessionStorage.getItem('pular_aviso_av_temporario') !== 'true') {
+                        abrirPrimeiraAvaliacaoPendente();
+                    }
+                } else if (banner) {
+                    banner.style.display = 'none';
+                }
+            } catch (e) {
+                console.warn("Aviso ao verificar avaliações pendentes:", e);
+            }
+        }
+
+        function abrirPrimeiraAvaliacaoPendente() {
+            if (listaAvaliacoesPendentesCache.length === 0) return;
+            const p = listaAvaliacoesPendentesCache[0];
+            abrirModalAvaliacaoCoronelTurno(p.turnoId, p.coronelNickname, p.coronelCargo);
+        }
 
         const textosEscalaEstrelas = {
             1: '1 Estrela — Ruim (Ausente / Negligente)',
@@ -3293,6 +3351,7 @@
         function fecharModalAvaliarCoronel() {
             const modal = document.getElementById('modalAvaliarCoronel');
             if (modal) modal.style.display = 'none';
+            sessionStorage.setItem('pular_aviso_av_temporario', 'true');
         }
 
         function selecionarEstrelasCoronel(qtd) {
@@ -3331,6 +3390,7 @@
                 if (data.success) {
                     mostrarModalCustomizado('Avaliação Registada!', data.message);
                     carregarHistoricoRelatoriosCoronel();
+                    verificarAvaliacoesCoronelPendentes();
                 } else {
                     mostrarModalCustomizado('Atenção', data.message || 'Erro ao registrar avaliação.');
                 }
@@ -6920,6 +6980,7 @@
         // Disparo automático condicional ao carregar a página
         window.addEventListener('load', () => {
             verificarInicioTutorialOnboarding();
+            verificarAvaliacoesCoronelPendentes();
         });
     </script>
 </body>

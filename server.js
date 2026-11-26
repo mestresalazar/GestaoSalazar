@@ -920,7 +920,23 @@ app.post('/api/coronel/assumir', async (req, res) => {
             }
         );
 
-        // Emite alerta em tempo real via Socket.IO para todos os clientes
+        // Dispara notificação push para todos os membros inscritos
+        const membrosComPush = await User.find({ pushSubscription: { $exists: true, $ne: null } }, '_id pushSubscription').lean();
+        const payloadPushCoronel = JSON.stringify({
+            id: 'coronel_assumiu_' + novoTurnoCoronel._id,
+            tag: 'coronel_assumiu_' + novoTurnoCoronel._id,
+            title: `👑 Coronel de Turno: ${membro.nickname}`,
+            body: `${membro.cargo} ${membro.nickname} assumiu a Vaga ${vagaNum} do plantão (3h). Responsável por recrutamento e missões do efetivo!`,
+            url: '/dashboard.html'
+        });
+
+        for (const m of membrosComPush) {
+            if (m.pushSubscription && m.pushSubscription.endpoint) {
+                webpush.sendNotification(m.pushSubscription, payloadPushCoronel).catch(() => {});
+            }
+        }
+
+        // Emite alerta em tempo real via Socket.IO para todos os clientes conectados sem restrição de sala
         io.emit('coronel_assumiu_plantao', {
             id: novoTurnoCoronel._id,
             coronelNickname: membro.nickname,
@@ -1031,6 +1047,17 @@ app.post('/api/coronel/finalizar', async (req, res) => {
             fimRealEm: turno.fimRealEm
         });
 
+        // Persiste aviso no mural dos operacionais convidando a avaliar
+        const notifAvaliacao = {
+            titulo: `⭐ Avalie o Coronel ${turno.coronelNickname}`,
+            mensagem: `O plantão de 3 horas do <b>${turno.coronelCargo} ${turno.coronelNickname}</b> (Vaga ${turno.vaga}) foi concluído. Abra o painel para registrar sua avaliação de 1 a 5 estrelas!`,
+            data: new Date()
+        };
+        await User.updateMany(
+            { nickname: { $ne: turno.coronelNickname } },
+            { $push: { caixaEntrada: { $each: [notifAvaliacao], $slice: -30 } } }
+        );
+
         io.emit('atualizar_turno_coronel');
         io.emit('atualizar_status_geral_tropa');
 
@@ -1103,7 +1130,45 @@ app.post('/api/coronel/avaliar', async (req, res) => {
     }
 });
 
-// 6. Histórico de relatórios de plantão de Coronel para auditoria e cobrança
+// 6. Consultar avaliações de Coronel pendentes para um membro ao logar ou abrir o painel
+app.get('/api/coronel/avaliacoes-pendentes/:nickname', async (req, res) => {
+    try {
+        const { nickname } = req.params;
+        if (!nickname) {
+            return res.json({ success: true, pendentes: [] });
+        }
+
+        const nickLimpo = String(nickname).trim().toLowerCase();
+        const doisDiasAtras = new Date(Date.now() - 48 * 3600 * 1000);
+
+        // Busca plantões concluídos recentemente onde o membro não é o próprio coronel
+        const turnosRecentes = await TurnoCoronel.find({
+            status: 'concluido',
+            fimRealEm: { $gte: doisDiasAtras }
+        }).sort({ fimRealEm: -1 }).limit(10).lean();
+
+        const pendentes = turnosRecentes.filter(t => {
+            const ehOCoronel = (t.coronelNickname || '').toLowerCase().trim() === nickLimpo;
+            if (ehOCoronel) return false;
+
+            const jaAvaliou = Array.isArray(t.avaliacoes) && t.avaliacoes.some(a => (a.nickname || '').toLowerCase().trim() === nickLimpo);
+            return !jaAvaliou;
+        }).map(t => ({
+            turnoId: t._id,
+            coronelNickname: t.coronelNickname,
+            coronelCargo: t.coronelCargo,
+            vaga: t.vaga,
+            fimRealEm: t.fimRealEm
+        }));
+
+        res.json({ success: true, pendentes });
+    } catch (e) {
+        console.error("Erro ao verificar avaliações pendentes:", e);
+        res.status(500).json({ success: false, message: 'Erro ao buscar avaliações pendentes.' });
+    }
+});
+
+// 7. Histórico de relatórios de plantão de Coronel para auditoria e cobrança
 app.get('/api/coronel/relatorios-historico', async (req, res) => {
     try {
         const relatorios = await TurnoCoronel.find({ relatorioEnviado: true })
@@ -1604,6 +1669,39 @@ app.post('/api/auth/register', async (req, res) => {
             emPlantao: false,
             ultimoPlantao: 'Aguardando aprovação'
         };
+
+        // Notifica o General Mestre e Comando Superior (mural + push)
+        const mestresEAdmins = await User.find({
+            $or: [
+                { role: 'admin' },
+                { nickname: new RegExp('^mestre$', 'i') },
+                { cargo: { $in: ['General', 'Coronel All'] } }
+            ]
+        }, '_id nickname pushSubscription').lean();
+
+        const notifRegistro = {
+            titulo: '📋 Nova Solicitação de Registro',
+            mensagem: `O operacional <b>${novoUtilizador.nickname}</b> solicitou cadastro no sistema e aguarda sua aprovação no Painel Administrativo.`,
+            data: new Date()
+        };
+
+        for (const adm of mestresEAdmins) {
+            await User.updateOne(
+                { _id: adm._id },
+                { $push: { caixaEntrada: { $each: [notifRegistro], $slice: -30 } } }
+            );
+
+            if (adm.pushSubscription && adm.pushSubscription.endpoint) {
+                const payloadPushAdm = JSON.stringify({
+                    id: 'reg_solicitado_' + novoUtilizador._id,
+                    tag: 'reg_solicitado_' + novoUtilizador._id,
+                    title: '📋 Nova Solicitação de Registro',
+                    body: `O operacional ${novoUtilizador.nickname} solicitou cadastro e aguarda sua aprovação.`,
+                    url: '/admin.html'
+                });
+                webpush.sendNotification(adm.pushSubscription, payloadPushAdm).catch(() => {});
+            }
+        }
 
         io.emit('registro:solicitado', payloadNovoRegistro);
         io.emit('efetivo:atualizado', payloadNovoRegistro);

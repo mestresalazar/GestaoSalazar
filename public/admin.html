@@ -656,6 +656,23 @@
             </div>
         </div>
 
+        <!-- BANNER DE ALERTA DE REGISTRO PENDENTE PARA O GENERAL MESTRE -->
+        <div id="bannerNovoRegistroPendenteAdm" style="display: none; background: linear-gradient(145deg, rgba(234, 179, 8, 0.2), rgba(15, 23, 42, 0.95)); border: 2px solid #eab308; border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; box-shadow: 0 4px 16px rgba(234, 179, 8, 0.35); animation: pulse-yellow 2s infinite;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 20px;">📋</span>
+                    <b style="color: #fde047; font-size: 14px;">Nova Solicitação de Cadastro Recebida!</b>
+                </div>
+                <span style="background: rgba(234, 179, 8, 0.3); color: #fde047; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 6px;">AGUARDANDO APROVAÇÃO</span>
+            </div>
+            <p id="textoBannerNovoRegistroAdm" style="font-size: 13px; color: #cbd5e1; margin-bottom: 10px; line-height: 1.5;">
+                Um novo operacional solicitou cadastro e aguarda sua aprovação para ingressar na tropa.
+            </p>
+            <button onclick="document.getElementById('inputBuscaMembro').value=''; filtrarTabelaEfetivo(); document.getElementById('bannerNovoRegistroPendenteAdm').style.display='none';" class="btn-action" style="margin: 0; padding: 9px 14px; font-size: 12px; font-weight: 800; background: linear-gradient(135deg, #eab308, #ca8a04); color: #000;">
+                👀 Ver e Aprovar no Efetivo
+            </button>
+        </div>
+
         <div class="card">
             <h3>👥 Gerenciamento de Efetivo e Membros</h3>
             <p style="color: #e2e8f0; margin-bottom: 14px; font-size: 13px;">Clique no <b>nickname</b> do operacional para abrir as opções de comando. (Ordenação: Plantão ➔ Online ➔ Offline)</p>
@@ -1381,6 +1398,21 @@
 
         socket.on('registro:solicitado', (dados) => {
             processarNovoRegistroOuAtualizacaoEfetivo(dados);
+
+            // Notifica com destaque o General Mestre no painel ADM sem F5
+            const banner = document.getElementById('bannerNovoRegistroPendenteAdm');
+            const texto = document.getElementById('textoBannerNovoRegistroAdm');
+            if (banner && dados) {
+                if (texto) {
+                    texto.innerHTML = `O operacional <b>${escapeHTML(dados.nickname)}</b> acabou de solicitar cadastro e aguarda sua homologação.`;
+                }
+                banner.style.display = 'block';
+            }
+
+            mostrarModalCustomizado(
+                '📋 Nova Solicitação de Registro!',
+                `O operacional <b>${escapeHTML(dados?.nickname || 'Novo Membro')}</b> solicitou registro no sistema e está aguardando aprovação do Comando!`
+            );
         });
 
         socket.on('efetivo:atualizado', (dados) => {
