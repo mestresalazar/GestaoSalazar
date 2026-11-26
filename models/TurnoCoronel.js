@@ -26,6 +26,15 @@ const TurnoCoronelSchema = new mongoose.Schema({
     fardamentoStatus: { type: String, default: 'Entregue' },
     enviadoEm: { type: Date }
   },
+  avaliacoes: [{
+    usuarioId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    nickname: { type: String, required: true },
+    estrelas: { type: Number, min: 1, max: 5, required: true },
+    observacao: { type: String, default: '' },
+    data: { type: Date, default: Date.now }
+  }],
+  mediaEstrelas: { type: Number, default: 0 },
+  totalAvaliacoes: { type: Number, default: 0 },
   dataCriacao: { type: Date, default: Date.now }
 });
 

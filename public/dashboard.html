@@ -1078,7 +1078,9 @@
         .tour-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(3, 7, 18, 0.82);
+            background: rgba(3, 7, 18, 0.45);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
             z-index: 99990;
             display: none;
             pointer-events: auto;
@@ -1088,7 +1090,7 @@
             position: fixed;
             border-radius: 16px;
             border: 2px solid #38bdf8;
-            box-shadow: 0 0 0 9999px rgba(3, 7, 18, 0.82), 0 0 32px rgba(56, 189, 248, 0.7);
+            box-shadow: 0 0 0 9999px rgba(3, 7, 18, 0.45), 0 0 32px rgba(56, 189, 248, 0.7);
             z-index: 99992;
             pointer-events: none;
             transition: top 0.22s ease-out, left 0.22s ease-out, width 0.22s ease-out, height 0.22s ease-out;
@@ -1115,13 +1117,15 @@
         .tour-popover {
             position: fixed;
             z-index: 99996;
-            background: linear-gradient(160deg, rgba(15, 23, 42, 0.99), rgba(7, 13, 22, 1));
-            border: 1px solid rgba(56, 189, 248, 0.5);
+            background: linear-gradient(160deg, rgba(15, 23, 42, 0.88), rgba(7, 13, 22, 0.92));
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(56, 189, 248, 0.55);
             border-radius: 16px;
             padding: 16px 18px;
             width: 320px;
             max-width: calc(100vw - 20px);
-            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.95), 0 0 24px rgba(56, 189, 248, 0.3);
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.85), 0 0 24px rgba(56, 189, 248, 0.3);
             display: none;
             flex-direction: column;
             gap: 10px;
@@ -2263,6 +2267,47 @@
         </div>
     </div>
 
+    <!-- MODAL DE AVALIAÇÃO DO CORONEL DE TURNO (1 A 5 ESTRELAS) -->
+    <div id="modalAvaliarCoronel" style="display: none; position: fixed; inset: 0; background: rgba(3, 7, 18, 0.88); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 10006; padding: 14px;">
+        <div style="background: linear-gradient(150deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 100%; max-width: 460px; border-radius: 18px; padding: 22px; border: 1.5px solid #eab308; color: #fff; box-shadow: 0 12px 35px rgba(0,0,0,0.85); text-align: center;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(234, 179, 8, 0.3); padding-bottom: 8px; margin-bottom: 14px;">
+                <h3 style="color: #facc15; margin: 0; font-size: 16px;">⭐ Avaliação do Coronel de Turno</h3>
+                <button class="close-modal" onclick="fecharModalAvaliarCoronel()" style="margin: 0; padding: 4px 10px; font-size: 12px;">✕</button>
+            </div>
+
+            <p id="subAvaliacaoCoronelInfo" style="font-size: 13px; color: #cbd5e1; margin-bottom: 14px; line-height: 1.5;">
+                O plantão de 3 horas foi finalizado. Avalie a condução das missões, organização da tropa e recrutamento pelo Coronel:
+            </p>
+
+            <div style="margin-bottom: 12px;">
+                <div id="estrelasContainerAvaliacao" style="display: flex; justify-content: center; gap: 8px; font-size: 32px; cursor: pointer; user-select: none;">
+                    <span onclick="selecionarEstrelasCoronel(1)" id="star-1" title="1 = Ruim">⭐</span>
+                    <span onclick="selecionarEstrelasCoronel(2)" id="star-2" title="2 = Regular">⭐</span>
+                    <span onclick="selecionarEstrelasCoronel(3)" id="star-3" title="3 = Bom">⭐</span>
+                    <span onclick="selecionarEstrelasCoronel(4)" id="star-4" title="4 = Muito Bom">⭐</span>
+                    <span onclick="selecionarEstrelasCoronel(5)" id="star-5" title="5 = Perfeito">⭐</span>
+                </div>
+                <div id="labelEscalaEstrelas" style="font-size: 13px; color: #facc15; font-weight: 800; margin-top: 6px;">
+                    5 Estrelas — Perfeito (Excelente Liderança)
+                </div>
+            </div>
+
+            <div style="margin-bottom: 16px; text-align: left;">
+                <label style="font-size: 11.5px; color: #94a3b8; display: block; margin-bottom: 4px;">Observação Opcional / Feedback:</label>
+                <textarea id="inputObsAvaliacaoCoronel" rows="3" placeholder="Ex: Boa orientação aos recrutas, fardamento rápido e condução segura da patrulha..." style="width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; font-size: 12px; resize: none; outline: none;"></textarea>
+            </div>
+
+            <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn-action" style="flex: 1; margin: 0; background: linear-gradient(135deg, #16a34a, #15803d); font-weight: 700;" onclick="submeterAvaliacaoCoronel()">
+                    ⭐ Enviar Avaliação
+                </button>
+                <button type="button" class="btn-action" style="margin: 0; background: rgba(100, 116, 139, 0.25); border: 1px solid #64748b; color: #94a3b8;" onclick="fecharModalAvaliarCoronel()">
+                    Pular
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL DE PREENCHIMENTO DO RELATÓRIO DO CORONEL -->
     <div id="modalRelatorioCoronel" style="display: none; position: fixed; inset: 0; background: rgba(3, 7, 18, 0.88); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 10005; padding: 14px;">
         <div style="background: linear-gradient(150deg, rgba(15, 23, 42, 0.98), rgba(7, 13, 22, 0.99)); width: 100%; max-width: 620px; max-height: 88vh; border-radius: 18px; padding: 22px; border: 1px solid rgba(234, 179, 8, 0.4); overflow-y: auto; color: #fff; box-shadow: 0 12px 35px rgba(0,0,0,0.85);">
@@ -3219,6 +3264,82 @@
             );
         }
 
+        /* --- AVALIAÇÃO DE CORONÉIS DA TROPA (1 A 5 ESTRELAS) --- */
+        let turnoIdParaAvaliarAtual = null;
+        let estrelasSelecionadasAvaliacao = 5;
+
+        const textosEscalaEstrelas = {
+            1: '1 Estrela — Ruim (Ausente / Negligente)',
+            2: '2 Estrelas — Regular (Pouca Assistência)',
+            3: '3 Estrelas — Bom (Cumpriu o Básico)',
+            4: '4 Estrelas — Muito Bom (Presente e Ativo)',
+            5: '5 Estrelas — Perfeito (Excelente Liderança)'
+        };
+
+        function abrirModalAvaliacaoCoronelTurno(turnoId, coronelNickname, coronelCargo) {
+            turnoIdParaAvaliarAtual = turnoId;
+            const sub = document.getElementById('subAvaliacaoCoronelInfo');
+            if (sub) {
+                sub.innerHTML = `O <b>${escapeHTML(coronelCargo || 'Coronel')} ${escapeHTML(coronelNickname)}</b> finalizou o plantão de 3 horas. Avalie a condução do turno:`;
+            }
+            selecionarEstrelasCoronel(5);
+            const obsEl = document.getElementById('inputObsAvaliacaoCoronel');
+            if (obsEl) obsEl.value = '';
+
+            const modal = document.getElementById('modalAvaliarCoronel');
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function fecharModalAvaliarCoronel() {
+            const modal = document.getElementById('modalAvaliarCoronel');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function selecionarEstrelasCoronel(qtd) {
+            estrelasSelecionadasAvaliacao = qtd;
+            for (let i = 1; i <= 5; i++) {
+                const s = document.getElementById(`star-${i}`);
+                if (s) {
+                    s.style.opacity = i <= qtd ? '1' : '0.25';
+                    s.style.filter = i <= qtd ? 'drop-shadow(0 0 6px #facc15)' : 'none';
+                }
+            }
+            const lbl = document.getElementById('labelEscalaEstrelas');
+            if (lbl && textosEscalaEstrelas[qtd]) {
+                lbl.innerText = textosEscalaEstrelas[qtd];
+            }
+        }
+
+        async function submeterAvaliacaoCoronel() {
+            if (!turnoIdParaAvaliarAtual) return;
+            const observacao = document.getElementById('inputObsAvaliacaoCoronel')?.value;
+
+            try {
+                const res = await fetch('/api/coronel/avaliar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        turnoId: turnoIdParaAvaliarAtual,
+                        nickname: user.nickname,
+                        estrelas: estrelasSelecionadasAvaliacao,
+                        observacao
+                    })
+                });
+                const data = await res.json();
+                fecharModalAvaliarCoronel();
+
+                if (data.success) {
+                    mostrarModalCustomizado('Avaliação Registada!', data.message);
+                    carregarHistoricoRelatoriosCoronel();
+                } else {
+                    mostrarModalCustomizado('Atenção', data.message || 'Erro ao registrar avaliação.');
+                }
+            } catch (e) {
+                fecharModalAvaliarCoronel();
+                mostrarModalCustomizado('Erro', 'Falha na conexão ao enviar avaliação.');
+            }
+        }
+
         async function carregarHistoricoRelatoriosCoronel() {
             const container = document.getElementById('listaRelatoriosCoronelRecentes');
             if (!container) return;
@@ -3237,6 +3358,10 @@
                     const dataFormatada = r.enviadoEm ? new Date(r.enviadoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-';
                     const recrutados = Array.isArray(r.recrutamentos) ? r.recrutamentos : [];
 
+                    const mediaEstrelas = t.mediaEstrelas ? t.mediaEstrelas : 0;
+                    const totalAv = t.totalAvaliacoes || 0;
+                    const estrelasTxt = mediaEstrelas > 0 ? `⭐ ${mediaEstrelas}/5 (${totalAv} avaliações)` : '⭐ Sem avaliações ainda';
+
                     container.innerHTML += `
                         <div style="background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(234, 179, 8, 0.25); border-radius: 10px; padding: 12px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
@@ -3245,6 +3370,10 @@
                                     <span style="font-size: 11px; color: #94a3b8;">(${escapeHTML(t.coronelCargo)}) • Vaga ${t.vaga}</span>
                                 </div>
                                 <span style="font-size: 11px; color: #94a3b8;">📅 ${dataFormatada}</span>
+                            </div>
+
+                            <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+                                <span style="font-size: 11.5px; background: rgba(234, 179, 8, 0.2); color: #fde047; padding: 2px 8px; border-radius: 6px; font-weight: 700;">${estrelasTxt}</span>
                             </div>
 
                             <div style="font-size: 12px; color: #cbd5e1; margin-bottom: 6px;">
@@ -5185,6 +5314,19 @@
             carregarHistoricoRelatoriosCoronel();
         });
 
+        socket.on('coronel_turno_finalizado', (dados) => {
+            carregarStatusPlantaoCoronel();
+            carregarHistoricoRelatoriosCoronel();
+            if (!dados || !dados.turnoId) return;
+
+            // Se o próprio usuário for o coronel que finalizou, não exibe autoavaliação
+            const meuNick = (user && user.nickname ? user.nickname : '').toLowerCase().trim();
+            if ((dados.coronelNickname || '').toLowerCase().trim() === meuNick) return;
+
+            // Convida os operacionais a avaliarem
+            abrirModalAvaliacaoCoronelTurno(dados.turnoId, dados.coronelNickname, dados.coronelCargo);
+        });
+
         socket.on('coronel_assumiu_plantao', (dados) => {
             carregarStatusPlantaoCoronel();
             carregarHistoricoRelatoriosCoronel();
@@ -6402,11 +6544,19 @@
                 posicaoSeta: 'bottom'
             },
             {
+                id: 'tour-provas-aba',
+                aba: 'provas',
+                seletor: '#aba-provas .card:first-child',
+                titulo: '🎓 7. Central de Testes & Exames',
+                texto: 'Menu próprio dedicado à progressão de patente! O catálogo completo de provas (Sargento, Tenente, Major e Coronel) exibe os objetivos e a barra de progresso de horas para toda a tropa consultar.',
+                posicaoSeta: 'bottom'
+            },
+            {
                 id: 'tour-regras',
                 aba: 'regras-cronograma',
                 subAba: 'regras',
                 seletor: '#subsecao-regras .card:first-child',
-                titulo: '📖 7. Regras & Cronograma',
+                titulo: '📖 8. Regras & Cronograma',
                 texto: 'Diretrizes disciplinares completas: <b>Capítulo 4</b> (proibições gerais, máscara e deslocamento), <b>Capítulo 5</b> (formações em 5 min e armamento), <b>Capítulo 6</b> (hierarquia e rádio), <b>Capítulo 7</b> (7h semanais e ausência máxima) e cronograma semanal alinhado.',
                 posicaoSeta: 'bottom'
             },
@@ -6414,7 +6564,7 @@
                 id: 'tour-justificativas',
                 aba: 'justificativas',
                 seletor: '#aba-justificativas .card:first-child',
-                titulo: '📝 8. Justificativas de Ausência',
+                titulo: '📝 9. Justificativas de Ausência',
                 texto: 'Não poderá comparecer ao serviço? Envie sua justificativa com antecedência indicando o motivo e período. Lembre-se: ausência injustificada superior a <b>3 dias consecutivos</b> gera exoneração (Cap. 7.2).',
                 posicaoSeta: 'bottom'
             },
@@ -6424,7 +6574,7 @@
                 abrirModal: 'historico',
                 seletor: '#modalHistorico .modal-content',
                 modalHostId: 'modalHistorico',
-                titulo: '📜 9. Histórico Operacional Completo',
+                titulo: '📜 10. Histórico Operacional Completo',
                 texto: 'Consulte detalhadamente todos os seus plantões homologados: data, horário de início, horário de término, tempo ativo decorrido, motivo e os prints comprovatórios vinculados.',
                 posicaoSeta: 'bottom'
             },
@@ -6434,27 +6584,19 @@
                 abrirModal: 'perfil',
                 seletor: '#modalPerfil > div',
                 modalHostId: 'modalPerfil',
-                titulo: '👤 10. Meu Perfil & WhatsApp',
-                texto: 'Gerencie seu nickname, avatar e cadastre obrigatoriamente o seu <b>número do WhatsApp</b> para liberar seu acesso ao Grupo Oficial da Tropa, além de visualizar seu tempo total de casa.',
+                titulo: '👤 11. Meu Perfil, Vitórias & WhatsApp',
+                texto: 'Gerencie seu nickname, avatar, confira os títulos de vitória conquistados no ranking (Top 1, 2 e 3) e cadastre o seu número do WhatsApp para ter acesso ao Grupo Oficial da Tropa.',
                 posicaoSeta: 'bottom'
             },
             {
                 id: 'tour-estudar',
-                aba: 'turnos',
+                aba: 'provas',
                 abrirModal: 'guiaEstudo',
                 seletor: '#modalGuiaEstudo > div',
                 modalHostId: 'modalGuiaEstudo',
-                titulo: '📖 11. Onde Estudar (Guia Rápido & Códigos Q)',
+                titulo: '📖 12. Onde Estudar (Guia Rápido & Códigos Q)',
                 texto: 'Área dedicada para revisão e consulta rápida com busca em tempo real de todos os <b>Códigos Q regulamentares (QRA a QTU)</b> e as principais regras dos Capítulos 4, 5, 6 e 7.',
                 posicaoSeta: 'bottom'
-            },
-            {
-                id: 'tour-provas',
-                aba: 'turnos',
-                seletor: '#cardModuloProvas',
-                titulo: '🎓 12. Onde Fazer a Prova',
-                texto: 'Módulo de exames oficiais do Exército Brasileiro! Ao atingir as horas de plantão exigidas para sua patente, o botão de realização da prova para <b>Sargento, Tenente ou Major</b> é desbloqueado aqui.',
-                posicaoSeta: 'top'
             }
         ];
 

@@ -1022,6 +1022,15 @@ app.post('/api/coronel/finalizar', async (req, res) => {
             `Plantão da Vaga ${turno.vaga} concluído por ${turno.coronelNickname}. Relatório: ${turno.relatorioEnviado ? 'Enviado' : 'Sem relatório'}.`
         );
 
+        // Notifica e convida todos os membros a avaliarem o desempenho do Coronel no plantão
+        io.emit('coronel_turno_finalizado', {
+            turnoId: turno._id,
+            coronelNickname: turno.coronelNickname,
+            coronelCargo: turno.coronelCargo,
+            vaga: turno.vaga,
+            fimRealEm: turno.fimRealEm
+        });
+
         io.emit('atualizar_turno_coronel');
         io.emit('atualizar_status_geral_tropa');
 
@@ -1031,7 +1040,70 @@ app.post('/api/coronel/finalizar', async (req, res) => {
     }
 });
 
-// 5. Histórico de relatórios de plantão de Coronel para auditoria e cobrança
+// 5. Avaliação do Coronel após encerramento do turno (1 a 5 estrelas + observação)
+app.post('/api/coronel/avaliar', async (req, res) => {
+    try {
+        const { turnoId, nickname, estrelas, observacao } = req.body;
+        if (!turnoId || !nickname) {
+            return res.status(400).json({ success: false, message: 'Identificadores obrigatórios ausentes.' });
+        }
+
+        const notaEstrelas = Math.min(5, Math.max(1, parseInt(estrelas, 10) || 5));
+        const obsFinal = observacao ? String(observacao).trim() : '';
+
+        const turno = await TurnoCoronel.findById(turnoId);
+        if (!turno) {
+            return res.status(404).json({ success: false, message: 'Plantão de coronel não encontrado.' });
+        }
+
+        if (turno.coronelNickname.toLowerCase().trim() === String(nickname).toLowerCase().trim()) {
+            return res.status(400).json({ success: false, message: 'Você não pode avaliar o seu próprio plantão.' });
+        }
+
+        // Verifica se o usuário já avaliou este turno
+        const jaAvaliou = (turno.avaliacoes || []).some(a => (a.nickname || '').toLowerCase().trim() === String(nickname).toLowerCase().trim());
+        if (jaAvaliou) {
+            return res.status(400).json({ success: false, message: 'Você já enviou uma avaliação para este plantão de Coronel.' });
+        }
+
+        const novaAvaliacao = {
+            nickname: String(nickname).trim(),
+            estrelas: notaEstrelas,
+            observacao: obsFinal,
+            data: new Date()
+        };
+
+        turno.avaliacoes = turno.avaliacoes || [];
+        turno.avaliacoes.push(novaAvaliacao);
+        turno.totalAvaliacoes = turno.avaliacoes.length;
+
+        const somaEstrelas = turno.avaliacoes.reduce((acc, a) => acc + a.estrelas, 0);
+        turno.mediaEstrelas = parseFloat((somaEstrelas / turno.totalAvaliacoes).toFixed(1));
+
+        await turno.save();
+
+        await registarLogAdmin(
+            nickname,
+            'Avaliação de Coronel',
+            `${nickname} avaliou o plantão de ${turno.coronelNickname} (Vaga ${turno.vaga}) com ${notaEstrelas}/5 estrelas.${obsFinal ? ` Obs: "${obsFinal}"` : ''}`
+        );
+
+        io.emit('atualizar_turno_coronel');
+        io.emit('atualizar_status_geral_tropa');
+
+        res.json({
+            success: true,
+            message: `Avaliação de ${notaEstrelas} estrelas enviada com sucesso!`,
+            mediaEstrelas: turno.mediaEstrelas,
+            totalAvaliacoes: turno.totalAvaliacoes
+        });
+    } catch (e) {
+        console.error("Erro ao avaliar plantão de coronel:", e);
+        res.status(500).json({ success: false, message: 'Erro ao registrar avaliação.' });
+    }
+});
+
+// 6. Histórico de relatórios de plantão de Coronel para auditoria e cobrança
 app.get('/api/coronel/relatorios-historico', async (req, res) => {
     try {
         const relatorios = await TurnoCoronel.find({ relatorioEnviado: true })
