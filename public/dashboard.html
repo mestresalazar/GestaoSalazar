@@ -5973,57 +5973,59 @@
         }
 
         function calcularSegundosTotais() {
-            let total = segundosAcumuladosBase;
-            if (estadoTurno === 'ativo' && timestampInicioServer) {
-                const comp = obterComponentesBrasilia(new Date(timestampInicioServer));
-                const diaLimite = comp.hora >= 17 ? comp.dia + 1 : comp.dia;
-                const limite02hMs = Date.UTC(comp.ano, comp.mes - 1, diaLimite, 5, 0, 0, 0);
+            let total = Number(segundosAcumuladosBase || 0);
 
+            if (estadoTurno === 'ativo' && timestampInicioServer) {
                 const agora = Date.now();
-                const fimEfetivo = Math.min(agora, limite02hMs);
-                const decorrido = Math.floor((fimEfetivo - timestampInicioServer) / 1000);
-                total += (decorrido > 0 ? decorrido : 0);
+                // Cálculo estrito e simples de milissegundos decorridos do trecho ativo
+                const inicioMs = Number(timestampInicioServer);
+                if (!isNaN(inicioMs) && agora > inicioMs) {
+                    const comp = obterComponentesBrasilia(new Date(inicioMs));
+                    const diaLimite = comp.hora >= 17 ? comp.dia + 1 : comp.dia;
+                    const limite02hMs = Date.UTC(comp.ano, comp.mes - 1, diaLimite, 5, 0, 0, 0);
+
+                    const fimEfetivo = Math.min(agora, limite02hMs);
+                    const decorrido = Math.floor((fimEfetivo - inicioMs) / 1000);
+                    if (decorrido > 0) total += decorrido;
+                }
             }
 
-            // Exibição e disparo preventivo do banner de 3h com antecedência
+            // TRAVA OBRIGATÓRIA: se atingir ou passar de 3 horas (10.800s) sem confirmação, congela imediatamente em 10.800s
             const boxVerif = document.getElementById('boxVerificacao3h');
             const badgeRest = document.getElementById('badgeMinutosRestantes3h');
             const textoDesc = document.getElementById('textoDescricao3h');
 
             if (estadoTurno === 'ativo' || estadoTurno === 'pausado') {
-                if (!verificouContinuacao3h && total >= AVISO_ANTECEDENCIA_SEGUNDOS_CLIENT) {
-                    if (boxVerif) boxVerif.style.display = 'block';
-
+                if (!verificouContinuacao3h) {
                     if (total >= LIMITE_3H_SEGUNDOS) {
+                        total = LIMITE_3H_SEGUNDOS; // CONGELAMENTO IMEDIATO EM EXATAMENTE 03:00:00
+
+                        if (boxVerif) boxVerif.style.display = 'block';
                         if (badgeRest) badgeRest.innerText = 'Congelado em 03:00:00 ⏸️';
                         if (textoDesc) {
-                            textoDesc.innerHTML = 'O seu turno atingiu 3 horas e está <b>congelado em 03:00:00</b>. Seu tempo não foi apagado! Confirme abaixo para continuar contabilizando ou encerre com print de check-out.';
+                            textoDesc.innerHTML = 'O seu turno atingiu 3 horas e está <b>congelado em 03:00:00</b>. Seu tempo não foi apagado! Confirme abaixo para prosseguir ou encerre com o Check-out.';
                         }
-                    } else if (badgeRest) {
-                        const minRestantes = Math.max(1, Math.ceil((LIMITE_3H_SEGUNDOS - total) / 60));
-                        badgeRest.innerText = `~${minRestantes} min para 3h`;
-                    }
 
-                    if (!jaAlertou3hClient) {
-                        jaAlertou3hClient = true;
-                        dispararNotificacaoNativa('⚠️ Turno próximo de 3 horas', {
-                            body: 'Confirme a verificação para continuar o turno após 3h ou finalize com print de check-out.',
-                            tag: 'alerta_3h_timer_' + Date.now(),
-                            url: '/dashboard.html'
-                        });
+                        if (!jaAlertou3hClient) {
+                            jaAlertou3hClient = true;
+                            dispararNotificacaoNativa('⏸️ Turno congelado em 03:00:00', {
+                                body: 'Seu plantão atingiu 3 horas. Confirme para prosseguir.',
+                                tag: 'alerta_3h_congelado',
+                                url: '/dashboard.html'
+                            });
+                        }
+                    } else if (total >= AVISO_ANTECEDENCIA_SEGUNDOS_CLIENT) {
+                        if (boxVerif) boxVerif.style.display = 'block';
+                        const minRestantes = Math.max(1, Math.ceil((LIMITE_3H_SEGUNDOS - total) / 60));
+                        if (badgeRest) badgeRest.innerText = `~${minRestantes} min para 3h`;
+                    } else if (boxVerif) {
+                        boxVerif.style.display = 'none';
                     }
-                } else if (boxVerif && (verificouContinuacao3h || total < AVISO_ANTECEDENCIA_SEGUNDOS_CLIENT)) {
+                } else if (boxVerif) {
                     boxVerif.style.display = 'none';
                 }
             } else if (boxVerif) {
                 boxVerif.style.display = 'none';
-            }
-
-            // CONGELAMENTO EM 3 HORAS (10.800 SEGUNDOS):
-            // Não adiciona nenhum tempo artificial. Se ainda não confirmou, congela em 3h;
-            // assim que confirmou, descongela e devolve o tempo ativo real decorrido.
-            if (total >= LIMITE_3H_SEGUNDOS && !verificouContinuacao3h) {
-                return LIMITE_3H_SEGUNDOS;
             }
 
             return total;

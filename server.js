@@ -636,8 +636,8 @@ function obterTimestampLimite02hBrasilia(inicioMs) {
 const obterTimestampLimite02hRecife = obterTimestampLimite02hBrasilia;
 
 function calcularSegundosValidosNoHorario(inicioTimestamp, fimTimestamp = Date.now()) {
-    const inicioMs = new Date(inicioTimestamp).getTime();
-    const fimMs = new Date(fimTimestamp).getTime();
+    const inicioMs = typeof inicioTimestamp === 'number' ? inicioTimestamp : new Date(inicioTimestamp).getTime();
+    const fimMs = typeof fimTimestamp === 'number' ? fimTimestamp : new Date(fimTimestamp).getTime();
     if (isNaN(inicioMs) || isNaN(fimMs) || fimMs <= inicioMs) return 0;
 
     const limite02hMs = obterTimestampLimite02hBrasilia(inicioMs);
@@ -2115,24 +2115,11 @@ app.put('/api/membro/status-plantao', async (req, res) => {
         // Garante a definição segura de segundosConsolidados em todo o ciclo de vida da requisição
         let segundosConsolidados = Math.max(0, Number(membroAtual.segundosAcumulados || 0));
 
-        // Incorpora tempo transcorrido no relógio ativo se aplicável
-        if (membroAtual.estadoTurno === 'ativo' && membroAtual.inicioPlantao) {
-            const diffBanco = calcularSegundosValidosNoHorario(membroAtual.inicioPlantao, Date.now());
-            if (diffBanco > 0) segundosConsolidados += diffBanco;
-        }
-
-        if (segundosAcumulados !== undefined) {
-            const parsed = Math.max(0, parseInt(segundosAcumulados, 10) || 0);
-            if (parsed > segundosConsolidados || membroAtual.estadoTurno !== 'ativo') {
-                segundosConsolidados = Math.max(segundosConsolidados, parsed);
-            }
-        }
-
         if (ehInicioDeNovoTurno) {
-            // Garante início rigorosamente do zero no novo turno sem resíduos de plantões anteriores
+            // Início rigorosamente limpo em UTC ms
             segundosConsolidados = 0;
             updateData.emPlantao = true;
-            updateData.inicioPlantao = inicioPlantao ? new Date(inicioPlantao) : new Date();
+            updateData.inicioPlantao = new Date(inicioPlantao ? Number(inicioPlantao) : Date.now());
             updateData.segundosAcumulados = 0;
             updateData.comprovantesTurnoAtivo = [];
             if (fotoComprovanteAtiva !== undefined) {
@@ -2146,21 +2133,21 @@ app.put('/api/membro/status-plantao', async (req, res) => {
                 updateData.fotoComprovanteAtiva = '';
                 updateData.comprovantesTurnoAtivo = [];
             } else if (estadoTurnoDestino === 'pausado') {
+                // Ao pausar: acumula tempo decorrido do trecho ativo atual e zera inicioPlantao
+                if (membroAtual.estadoTurno === 'ativo' && membroAtual.inicioPlantao) {
+                    const decorridoTrecho = calcularSegundosValidosNoHorario(membroAtual.inicioPlantao, Date.now());
+                    segundosConsolidados += decorridoTrecho;
+                }
                 updateData.emPlantao = true;
-                updateData.inicioPlantao = null; // Interrompe o relógio contínuo, preservando segundos acumulados
+                updateData.inicioPlantao = null;
                 updateData.segundosAcumulados = segundosConsolidados;
                 if (fotoComprovanteAtiva !== undefined) {
                     updateData.fotoComprovanteAtiva = fotoComprovanteAtiva;
                 }
             } else if (estadoTurnoDestino === 'ativo') {
+                // Ao retomar da pausa: marca novo inicioPlantao agora com base nos segundos já consolidados
                 updateData.emPlantao = true;
-                if (inicioPlantao) {
-                    updateData.inicioPlantao = new Date(inicioPlantao);
-                } else if (!membroAtual.inicioPlantao) {
-                    updateData.inicioPlantao = new Date();
-                }
-
-                // Preserva e consolida os segundos acumulados pré-existentes ao retomar da pausa
+                updateData.inicioPlantao = new Date(Date.now());
                 updateData.segundosAcumulados = segundosConsolidados;
 
                 if (fotoComprovanteAtiva !== undefined) {
@@ -2423,14 +2410,14 @@ app.post('/api/membro/turno', async (req, res) => {
 
         // REGRA DE CONGELAMENTO EM 3 HORAS (10.800 SEGUNDOS) ATÉ CONFIRMAÇÃO:
         // Se a verificação foi confirmada, conta todo o tempo ativo real sem teto de 3h.
-        // Se não foi confirmada, trava em no máximo 10.800s.
+        // Se não foi confirmada, trava rigorosamente em no máximo 10.800s (03:00:00).
         const LIMITE_3H_SEGUNDOS = 3 * 3600;
         const comprovantesRecebidos = Array.isArray(comprovantesVerificacao) ? comprovantesVerificacao : [];
         const comprovantesBanco = Array.isArray(membroDoc.comprovantesTurnoAtivo) ? membroDoc.comprovantesTurnoAtivo : [];
         const teveVerificacao3h = comprovantesRecebidos.some(c => String(c.tipo || '').includes('3 Horas')) ||
             comprovantesBanco.some(c => String(c.tipo || '').includes('3 Horas'));
 
-        if (segundosFinais > LIMITE_3H_SEGUNDOS && !teveVerificacao3h) {
+        if (segundosFinais >= LIMITE_3H_SEGUNDOS && !teveVerificacao3h) {
             segundosFinais = LIMITE_3H_SEGUNDOS;
         }
 
@@ -3851,6 +3838,7 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
             data: new Date()
         };
 
+        // Adiciona apenas ao histórico sem alterar estadoTurno, inicioPlantao nem segundosAcumulados do plantão ativo
         const resultado = await User.updateOne(
             { nickname: new RegExp('^' + targetNickname.trim() + '$', 'i') },
             { $push: { historicoTurnos: novoTurnoManual, caixaEntrada: notif } }
