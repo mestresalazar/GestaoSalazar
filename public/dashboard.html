@@ -2878,6 +2878,337 @@
             }
         }
 
+        /* ========================================================================= */
+        /* --- MÓDULO EXCLUSIVO: PLANTÃO DE CORONEL DE 3 HORAS (TOTALMENTE SEPARADO) --- */
+        /* ========================================================================= */
+        let turnoCoronelAtivoCache = null;
+        let timerIntervalCoronel = null;
+
+        async function carregarStatusPlantaoCoronel() {
+            try {
+                const res = await fetch('/api/coronel/status?_=' + Date.now());
+                const data = await res.json();
+                if (!data.success) return;
+
+                const grid = document.getElementById('gridVagasCoronel');
+                if (!grid) return;
+                grid.innerHTML = '';
+
+                const meuNick = (user && user.nickname ? user.nickname : '').toLowerCase().trim();
+                turnoCoronelAtivoCache = null;
+
+                for (let v = 1; v <= 3; v++) {
+                    const plantaoVaga = data.vagas[v];
+                    const estaOcupada = !!plantaoVaga;
+                    const ehMeuTurno = estaOcupada && (plantaoVaga.coronelNickname || '').toLowerCase().trim() === meuNick;
+
+                    if (ehMeuTurno) {
+                        turnoCoronelAtivoCache = plantaoVaga;
+                    }
+
+                    let cardHtml = `
+                        <div style="background: rgba(15, 23, 42, 0.85); border: 1.5px solid ${estaOcupada ? '#eab308' : 'rgba(56, 189, 248, 0.3)'}; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <b style="color: #38bdf8; font-size: 14px;">VAGA ${v}</b>
+                                <span style="font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px; ${estaOcupada ? 'background: rgba(234, 179, 8, 0.25); color: #fde047; border: 1px solid #eab308;' : 'background: rgba(34, 197, 94, 0.2); color: #86efac; border: 1px solid #22c55e;'}">
+                                    ${estaOcupada ? 'OCUPADA' : 'DISPONÍVEL'}
+                                </span>
+                            </div>
+                    `;
+
+                    if (estaOcupada) {
+                        const inicioFormat = new Date(plantaoVaga.inicioEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+                        const fimFormat = new Date(plantaoVaga.fimPrevistoEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+
+                        cardHtml += `
+                            <div style="background: rgba(7, 13, 22, 0.6); padding: 8px 10px; border-radius: 8px; font-size: 12px; color: #cbd5e1; border-left: 3px solid #eab308;">
+                                <div>👑 <b>${escapeHTML(plantaoVaga.coronelNickname)}</b></div>
+                                <div style="font-size: 11px; color: #94a3b8;">${escapeHTML(plantaoVaga.coronelCargo)}</div>
+                                <div style="font-size: 11px; color: #facc15; margin-top: 4px;">⏰ ${inicioFormat} às ${fimFormat}</div>
+                            </div>
+                        `;
+
+                        if (ehMeuTurno) {
+                            cardHtml += `<span style="text-align: center; font-size: 11px; color: #34d399; font-weight: 700;">✅ Seu plantão atual</span>`;
+                        } else {
+                            cardHtml += `<span style="text-align: center; font-size: 11px; color: #94a3b8;">Plantão em andamento</span>`;
+                        }
+                    } else {
+                        cardHtml += `
+                            <p style="font-size: 12px; color: #94a3b8; line-height: 1.4;">
+                                Vaga livre para assumir turno de 3 horas com aviso à tropa e comando de recrutamento.
+                            </p>
+                            <button class="btn-action" style="margin: 0; padding: 9px; font-size: 12px; font-weight: 700; background: linear-gradient(135deg, #eab308, #ca8a04); color: #000;" onclick="assumirVagaCoronel(${v})">
+                                👑 Assumir Vaga ${v}
+                            </button>
+                        `;
+                    }
+
+                    cardHtml += `</div>`;
+                    grid.innerHTML += cardHtml;
+                }
+
+                atualizarBoxMeuTurnoCoronelUI();
+            } catch (e) {
+                console.error("Erro ao carregar status do plantão de Coronel:", e);
+            }
+        }
+
+        function atualizarBoxMeuTurnoCoronelUI() {
+            const box = document.getElementById('boxMeuTurnoCoronelAtivo');
+            if (!box) return;
+
+            if (turnoCoronelAtivoCache) {
+                box.style.display = 'block';
+                const badge = document.getElementById('badgeMinhaVagaCoronel');
+                if (badge) badge.innerText = `Vaga ${turnoCoronelAtivoCache.vaga}`;
+
+                iniciarTimerRegressivoCoronel(turnoCoronelAtivoCache.fimPrevistoEm);
+            } else {
+                box.style.display = 'none';
+                if (timerIntervalCoronel) clearInterval(timerIntervalCoronel);
+            }
+        }
+
+        function iniciarTimerRegressivoCoronel(fimPrevistoIso) {
+            if (timerIntervalCoronel) clearInterval(timerIntervalCoronel);
+            const fimMs = new Date(fimPrevistoIso).getTime();
+
+            function atualizarDisplay() {
+                const display = document.getElementById('timerRegressivoCoronel');
+                if (!display) return;
+                const agora = Date.now();
+                const diffSegs = Math.max(0, Math.floor((fimMs - agora) / 1000));
+
+                const h = String(Math.floor(diffSegs / 3600)).padStart(2, '0');
+                const m = String(Math.floor((diffSegs % 3600) / 60)).padStart(2, '0');
+                const s = String(diffSegs % 60).padStart(2, '0');
+                display.innerText = `${h}:${m}:${s}`;
+
+                if (diffSegs <= 0) {
+                    clearInterval(timerIntervalCoronel);
+                    display.innerText = "00:00:00 (Encerrado)";
+                    carregarStatusPlantaoCoronel();
+                }
+            }
+
+            atualizarDisplay();
+            timerIntervalCoronel = setInterval(atualizarDisplay, 1000);
+        }
+
+        async function assumirVagaCoronel(numVaga) {
+            const ehCoronel = ehCoronelOuGeneral(user.cargo) || user.role === 'admin';
+            if (!ehCoronel) {
+                mostrarModalCustomizado('Acesso Restrito', 'Apenas Coronel, Coronel All ou General podem assumir as vagas de Coronel de Turno.');
+                return;
+            }
+
+            mostrarModalCustomizado(
+                `Assumir Plantão - Vaga ${numVaga}`,
+                `Deseja assumir a <b>Vaga ${numVaga}</b> do Plantão de Coronel por <b>3 horas</b>?<br><br>Um aviso geral será emitido para toda a tropa informando que o recrutamento e as missões do efetivo estão sob sua responsabilidade neste turno.`,
+                'confirmacao',
+                async () => {
+                    try {
+                        const res = await fetch('/api/coronel/assumir', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                nickname: user.nickname,
+                                vagaDesejada: numVaga
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            mostrarModalCustomizado('Plantão Assumido!', data.message);
+                            carregarStatusPlantaoCoronel();
+                        } else {
+                            mostrarModalCustomizado('Atenção', data.message || 'Erro ao assumir plantão.');
+                        }
+                    } catch (e) {
+                        mostrarModalCustomizado('Erro', 'Falha na conexão ao assumir plantão de coronel.');
+                    }
+                }
+            );
+        }
+
+        function abrirModalRelatorioCoronel() {
+            if (!turnoCoronelAtivoCache) {
+                mostrarModalCustomizado('Aviso', 'Você não possui um plantão ativo de Coronel no momento.');
+                return;
+            }
+            document.getElementById('modalRelatorioCoronel').style.display = 'flex';
+            const container = document.getElementById('containerLinhasRecrutamento');
+            if (container && container.children.length === 0) {
+                adicionarLinhaRecrutamento();
+            }
+        }
+
+        function fecharModalRelatorioCoronel() {
+            document.getElementById('modalRelatorioCoronel').style.display = 'none';
+        }
+
+        function adicionarLinhaRecrutamento(dados = {}) {
+            const container = document.getElementById('containerLinhasRecrutamento');
+            if (!container) return;
+
+            const linha = document.createElement('div');
+            linha.className = 'item-linha-recrutamento';
+            linha.style.cssText = "background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px;";
+
+            linha.innerHTML = `
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="text" class="recruta-nome search-input-box" placeholder="Nome / Nickname do Recruta" value="${escapeHTML(dados.nome || '')}" style="flex: 2; margin-bottom: 0;" required>
+                    <input type="text" class="recruta-level search-input-box" placeholder="Level (ex: 5)" value="${escapeHTML(dados.level || '')}" style="flex: 1; margin-bottom: 0;">
+                    <button type="button" onclick="this.closest('.item-linha-recrutamento').remove()" style="background: rgba(239, 68, 68, 0.25); border: 1px solid #ef4444; color: #fca5a5; padding: 8px 10px; border-radius: 8px; font-weight: 700; cursor: pointer;">✕</button>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <input type="tel" class="recruta-whatsapp search-input-box" placeholder="WhatsApp (ou digite: Não possui)" value="${escapeHTML(dados.whatsapp || '')}" style="flex: 1; margin-bottom: 0;">
+                    <label style="font-size: 11px; color: #86efac; display: flex; align-items: center; gap: 4px; white-space: nowrap;">
+                        <input type="checkbox" class="recruta-farda" ${dados.fardaEntregue !== false ? 'checked' : ''}> Farda Entregue
+                    </label>
+                </div>
+            `;
+            container.appendChild(linha);
+        }
+
+        async function salvarRelatorioCoronel(event) {
+            event.preventDefault();
+            if (!turnoCoronelAtivoCache) return;
+
+            const linhas = document.querySelectorAll('.item-linha-recrutamento');
+            const recrutamentos = [];
+
+            linhas.forEach(l => {
+                const nome = l.querySelector('.recruta-nome')?.value?.trim();
+                const level = l.querySelector('.recruta-level')?.value?.trim() || 'Não informado';
+                const whatsapp = l.querySelector('.recruta-whatsapp')?.value?.trim() || 'Não possui/não informado';
+                const fardaEntregue = l.querySelector('.recruta-farda')?.checked !== false;
+
+                if (nome) {
+                    recrutamentos.push({ nome, level, whatsapp, fardaEntregue });
+                }
+            });
+
+            const missoesSupervisionadas = document.getElementById('inputMissoesCoronel')?.value;
+            const resumoGeral = document.getElementById('inputResumoGeralCoronel')?.value;
+            const fardamentoStatus = document.getElementById('inputFardamentoStatus')?.value;
+
+            const btn = document.getElementById('btnSalvarRelatorioCoronel');
+            if (btn) { btn.disabled = true; btn.innerText = 'A guardar relatório...'; }
+
+            try {
+                const res = await fetch('/api/coronel/relatorio', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        turnoId: turnoCoronelAtivoCache._id,
+                        nickname: user.nickname,
+                        recrutamentos,
+                        missoesSupervisionadas,
+                        resumoGeral,
+                        fardamentoStatus
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    fecharModalRelatorioCoronel();
+                    mostrarModalCustomizado('Relatório Registado', data.message || 'Relatório de recrutamento salvo com sucesso!');
+                    carregarHistoricoRelatoriosCoronel();
+                } else {
+                    mostrarModalCustomizado('Erro', data.message || 'Erro ao registrar relatório.');
+                }
+            } catch (e) {
+                mostrarModalCustomizado('Erro', 'Falha na conexão ao salvar relatório.');
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerText = '💾 Salvar Relatório do Plantão'; }
+            }
+        }
+
+        async function finalizarMeuPlantaoCoronel() {
+            if (!turnoCoronelAtivoCache) return;
+
+            mostrarModalCustomizado(
+                'Concluir Plantão de Coronel',
+                'Deseja concluir o seu plantão de 3 horas agora? Certifique-se de preencher o relatório de recrutamento e farda antes ou após.',
+                'confirmacao',
+                async () => {
+                    try {
+                        const res = await fetch('/api/coronel/finalizar', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                turnoId: turnoCoronelAtivoCache._id,
+                                nickname: user.nickname
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            mostrarModalCustomizado('Plantão Concluído', data.message || 'Turno finalizado com sucesso!');
+                            carregarStatusPlantaoCoronel();
+                            carregarHistoricoRelatoriosCoronel();
+                        } else {
+                            mostrarModalCustomizado('Erro', data.message || 'Erro ao finalizar.');
+                        }
+                    } catch (e) {
+                        mostrarModalCustomizado('Erro', 'Erro de conexão.');
+                    }
+                }
+            );
+        }
+
+        async function carregarHistoricoRelatoriosCoronel() {
+            const container = document.getElementById('listaRelatoriosCoronelRecentes');
+            if (!container) return;
+
+            try {
+                const res = await fetch('/api/coronel/relatorios-historico?_=' + Date.now());
+                const data = await res.json();
+                if (!data.success || !Array.isArray(data.relatorios) || data.relatorios.length === 0) {
+                    container.innerHTML = '<p style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px;">Nenhum relatório de plantão enviado recentemente.</p>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                data.relatorios.forEach(t => {
+                    const r = t.relatorio || {};
+                    const dataFormatada = r.enviadoEm ? new Date(r.enviadoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-';
+                    const recrutados = Array.isArray(r.recrutamentos) ? r.recrutamentos : [];
+
+                    container.innerHTML += `
+                        <div style="background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(234, 179, 8, 0.25); border-radius: 10px; padding: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+                                <div>
+                                    <b style="color: #facc15; font-size: 13px;">👑 ${escapeHTML(t.coronelNickname)}</b>
+                                    <span style="font-size: 11px; color: #94a3b8;">(${escapeHTML(t.coronelCargo)}) • Vaga ${t.vaga}</span>
+                                </div>
+                                <span style="font-size: 11px; color: #94a3b8;">📅 ${dataFormatada}</span>
+                            </div>
+
+                            <div style="font-size: 12px; color: #cbd5e1; margin-bottom: 6px;">
+                                <span>👔 <b>Fardamento:</b> ${escapeHTML(r.fardamentoStatus || 'Entregue')}</span>
+                                ${r.missoesSupervisionadas ? `<div style="margin-top: 3px;">🎯 <b>Missões:</b> ${escapeHTML(r.missoesSupervisionadas)}</div>` : ''}
+                                ${r.resumoGeral ? `<div style="margin-top: 3px;">📌 <b>Ocorrências:</b> ${escapeHTML(r.resumoGeral)}</div>` : ''}
+                            </div>
+
+                            ${recrutados.length > 0 ? `
+                                <div style="background: rgba(7, 13, 22, 0.6); border-radius: 8px; padding: 8px 10px; font-size: 11.5px; border-left: 3px solid #38bdf8;">
+                                    <b style="color: #38bdf8; display: block; margin-bottom: 4px;">Recrutamentos (${recrutados.length}):</b>
+                                    ${recrutados.map(rc => `
+                                        <div style="display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px dashed rgba(56, 189, 248, 0.15);">
+                                            <span>🪖 <b>${escapeHTML(rc.nome)}</b> (Lvl ${escapeHTML(rc.level)})</span>
+                                            <span style="color: #4ade80;">📱 ${escapeHTML(rc.whatsapp)}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : '<span style="font-size: 11px; color: #94a3b8;">Sem novos recrutamentos registrados neste turno.</span>'}
+                        </div>
+                    `;
+                });
+            } catch (e) {
+                container.innerHTML = '<p style="color: #ef4444; font-size: 12px; text-align: center;">Erro ao carregar relatórios.</p>';
+            }
+        }
+
         async function enviarJustificativaMembro(event) {
             event.preventDefault();
             const motivo = document.getElementById('inputMotivoJustificativa')?.value;
