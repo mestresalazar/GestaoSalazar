@@ -4556,233 +4556,387 @@
             const c = document.getElementById('conteudoPerguntasProva');
 
             if (cargoDestinoAtual === 'Sargento') {
-                // Nível 1: Exame para Sargento (Capítulos 4, 5 e Códigos Q Essenciais)
+                // Nível 1: Exame para Sargento (7 perguntas)
                 c.innerHTML = `
                     <div style="background: rgba(56, 189, 248, 0.15); border: 1px solid #38bdf8; padding: 10px 14px; border-radius: 10px; margin-bottom: 16px; font-size: 12px; color: #7dd3fc;">
-                        🎖️ <b>Exame Oficial para Sargento:</b> Foco em Conduta Disciplinar (Cap. 4), Regras Rígidas de Formação (Cap. 5) e Códigos Q Fundamentais.
+                        🎖️ <b>Exame Oficial para Sargento (7 Perguntas):</b> Foco em Conduta Disciplinar (Cap. 4), Regras de Formação (Cap. 5) e Códigos Q Fundamentais.
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #38bdf8;">
                         <label style="font-weight: 600; display: block; margin-bottom: 6px;">1. De acordo com o Capítulo 5.1, qual é o tempo exato para comparecer a uma formação convocada pelo rádio?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q1" value="a" required> A) 10 minutos com tolerância.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q1" value="b"> B) Exatamente 5 minutos, sem atrasos injustificados.</label>
                         <label style="display: block;"><input type="radio" name="q1" value="c"> C) 15 minutos se estiver em patrulha externa.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #38bdf8;">
                         <label style="font-weight: 600; display: block; margin-bottom: 6px;">2. Conforme o Capítulo 5.2, qual é a ÚNICA exceção permitida para gestos durante a formação da tropa?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q2" value="a" required> A) Fazer continência continuamente.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q2" value="b"> B) Levantar a mão para pedir autorização para falar.</label>
                         <label style="display: block;"><input type="radio" name="q2" value="c"> C) Sentar no chão para descansar.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #38bdf8;">
                         <label style="font-weight: 600; display: block; margin-bottom: 6px;">3. Segundo o Capítulo 4.16, o que é OBRIGATÓRIO fazer caso um operador precise usar máscara/balaclava?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q3" value="a" required> A) Apenas colocar a máscara sem avisar ninguém.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q3" value="b"> B) Pedir autorização apenas por mensagem privada.</label>
                         <label style="display: block;"><input type="radio" name="q3" value="c"> C) Relatar imediatamente no rádio militar o motivo operacional e a identificação do operador antes de colocá-la.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #38bdf8;">
                         <label style="font-weight: 600; display: block; margin-bottom: 6px;">4. Conforme o Capítulo 4.17, o que acontece se o operacional sair das dependências da base sem relatar no rádio?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q4" value="a" required> A) É infração disciplinar expressamente proibida; é obrigatório relatar destino (QTH) e viatura.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q4" value="b"> B) É permitido se for comprar suprimentos pessoais.</label>
                         <label style="display: block;"><input type="radio" name="q4" value="c"> C) Só precisa relatar se sair acompanhado de civis.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #38bdf8;">
                         <label style="font-weight: 600; display: block; margin-bottom: 6px;">5. No rádio tático militar, o que significam os códigos QSL, QAP, QTH e QTA?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q5" value="a" required> A) QSL: Silêncio | QAP: Fim | QTH: Socorro | QTA: Transmita.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q5" value="b"> B) QSL: Entendido/Confirmado | QAP: Na escuta/Prontidão | QTH: Localização atual | QTA: Cancele a mensagem.</label>
                         <label style="display: block;"><input type="radio" name="q5" value="c"> C) QSL: Não autorizo | QAP: Em combate | QTH: Hospital | QTA: Retorne.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #38bdf8;">
                         <label style="font-weight: 600; display: block; margin-bottom: 6px;">6. Conforme o Capítulo 5.7, qual deve ser o estado do armamento durante toda a formação militar?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q6" value="a" required> A) Em punho e apontado para o chão.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q6" value="b"> B) Rigorosamente guardado no coldre/bandoleira, proibido empunhar ou sacar sem ordem direta.</label>
                         <label style="display: block;"><input type="radio" name="q6" value="c"> C) Destravado para ação imediata.</label>
                     </div>
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #38bdf8;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">7. Sobre o respeito à cadeia de comando e superiores (Capítulo 2.3 e 2.4):</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q7" value="a" required> A) É dever funcional estrito cumprir sem hesitação ordens legais e manter respeito à hierarquia.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q7" value="b"> B) Ordens só precisam ser cumpridas em combate.</label>
+                        <label style="display: block;"><input type="radio" name="q7" value="c"> C) O soldado pode contestar ordens no rádio a qualquer momento.</label>
+                    </div>
                 `;
             } else if (cargoDestinoAtual === 'Tenente') {
-                // Nível 2: Exame para Tenente (Capítulos 5, 6, 7, Patrulhas e Códigos Q Avançados)
+                // Nível 2: Exame para Tenente (11 perguntas)
                 c.innerHTML = `
                     <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; padding: 10px 14px; border-radius: 10px; margin-bottom: 16px; font-size: 12px; color: #fde68a;">
-                        🎖️ <b>Exame Oficial para Tenente:</b> Liderança de Patrulha, Subordinação (Cap. 6), Horários Obrigatórios (Cap. 7), Códigos Q de tráfego e regras de invasão.
+                        🎖️ <b>Exame Oficial para Tenente (11 Perguntas):</b> Liderança de Patrulha, Subordinação (Cap. 6), Carga Horária e Ausência (Cap. 7), Códigos Q e Pacificação.
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
                         <label style="font-weight: 600; display: block; margin-bottom: 6px;">1. De acordo com o Capítulo 7.1 e 7.2, qual é o mínimo semanal de horas no jogo e o limite máximo de ausência?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q1" value="a" required> A) 5h semanais e máximo de 7 dias ausente.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q1" value="b"> B) 10h semanais e máximo de 2 dias ausente.</label>
                         <label style="display: block;"><input type="radio" name="q1" value="c"> C) Mínimo de 7 horas semanais e máximo de 3 dias de ausência sem justificativa homologada.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
                         <label style="font-weight: 600; display: block; margin-bottom: 6px;">2. Conforme o Capítulo 6.1 e 6.2, como deve ser a disciplina de rádio e o tratamento aos Oficiais?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q2" value="a" required> A) Tratamento informal e uso do rádio para desabafos e piadas.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q2" value="b"> B) Tratamento por "Senhor", "Comandante" ou patente; rádio exclusivamente operacional com Códigos Q regulamentares.</label>
                         <label style="display: block;"><input type="radio" name="q2" value="c"> C) Uso do rádio somente quando houver confronto com máfias.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
                         <label style="font-weight: 600; display: block; margin-bottom: 6px;">3. No comando de patrulha, o que significam os códigos QSY, QSP, QTC e QRT?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q3" value="a" required> A) QSY: Perseguição | QSP: Disparos | QTC: Socorro | QRT: Atacar.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q3" value="b"> B) QSY: Parada para lanche | QSP: Retornar à base | QTC: Alarme falso | QRT: Na escuta.</label>
                         <label style="display: block;"><input type="radio" name="q3" value="c"> C) QSY: Mudar de frequência/canal | QSP: Retransmitir mensagem (ponte) | QTC: Tenho mensagem | QRT: Cessar transmissão/encerrar escuta.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
                         <label style="font-weight: 600; display: block; margin-bottom: 6px;">4. Conforme as regras operacionais, qual a exigência de antecedência para agendamento de uma Pacificação e o efetivo policial mínimo?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q4" value="a" required> A) Mínimo de 24 horas de antecedência e mínimo de 10 policiais online.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q4" value="b"> B) Mínimo de 2 horas e 5 policiais.</label>
                         <label style="display: block;"><input type="radio" name="q4" value="c"> C) Agendamento imediato com 8 policiais.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
                         <label style="font-weight: 600; display: block; margin-bottom: 6px;">5. Em patrulha ou invasão, o que significam os termos operacionais QAP 1, QAP 2 e VTR?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q5" value="a" required> A) QAP 1: Descanso | QAP 2: Almoço | VTR: Helicóptero.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q5" value="b"> B) QAP 1: Prontidão nível 1 (embarcado/alerta máximo) | QAP 2: Prontidão nível 2 (em base) | VTR: Viatura oficial.</label>
                         <label style="display: block;"><input type="radio" name="q5" value="c"> C) QAP 1: Soldado ferido | QAP 2: Invasão | VTR: Vítima.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
                         <label style="font-weight: 600; display: block; margin-bottom: 6px;">6. Qual a penalidade aplicável a invasões sem autorização oficial ou uso de equipamento não letal (Capítulo 4.21 e 4.22)?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q6" value="a" required> A) Apenas perda de pontos na carteira.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q6" value="b"> B) Banimento de 5 dias por INA - 4.21 (sem autorização) e 60 minutos de prisão por FAIL - 4.22 (teaser/cassetete).</label>
                         <label style="display: block;"><input type="radio" name="q6" value="c"> C) Nenhuma punição se for a primeira vez.</label>
                     </div>
-                `;
-            } else if (cargoDestinoAtual === 'Major') {
-                // Nível 3: Exame para Major (Gestão Estratégica, Cap. 4 Sanções, C4/COPOM e Códigos Q de Comando)
-                c.innerHTML = `
-                    <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; padding: 10px 14px; border-radius: 10px; margin-bottom: 16px; font-size: 12px; color: #fca5a5;">
-                        🎖️ <b>Exame Oficial para Major:</b> Gestão de Efetivo, Coordenação de C4/COPOM, Sanções Severas (Cap. 4), Pacificações e Códigos Q de Comando Geral.
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">7. Qual a composição padrão regulamentar de uma Patrulha Mista?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q7" value="a" required> A) 1 Tenente (Comandante), 1 Sargento e 1 Privado/Soldado devidamente equipados.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q7" value="b"> B) Apenas Soldados do mesmo nível.</label>
+                        <label style="display: block;"><input type="radio" name="q7" value="c"> C) Civis armados com escolta de 1 Oficial.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">8. Na fonia militar, o que significam os códigos QRA, QTH e QRU?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q8" value="a" required> A) QRA: Rádio quebrado | QTH: Hospital | QRU: Emergência.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q8" value="b"> B) QRA: Destino | QTH: Base | QRU: Ajuda civil.</label>
+                        <label style="display: block;"><input type="radio" name="q8" value="c"> C) QRA: Nome/prefixo do operador | QTH: Localização geográfica | QRU: Tens algo para mim? / Não tenho pendências.</label>
+                    </div>
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">9. Conforme os Capítulos 5.5 e 5.6, o que é proibido durante a formação da tropa?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q9" value="a" required> A) Ficar em silêncio.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q9" value="b"> B) Conversas paralelas no chat local, piadas, cochichos e uso de celular.</label>
+                        <label style="display: block;"><input type="radio" name="q9" value="c"> C) Olhar para frente.</label>
+                    </div>
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">10. Quais são os horários permitidos para invasão ao Presídio (PS)?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q10" value="a" required> A) Das 08h às 12h e das 13h às 00h (proibido estritamente das 12h às 13h sob pena de INA).</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q10" value="b"> B) Apenas de madrugada.</label>
+                        <label style="display: block;"><input type="radio" name="q10" value="c"> C) 24 horas ininterruptas.</label>
+                    </div>
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">11. Segundo o Capítulo 2.7, qual a obrigação do condutor em relação à Viatura de Trabalho (VTR)?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q1" value="a" required> A) Abandoná-la onde quebrar.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q11" value="b"> B) Repassar a um civil para reparo.</label>
+                        <label style="display: block;"><input type="radio" name="q11" value="c"> C) Reparar imediatamente a VTR em caso de dano intencional ou acidental antes de retorná-la à base.</label>
+                    </div>
+                `;
+            } else if (cargoDestinoAtual === 'Major') {
+                // Nível 3: Exame para Major (14 perguntas)
+                c.innerHTML = `
+                    <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; padding: 10px 14px; border-radius: 10px; margin-bottom: 16px; font-size: 12px; color: #fca5a5;">
+                        🎖️ <b>Exame Oficial para Major (14 Perguntas):</b> Gestão de Efetivo, Coordenação de C4/COPOM, Sanções Severas (Cap. 4), Pacificações e Códigos Q de Comando.
+                    </div>
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
                         <label style="font-weight: 600; display: block; margin-bottom: 6px;">1. De acordo com o cronograma tático, quais são os dias e horários exatos de Pacificação às Máfias e às Facções?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q1" value="a" required> A) Sábado às máfias (21h às 22h); Domingo e Segunda às facções (21h às 00h, com EB e PF).</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q1" value="b"> B) Terça e Quinta das 19h às 22h.</label>
                         <label style="display: block;"><input type="radio" name="q1" value="c"> C) Apenas na sexta-feira após o CRM.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
                         <label style="font-weight: 600; display: block; margin-bottom: 6px;">2. O que representam na gestão militar os Códigos QST, QSM, QTE e QSO?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q2" value="a" required> A) QST: Retirar tropa | QSM: Munição baixa | QTE: Alvo morto | QSO: Hospital.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q2" value="b"> B) QST: Fim de jogo | QSM: Pausa | QTE: Ajuda civil | QSO: Sentinela.</label>
                         <label style="display: block;"><input type="radio" name="q2" value="c"> C) QST: Comunicado geral a todas as estações | QSM: Repita a mensagem | QTE: Posição/rumo | QSO: Contato estabelecido.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
                         <label style="font-weight: 600; display: block; margin-bottom: 6px;">3. Conforme as regras de derrota por inatividade e roubo de maletas durante invasão:</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q3" value="a" required> A) Derrota deixa a facção inativa por 6h e o roubo de maleta é permitido sem restrições.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q3" value="b"> B) Vitória do EB/Polícia gera inatividade de 24h na facção e 12h na máfia; roubo indevido de maleta gera reset e 1 aviso à infratora com devolução da máfia.</label>
                         <label style="display: block;"><input type="radio" name="q3" value="c"> C) A derrota só gera inatividade se confirmada por votação.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
                         <label style="font-weight: 600; display: block; margin-bottom: 6px;">4. Conforme o Capítulo 4.10, 4.20 e 4.23, como o Major deve proceder ao flagrar vazamento de informações ou conluio?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q4" value="a" required> A) Aplicar apenas advertência verbal em particular.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q4" value="b"> B) Transferir o operador para patrulha noturna.</label>
                         <label style="display: block;"><input type="radio" name="q4" value="c"> C) Trata-se de infração gravíssima de traição militar: voz de prisão imediata, registro em auditoria e exoneração com encaminhamento à moderação.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
                         <label style="font-weight: 600; display: block; margin-bottom: 6px;">5. Em situações de acionamento em massa pelo C4/COPOM, qual é o procedimento de formação e rádio da tropa?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q5" value="a" required> A) Cada soldado desloca por conta própria com viaturas individuais.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q5" value="b"> B) Formação imediata em até 5 minutos (Cap. 5.1), rádio em QRL/QAP, armas travadas (5.7) e saída relatada em comboio (4.17).</label>
                         <label style="display: block;"><input type="radio" name="q5" value="c"> C) O alarme de ação só obriga oficiais a comparecerem.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
                         <label style="font-weight: 600; display: block; margin-bottom: 6px;">6. Sobre a fiscalização de 7 horas semanais e 3 dias de ausência (Capítulo 7), qual é o papel do Oficial?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q6" value="a" required> A) Ignorar ausências se o membro for conhecido.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q6" value="b"> B) Auditar o relatório de plantões, cobrar justificativas formais antes de 3 dias e garantir a escala operacional.</label>
                         <label style="display: block;"><input type="radio" name="q6" value="c"> C) Excluir turnos antigos sem registrar em auditoria.</label>
                     </div>
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">7. O que acontece se uma família roubar a maleta durante a invasão do EB e conquistar a máfia adversária na ausência desta?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q7" value="a" required> A) A conquista é validada sem restrições.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q7" value="b"> B) Reset completo da máfia conquistada + 1 Aviso para a família infratora com devolução da posse à máfia anterior.</label>
+                        <label style="display: block;"><input type="radio" name="q7" value="c"> C) Apenas uma multa simbólica.</label>
+                    </div>
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">8. Aliados de uma facção podem participar auxiliando direta ou indiretamente na invasão?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q8" value="a" required> A) É expressamente proibido; penalidade de 1/3 de aviso para a facção infratora.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q8" value="b"> B) Permitido desde que usem o mesmo uniforme.</label>
+                        <label style="display: block;"><input type="radio" name="q8" value="c"> C) Permitido se houver menos de 5 defensores.</label>
+                    </div>
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">9. No controle operacional avançado de fonia, qual o significado dos códigos QRG, QTR e QTU?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q9" value="a" required> A) QRG: Disparos | QTR: Fuga | QTU: Hospital.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q9" value="b"> B) QRG: Frequência exata | QTR: Horário oficial exato | QTU: Horário de funcionamento do posto/base.</label>
+                        <label style="display: block;"><input type="radio" name="q9" value="c"> C) QRG: Soldado | QTR: Arma | QTU: Munição.</label>
+                    </div>
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">10. Conforme o Capítulo 1.2, quais as quatro sanções disciplinares graduais previstas nesta Carta?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q10" value="a" required> A) Multa, prisão perpétua, castigo físico e dispensa.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q10" value="b"> B) Apenas aviso verbal.</label>
+                        <label style="display: block;"><input type="radio" name="q10" value="c"> C) Advertência, repreensão, demissão e demissão com inclusão na Lista Negra.</label>
+                    </div>
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">11. Segundo o Capítulo 4.13 e 4.14, quais infrações relativas a viaturas oficiais são severamente punidas?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q11" value="a" required> A) Uso de VTR oficial para lazer/atividades particulares e direção perigosa dolosa com capotamento.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q11" value="b"> B) Lavar a viatura no quartel.</label>
+                        <label style="display: block;"><input type="radio" name="q11" value="c"> C) Estacionar a viatura na vaga oficial.</label>
+                    </div>
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">12. Na quinta-feira de invasão ao EB por ambas as máfias, qual a regra tática obrigatória de horário?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q12" value="a" required> A) Invasão direta até as 04h da manhã.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q12" value="b"> B) Pausa obrigatória e sem exceções das 22h às 23h durante a tomada de máfia.</label>
+                        <label style="display: block;"><input type="radio" name="q12" value="c"> C) Não há nenhuma restrição.</label>
+                    </div>
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">13. Famílias/máfias não autorizadas podem invadir as instalações do Exército Brasileiro?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q13" value="a" required> A) É proibição absoluta; invasão de famílias ao quartel é terminantemente vedada.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q13" value="b"> B) Permitido se estiverem com mais de 10 homens.</label>
+                        <label style="display: block;"><input type="radio" name="q13" value="c"> C) Permitido nos fins de semana.</label>
+                    </div>
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 6px;">14. Conforme o Capítulo 5.4, qual o comportamento exigido do rádio durante as formações?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q14" value="a" required> A) Transmissões livres de música e brincadeiras.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q14" value="b"> B) Canal aberto com o comando da cidade.</label>
+                        <label style="display: block;"><input type="radio" name="q14" value="c"> C) Frequência mantida em silêncio absoluto (QRL) durante toda a instrução da formação.</label>
+                    </div>
                 `;
             } else if (cargoDestinoAtual === 'Coronel') {
-                // Nível Máximo Supremo: Exame de Coronel (100h) - O teste mais completo e difícil de todo o sistema
+                // Nível Máximo Supremo: Exame de Coronel (18 perguntas - Exame Supremo entre 15 e 20)
                 c.innerHTML = `
-                    <div style="background: linear-gradient(145deg, rgba(239, 68, 68, 0.2), rgba(15, 23, 42, 0.95)); border: 2px solid #ef4444; padding: 12px 16px; border-radius: 12px; margin-bottom: 18px;">
-                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                            <span style="font-size: 22px;">👑</span>
-                            <b style="color: #f87171; font-size: 14px;">EXAME SUPREMO DE CORONEL (100 HORAS ACUMULADAS)</b>
+                    <div style="background: linear-gradient(145deg, rgba(239, 68, 68, 0.2), rgba(15, 23, 42, 0.95)); border: 2px solid #ef4444; padding: 14px 18px; border-radius: 12px; margin-bottom: 18px;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                            <span style="font-size: 24px;">👑</span>
+                            <b style="color: #f87171; font-size: 15px;">EXAME SUPREMO DE CORONEL (18 QUESTÕES - REQUISITO 100 HORAS)</b>
                         </div>
                         <p style="font-size: 12px; color: #fecaca; line-height: 1.5; margin: 0;">
-                            A mais rigorosa avaliação da organização! Cobra todo o regulamento (Cap. 1 ao 7), poderes disciplinares, limite da cúpula de líderes, as 3 vagas e regras do Plantão de Coronel de 3h com envio de relatórios. Exige 80% de acerto para aprovação.
+                            A mais rigorosa avaliação militar da organização! Cobra todas as regras gerais, Capítulos 1 a 7, códigos Q avançados, autoridade disciplinar sumária, limite intransponível de 8 líderes, e todas as regras/responsabilidades/relatórios/rebaixamento do Plantão de Coronel (3h). Exige 80% de acertos para homologação.
                         </p>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
                         <label style="font-weight: 700; display: block; margin-bottom: 6px;">1. Conforme os Capítulos 1.4 e o Regulamento de Serviço, qual é o horário de serviço obrigatório do EB e como funcionam pedidos de dispensa?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q1" value="a" required> A) Turno livre 24 horas; dispensa não precisa de autorização.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q1" value="b"> B) Das 18:00 às 23:00; dispensa homologada com qualquer Soldado.</label>
                         <label style="display: block;"><input type="radio" name="q1" value="c"> C) Rigorosamente das 17:00 às 02:00 de Brasília; pedidos de folga ou afastamento devem ser submetidos exclusivamente ao General ou Coronéis.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
                         <label style="font-weight: 700; display: block; margin-bottom: 6px;">2. Qual é a composição numérica máxima e intransponível da cúpula de liderança superior do Exército Brasileiro?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q2" value="a" required> A) Até 12 Coronéis e 2 Generais.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q2" value="b"> B) No máximo 7 Coronéis + 1 Líder (General), totalizando exatamente 8 líderes no comando superior.</label>
                         <label style="display: block;"><input type="radio" name="q2" value="c"> C) Não há limite de coronéis, desde que façam provas.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
                         <label style="font-weight: 700; display: block; margin-bottom: 6px;">3. Qual a autoridade disciplinar conferida expressamente ao General e aos Coronéis sobre o efetivo?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q3" value="a" required> A) Têm o direito e autoridade de relatar à administração e aplicar sanções disciplinares de forma independente e sumária caso detectem qualquer infrator na tropa.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q3" value="b"> B) Só podem agir se houver votação geral entre os soldados.</label>
                         <label style="display: block;"><input type="radio" name="q3" value="c"> C) Devem aguardar 48 horas antes de tomar qualquer medida disciplinar.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
                         <label style="font-weight: 700; display: block; margin-bottom: 6px;">4. Como funciona o Módulo Oficial de Plantão / Turno de Coronel?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q4" value="a" required> A) O plantão dura 1 hora e não emite avisos ao efetivo.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q4" value="b"> B) É misturado com o bater ponto comum de soldados e não possui vagas.</label>
                         <label style="display: block;"><input type="radio" name="q4" value="c"> C) Possui duração fixa de 3 horas, limite de 1 turno ativo por coronel, até 3 vagas simultâneas por turno e dispara aviso geral a todos de que o recrutamento e missões estão sob sua responsabilidade.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
                         <label style="font-weight: 700; display: block; margin-bottom: 6px;">5. O que deve conter o Relatório Obrigatório de Turno enviado pelo Coronel de Plantão?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q5" value="a" required> A) Apenas a lista de viaturas abastecidas na garagem.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q5" value="b"> B) Lista detalhada dos recrutados no turno, seus respectivos levels, números de WhatsApp (ou se não possui), status de entrega do fardamento militar padronizado e ocorrências.</label>
                         <label style="display: block;"><input type="radio" name="q5" value="c"> C) Apenas print do placar geral de mortes no jogo.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
                         <label style="font-weight: 700; display: block; margin-bottom: 6px;">6. Conforme os Capítulos 4.16 e 4.17, quais são as regras fundamentais de Máscara e Saída de Base?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q6" value="a" required> A) Máscara exige aviso prévio no rádio com motivo operacional e identificação do operador; saída de base exige comunicação prévia obrigatória de QTH e viatura.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q6" value="b"> B) Máscara é proibida para todos em qualquer hipótese e a saída de base é totalmente livre.</label>
                         <label style="display: block;"><input type="radio" name="q6" value="c"> C) Ambos são liberados desde que o soldado esteja armado.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
                         <label style="font-weight: 700; display: block; margin-bottom: 6px;">7. Conforme o Capítulo 5.1 e 5.2, qual é o tempo limite de formação e qual gesto é estritamente tolerado?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q7" value="a" required> A) 15 minutos de tolerância; qualquer animação de dança é permitida.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q7" value="b"> B) 10 minutos; proibido qualquer movimento exceto deitar.</label>
                         <label style="display: block;"><input type="radio" name="q7" value="c"> C) Exatamente 5 minutos de prazo fatal; proibida qualquer animação ou gesto, sendo a ÚNICA exceção autorizada levantar a mão para solicitar a palavra ao Oficial.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
                         <label style="font-weight: 700; display: block; margin-bottom: 6px;">8. Segundo o Capítulo 7.1 e 7.2, qual é a carga horária mínima semanal e o limite de dias sem comparecimento?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q8" value="a" required> A) 3 horas semanais e 10 dias de ausência.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q8" value="b"> B) Mínimo de 7 horas semanais ativas registradas e limite de 3 dias consecutivos de ausência sem justificativa sob pena de demissão/exoneração.</label>
                         <label style="display: block;"><input type="radio" name="q8" value="c"> C) Não há carga horária obrigatória para cargos de liderança.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
                         <label style="font-weight: 700; display: block; margin-bottom: 6px;">9. Na fonia militar avançada de rádio, qual é a correspondência correta dos códigos QRL, QSL, QSY, QTR e QTC?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q9" value="a" required> A) QRL: livre | QSL: não | QSY: parar | QTR: local | QTC: socorro.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q9" value="b"> B) QRL: Frequência ocupada/silêncio | QSL: Entendido/Confirmado | QSY: Mudar canal/frequência | QTR: Hora exata oficial | QTC: Mensagem oficial a transmitir.</label>
                         <label style="display: block;"><input type="radio" name="q9" value="c"> C) QRL: atacar | QSL: render | QSY: correr | QTR: tiro | QTC: fuga.</label>
                     </div>
 
-                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
                         <label style="font-weight: 700; display: block; margin-bottom: 6px;">10. Em ações de Pacificação e Invasões, quais as regras cruciais de armamento e homologação (Cap. 4.21 e 4.22)?</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q10" value="a" required> A) Ação exige autorização do Administrador Líder/Comando prévia (INA - 4.21); uso de teaser/cassetete é terminantemente proibido sob pena de 60m prisão (FAIL - 4.22).</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q10" value="b"> B) É permitido teaser para imobilizar e a ação pode começar sem autorização.</label>
                         <label style="display: block;"><input type="radio" name="q10" value="c"> C) Aliados podem entrar em qualquer confronto para equilibrar o número de combatentes.</label>
+                    </div>
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 700; display: block; margin-bottom: 6px;">11. Caso o Coronel assuma o plantão oficial de 3h e abandone o posto ou negligencie suas obrigações:</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q11" value="a" required> A) Nenhuma penalidade se ele tiver mais de 100 horas.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q11" value="b"> B) Apenas uma advertência verbal simples.</label>
+                        <label style="display: block;"><input type="radio" name="q11" value="c"> C) Trata-se de quebra de responsabilidade com a tropa: cancelamento do turno pelo Comando, abertura de PAD com advertência financeira e risco imediato de rebaixamento de patente.</label>
+                    </div>
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 700; display: block; margin-bottom: 6px;">12. Qual a regra fundamental de fiscalização do fardamento militar aos novos recrutas no plantão?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q12" value="a" required> A) Qualquer roupa civil é tolerada se o recruta for level alto.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q12" value="b"> B) É dever do Coronel entregar ou certificar a farda padrão regulamentar a todos os recrutados antes de autorizá-los em serviço.</label>
+                        <label style="display: block;"><input type="radio" name="q12" value="c"> C) O fardamento só é exigido após 1 mês de corporação.</label>
+                    </div>
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 700; display: block; margin-bottom: 6px;">13. Quantos plantões de Coronel (3h) um oficial pode assumir simultaneamente?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q13" value="a" required> A) Rigorosamente 1 plantão ativo por Coronel, devendo concluí-lo antes de ocupar outra vaga.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q13" value="b"> B) Até 3 vagas ao mesmo tempo.</label>
+                        <label style="display: block;"><input type="radio" name="q13" value="c"> C) Vagas ilimitadas.</label>
+                    </div>
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 700; display: block; margin-bottom: 6px;">14. O que o regulamento estabelece sobre armamento letal em ações de invasão e pacificação?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q14" value="a" required> A) Qualquer arma branca é preferível a armas de fogo.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q14" value="b"> B) Exclusividade de armamento letal militar autorizado; o uso de teaser ou cassetete é classificado como FAIL (4.22).</label>
+                        <label style="display: block;"><input type="radio" name="q14" value="c"> C) Permitido qualquer equipamento sem restrições.</label>
+                    </div>
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 700; display: block; margin-bottom: 6px;">15. Qual o período de inatividade imposto a facções e máfias derrotadas pelo Exército/Polícia?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q15" value="a" required> A) 2 horas para facção e 1 hora para máfia.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q15" value="b"> B) Inatividade livre negociada no discord.</label>
+                        <label style="display: block;"><input type="radio" name="q15" value="c"> C) Vitória do EB/Polícia gera 24 horas de inatividade na facção e 12 horas na máfia, a contar das 00:00.</label>
+                    </div>
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 700; display: block; margin-bottom: 6px;">16. Ao constatar vazamento de informações operacionais ou favorecimento a máfias (Cap. 4.10 e 4.23):</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q16" value="a" required> A) Voz de prisão imediata por traição militar, abertura de auditoria e demissão sumária com Lista Negra.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q16" value="b"> B) Relevar a conduta se for recruta novo.</label>
+                        <label style="display: block;"><input type="radio" name="q16" value="c"> C) Solicitar apenas troca de senha.</label>
+                    </div>
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 700; display: block; margin-bottom: 6px;">17. Como o Coronel de Plantão deve consolidar e enviar o relatório de recrutamento e fardamento?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q17" value="a" required> A) Enviar por áudio no chat geral.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q17" value="b"> B) Preencher no módulo dedicado com nome de cada recruta, level, número de WhatsApp e status de entrega de farda militar.</label>
+                        <label style="display: block;"><input type="radio" name="q17" value="c"> C) Não é necessário relatório se recrutar menos de 5.</label>
+                    </div>
+
+                    <div style="margin-bottom: 14px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 700; display: block; margin-bottom: 6px;">18. Qual é a responsabilidade do Coronel de Turno em relação às missões e patrulhas do efetivo?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q18" value="a" required> A) Nenhuma, cada soldado atua por conta própria.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q18" value="b"> B) Supervisionar apenas os oficiais da mesma patente.</label>
+                        <label style="display: block;"><input type="radio" name="q18" value="c"> C) Conduzir ativamente as patrulhas, fiscalizar a entrega de missões diárias e manter a tropa operando no padrão regulamentar.</label>
                     </div>
                 `;
             } else {
@@ -4943,14 +5097,63 @@
 
         socket.on('usuario:atualizado', (dados) => {
             sincronizarDadosUsuarioAtual(dados);
+            sincronizarCarteiraEMissoes();
+            carregarRanking();
+            verificarProgressoProvas();
         });
 
         socket.on('operacional:atualizado', (dados) => {
             sincronizarDadosUsuarioAtual(dados);
+            sincronizarCarteiraEMissoes();
+            carregarRanking();
+            verificarProgressoProvas();
         });
 
         socket.on('membro:promovido', (dados) => {
             sincronizarDadosUsuarioAtual(dados);
+            sincronizarCarteiraEMissoes();
+            carregarRanking();
+            verificarProgressoProvas();
+        });
+
+        socket.on('recarregar_perfil_membro', (dados) => {
+            const meuNick = (user && user.nickname ? user.nickname : '').toLowerCase().trim();
+            const meuId = String(user && (user._id || user.id) ? (user._id || user.id) : '');
+
+            const afetaAMim = !dados || !dados.nickname ||
+                (dados.nickname && dados.nickname.toLowerCase().trim() === meuNick) ||
+                (dados.id && String(dados.id) === meuId);
+
+            if (afetaAMim) {
+                carregarFotoPerfilMenuImediata();
+                sincronizarCarteiraEMissoes();
+                verificarProgressoProvas();
+                carregarCaixaEntrada();
+                carregarRanking();
+
+                // Se o modal de perfil estiver aberto, atualiza seus dados imediatamente
+                const modalPerfilEl = document.getElementById('modalPerfil');
+                if (modalPerfilEl && modalPerfilEl.style.display === 'flex') {
+                    abrirPerfilModal();
+                }
+            }
+        });
+
+        socket.on('ranking:atualizado', () => {
+            carregarRanking();
+            carregarFotoPerfilMenuImediata();
+        });
+
+        socket.on('atualizar_config_provas', () => {
+            verificarProgressoProvas();
+        });
+
+        socket.on('atualizar_config_missoes', () => {
+            sincronizarCarteiraEMissoes();
+        });
+
+        socket.on('atualizar_whatsapp_link', () => {
+            carregarLinkWhatsappMembro();
         });
 
         socket.on('atualizar_cargo_usuario', (dados) => {

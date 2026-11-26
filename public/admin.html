@@ -1407,6 +1407,18 @@
             carregarEfetivo();
             carregarElegiveisSorteio();
             carregarElegiveisUmTurno();
+            carregarMembrosInativos();
+            carregarListaCarteirasAdmin();
+            carregarStatusCoroneisAdm();
+        });
+
+        socket.on('recarregar_perfil_membro', () => {
+            sincronizarPainelAdmEmTempoReal();
+        });
+
+        socket.on('ranking:atualizado', () => {
+            carregarEfetivo();
+            carregarLogsAdmin();
         });
 
         socket.on('atualizar_status_geral_tropa', () => {
@@ -1712,6 +1724,7 @@
                 });
                 const data = await res.json();
                 if (data.success) {
+                    carregarLogsAdmin();
                     mostrarModalCustomizado('Sucesso', data.message || 'Valor das missões atualizado com sucesso!');
                 } else {
                     mostrarModalCustomizado('Erro', data.message || 'Erro ao atualizar valor.');
@@ -1731,6 +1744,7 @@
                 });
                 const data = await res.json();
                 if (data.success) {
+                    carregarLogsAdmin();
                     mostrarModalCustomizado('Sucesso', 'Link do grupo de WhatsApp atualizado com sucesso!');
                 } else {
                     mostrarModalCustomizado('Erro', data.message || 'Erro ao salvar link.');

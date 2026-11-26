@@ -1146,6 +1146,9 @@ app.post('/api/admin/whatsapp-link', async (req, res) => {
             { upsert: true }
         );
 
+        io.emit('atualizar_whatsapp_link', { link: link || '' });
+        io.emit('atualizar_status_geral_tropa');
+
         await registarLogAdmin(adminNickname || 'Comando', 'Atualizou Link do WhatsApp', `Novo link configurado: ${link}`);
         res.json({ success: true, message: 'Link do WhatsApp atualizado com sucesso!' });
     } catch (e) {
@@ -2567,6 +2570,9 @@ app.post('/api/admin/config/provas-horas', async (req, res) => {
             `Horas exigidas: Sargento (${valSarg}h), Tenente (${valTen}h), Major (${valMaj}h), Coronel (${valCor}h)`
         );
 
+        io.emit('atualizar_config_provas', { sargento: valSarg, tenente: valTen, major: valMaj, coronel: valCor });
+        io.emit('atualizar_status_geral_tropa');
+
         res.json({
             success: true,
             message: 'Horas mínimas para exames salvas com sucesso!',
@@ -2676,6 +2682,9 @@ app.post('/api/admin/config/missao-valor', async (req, res) => {
             },
             { upsert: true }
         );
+
+        io.emit('atualizar_config_missoes', { valor: valorNumerico });
+        io.emit('atualizar_status_geral_tropa');
 
         await registarLogAdmin(adminNickname || 'Comando', 'Atualizou Valor da Missão', `Novo valor configurado: R$ ${valorNumerico.toLocaleString('pt-BR')}`);
         res.json({ success: true, message: 'Valor das missões diárias atualizado com sucesso!' });
@@ -3368,6 +3377,9 @@ app.put('/api/admin/membro/resetar-turnos/:id', async (req, res) => {
         const { autor } = req.body;
         const membro = await User.findByIdAndUpdate(id, { $set: { historicoTurnos: [] } }, { returnDocument: 'after', select: 'nickname' }).lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
+
+        io.emit('operacional:turno_atualizado', { nickname: membro.nickname.toLowerCase() });
+        io.emit('recarregar_perfil_membro', { id: membro._id, nickname: membro.nickname });
         io.emit('atualizar_status_geral_tropa');
         await registarLogAdmin(autor || 'Comando', 'Reset de Turnos', `Histórico de turnos de ${membro.nickname} foi limpo por ${autor || 'Comando'}.`);
         res.json({ success: true, message: 'Turnos resetados com sucesso!' });
@@ -3387,6 +3399,8 @@ app.delete('/api/admin/membro/:id/turno/:turnoId', async (req, res) => {
         ).lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
+        io.emit('operacional:turno_atualizado', { nickname: membro.nickname.toLowerCase() });
+        io.emit('recarregar_perfil_membro', { id: membro._id, nickname: membro.nickname });
         io.emit('atualizar_status_geral_tropa');
         await registarLogAdmin(autor || 'Comando', 'Exclusão de Turno Específico', `Um turno foi removido do histórico de ${membro.nickname} por ${autor || 'Comando'}.`);
         res.json({ success: true, message: 'Turno removido com sucesso!' });
@@ -3596,6 +3610,8 @@ app.put('/api/admin/ranking/resetar', async (req, res) => {
         };
 
         await User.updateMany({}, { $push: { caixaEntrada: notif } });
+        io.emit('recarregar_perfil_membro', {});
+        io.emit('ranking:atualizado');
         io.emit('atualizar_status_geral_tropa');
 
         await registarLogAdmin(adminNickname || 'Comando', 'Reset de Ranking', `Novo ciclo semanal iniciado por ${adminNickname || 'Comando'}.`);
@@ -3672,6 +3688,8 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
 
         if (resultado.matchedCount === 0) return res.status(404).json({ success: false, message: 'Membro alvo não encontrado.' });
 
+        io.emit('operacional:turno_atualizado', { nickname: targetNickname.toLowerCase() });
+        io.emit('recarregar_perfil_membro', { nickname: targetNickname });
         io.emit('atualizar_status_geral_tropa');
         await registarLogAdmin(adminNickname, 'Injeção Manual de Tempo', `Adicionado ${duracaoFormatada} para ${targetNickname} por Mestre. Motivo: ${motivo}`);
         res.json({ success: true, message: `Adicionado com sucesso ${duracaoFormatada} para ${targetNickname}!` });
@@ -3778,27 +3796,71 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
         const membro = await User.findOne({ nickname: new RegExp('^' + nickname + '$', 'i') }, '_id cargo').lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
-        // Gabaritos oficiais com dificuldade progressiva por cargo conforme Capítulos 4, 5, 6, 7 e Códigos Q
+        // Gabaritos oficiais com progressão exata de 3 a 4 perguntas por cargo:
+        // Sargento: 7 perguntas | Tenente: 11 perguntas (+4) | Major: 14 perguntas (+3) | Coronel: 18 perguntas (+4, prova suprema entre 15 e 20)
         let gabarito = {};
         if (cargoAlvo === 'Sargento') {
-            gabarito = { q1: 'b', q2: 'b', q3: 'c', q4: 'a', q5: 'b', q6: 'b' };
-        } else if (cargoAlvo === 'Tenente') {
-            gabarito = { q1: 'c', q2: 'b', q3: 'c', q4: 'a', q5: 'b', q6: 'b' };
-        } else if (cargoAlvo === 'Major') {
-            gabarito = { q1: 'a', q2: 'c', q3: 'b', q4: 'c', q5: 'b', q6: 'b' };
-        } else if (cargoAlvo === 'Coronel') {
-            // PROVA DE CORONEL SUPREMA (10 perguntas abrangentes cobrindo todo o regulamento e plantão de 3h)
             gabarito = {
-                q1: 'c', // Horário regulamentar e dispensa
+                q1: 'b', // 5 minutos de formação
+                q2: 'b', // Apenas levantar mão
+                q3: 'c', // Regra de máscara no rádio
+                q4: 'a', // Saída de base comunicada
+                q5: 'b', // QSL, QAP, QTH, QTA
+                q6: 'b', // Armas no coldre
+                q7: 'a'  // Respeito à cadeia de comando
+            };
+        } else if (cargoAlvo === 'Tenente') {
+            gabarito = {
+                q1: 'c', // 7h semanais e máx 3 dias
+                q2: 'b', // Tratamento formal ao oficial
+                q3: 'c', // QSY, QSP, QTC, QRT
+                q4: 'a', // Antecedência de 24h e 10 policiais
+                q5: 'b', // QAP 1, QAP 2 e VTR
+                q6: 'b', // Punições de invasão (INA e FAIL)
+                q7: 'a', // Composição da patrulha mista (1 Ten, 1 Sarg, 1 Priv)
+                q8: 'c', // QRA, QTH, QRU
+                q9: 'b', // Proibição de celular e conversa paralela
+                q10: 'a', // Invasão ao PS das 08h-12h e 13h-00h
+                q11: 'c'  // Regra de reparo imediato de viatura
+            };
+        } else if (cargoAlvo === 'Major') {
+            gabarito = {
+                q1: 'a', // Pacificação às máfias e facções
+                q2: 'c', // QST, QSM, QTE, QSO
+                q3: 'b', // Inatividade 24h facção e 12h máfia
+                q4: 'c', // Traição militar / conluio
+                q5: 'b', // Formação em 5 min no C4/COPOM
+                q6: 'b', // Fiscalização de 7h e 3 dias
+                q7: 'b', // Maleta durante invasão no EB
+                q8: 'a', // Proibição de aliados
+                q9: 'b', // QRG, QTR, QTU
+                q10: 'c', // Procedimento disciplinar gravíssimo
+                q11: 'a', // Condução irresponsável e VTR particular
+                q12: 'b', // Pausa obrigatória na quinta das 22h-23h
+                q13: 'a', // Invasão de famílias ao EB proibida
+                q14: 'c'  // Fonia em silêncio (QRL) em formação
+            };
+        } else if (cargoAlvo === 'Coronel') {
+            // PROVA DE CORONEL SUPREMA (18 perguntas profundas cobrindo todo o regulamento e plantão de 3h)
+            gabarito = {
+                q1: 'c', // Horário regulamentar 17h às 02h e dispensa com líderes
                 q2: 'b', // Limite máximo de líderes (7 Coronéis + 1 General = 8)
-                q3: 'a', // Autonomia disciplinar do Coronel e General
+                q3: 'a', // Autonomia disciplinar sumária do Coronel e General
                 q4: 'c', // Plantão de Coronel (3h, até 3 vagas, aviso geral de liderança)
                 q5: 'b', // Relatório de recrutamento e fardamento com WhatsApp e level
                 q6: 'a', // Cap. 4.16 e 4.17 (Máscara e Saída de Base)
                 q7: 'c', // Cap. 5.1 e 5.2 (Formação 5 min e levantar mão)
                 q8: 'b', // Cap. 7.1 e 7.2 (7h semanais e 3 dias de ausência)
                 q9: 'b', // Códigos Q de tráfego e comando (QRL, QSL, QSY, QTR, QTC)
-                q10: 'a' // Sanções e proibição de teaser/cassetete em pacificação
+                q10: 'a', // Sanções e proibição de teaser/cassetete em pacificação
+                q11: 'c', // Rebaixamento / Sanção por negligência do Coronel de Turno
+                q12: 'b', // Fiscalização de fardamento militar e identificação
+                q13: 'a', // Limite de 1 plantão ativo simultâneo por Coronel
+                q14: 'b', // Exclusividade de armas letais em operações
+                q15: 'c', // Regra de inatividade pós-vitória (24h facção / 12h máfia)
+                q16: 'a', // Vazamento de informações e conluio (exclusão sumária)
+                q17: 'b', // Procedimento de preenchimento e cobrança do relatório
+                q18: 'c'  // Supervisão das missões do efetivo durante o plantão
             };
         } else {
             gabarito = { q1: 'a', q2: 'b', q3: 'b' };
