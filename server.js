@@ -1045,6 +1045,79 @@ app.get('/api/coronel/relatorios-historico', async (req, res) => {
     }
 });
 
+// --- ROTAS DE NOTIFICAÇÃO DE ATUALIZAÇÕES DO SISTEMA (SEM DUPLICATAS) ---
+const ultimasAtualizacoesDisparadas = new Set();
+
+app.post('/api/admin/sistema/notificar-atualizacao', async (req, res) => {
+    try {
+        const { adminNickname, titulo, detalhes } = req.body;
+        const tituloFinal = titulo ? String(titulo).trim() : 'Atualização no Sistema Salazar';
+        const detalhesFinal = detalhes ? String(detalhes).trim() : 'Novas melhorias e ajustes operacionais foram implementados no painel.';
+        const autor = adminNickname || 'Comando Superior';
+
+        const hashChave = `${tituloFinal.toLowerCase()}_${detalhesFinal.slice(0, 50).toLowerCase()}`;
+        if (ultimasAtualizacoesDisparadas.has(hashChave)) {
+            return res.json({ success: true, message: 'Esta atualização já foi transmitida recentemente aos operacionais.' });
+        }
+        ultimasAtualizacoesDisparadas.add(hashChave);
+        setTimeout(() => ultimasAtualizacoesDisparadas.delete(hashChave), 60000);
+
+        const agora = new Date();
+        const dataFormatada = agora.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        const tagAlerta = 'update_sistema_' + agora.getTime();
+
+        const notifGeral = {
+            titulo: `🚀 ${tituloFinal}`,
+            mensagem: `<b>[Atualização do Sistema - ${dataFormatada}]</b><br>${detalhesFinal}<br><br><small>Publicado por: ${autor}</small>`,
+            data: agora
+        };
+
+        await User.updateMany(
+            {},
+            {
+                $push: {
+                    caixaEntrada: {
+                        $each: [notifGeral],
+                        $slice: -30
+                    }
+                }
+            }
+        );
+
+        // Dispara push para membros com subscription ativa
+        const membrosComPush = await User.find({ pushSubscription: { $exists: true, $ne: null } }, '_id pushSubscription').lean();
+        const payloadPush = JSON.stringify({
+            id: tagAlerta,
+            tag: tagAlerta,
+            title: `🚀 ${tituloFinal}`,
+            body: detalhesFinal.replace(/<[^>]*>?/gm, ''),
+            url: '/dashboard.html'
+        });
+
+        for (const m of membrosComPush) {
+            if (m.pushSubscription && m.pushSubscription.endpoint) {
+                webpush.sendNotification(m.pushSubscription, payloadPush).catch(() => {});
+            }
+        }
+
+        io.emit('sistema:atualizacao_publicada', {
+            id: tagAlerta,
+            titulo: tituloFinal,
+            detalhes: detalhesFinal,
+            autor,
+            dataFormatada
+        });
+        io.emit('atualizar_status_geral_tropa');
+
+        await registarLogAdmin(autor, 'Publicou Atualização do Sistema', `${tituloFinal}: ${detalhesFinal.slice(0, 100)}...`);
+
+        res.json({ success: true, message: 'Atualização do sistema transmitida com sucesso para toda a tropa!' });
+    } catch (e) {
+        console.error("Erro ao publicar atualização do sistema:", e);
+        res.status(500).json({ success: false, message: 'Erro ao emitir atualização.' });
+    }
+});
+
 // --- ROTAS DO LINK DO WHATSAPP ---
 app.get('/api/admin/whatsapp-link', async (req, res) => {
     try {
@@ -1487,7 +1560,7 @@ app.get('/api/membro/perfil/:nickname', async (req, res) => {
 
         let membro = await User.findOne(
             { $or: conditions },
-            'nickname cargo status avatar telefone tutorialConcluido historicoTurnos.duracao historicoTurnos.data'
+            'nickname cargo status avatar telefone tutorialConcluido titulosRanking historicoTurnos.duracao historicoTurnos.data'
         ).lean();
 
         // Caso o usuário esteja autenticado mas não possua documento salvo, sincroniza automaticamente
@@ -1518,6 +1591,8 @@ app.get('/api/membro/perfil/:nickname', async (req, res) => {
             ? `${membro.historicoTurnos[membro.historicoTurnos.length - 1].duracao} (${new Date(membro.historicoTurnos[membro.historicoTurnos.length - 1].data).toLocaleDateString()})`
             : 'Nenhum';
 
+        const titulos = membro.titulosRanking || { top1: 0, top2: 0, top3: 0, conquistas: [] };
+
         res.json({
             success: true,
             perfil: {
@@ -1529,6 +1604,7 @@ app.get('/api/membro/perfil/:nickname', async (req, res) => {
                 totalHoras: totalHorasFormatado,
                 tempoGestao: tempoGestaoStr,
                 ultimoPlantao: ultimoTurno,
+                titulosRanking: titulos,
                 tutorialConcluido: !!membro.tutorialConcluido
             }
         });
@@ -2431,12 +2507,13 @@ app.put('/api/admin/membro/carteira/resetar/:id', async (req, res) => {
 async function obterConfigHorasProvas() {
     let config = await ConfigSorteio.collection.findOne({ chave: 'config_provas_horas' });
     if (!config) {
-        return { sargento: 10, tenente: 30, major: 50 };
+        return { sargento: 10, tenente: 30, major: 50, coronel: 100 };
     }
     return {
         sargento: typeof config.sargento === 'number' ? config.sargento : 10,
         tenente: typeof config.tenente === 'number' ? config.tenente : 30,
-        major: typeof config.major === 'number' ? config.major : 50
+        major: typeof config.major === 'number' ? config.major : 50,
+        coronel: typeof config.coronel === 'number' ? config.coronel : 100
     };
 }
 
@@ -2446,17 +2523,18 @@ app.get('/api/admin/config/provas-horas', async (req, res) => {
         res.json({ success: true, ...horas });
     } catch (e) {
         console.error("Erro ao buscar configuração de horas das provas:", e);
-        res.json({ success: true, sargento: 10, tenente: 30, major: 50 });
+        res.json({ success: true, sargento: 10, tenente: 30, major: 50, coronel: 100 });
     }
 });
 
 app.post('/api/admin/config/provas-horas', async (req, res) => {
     try {
-        const { adminNickname, sargento, tenente, major } = req.body;
+        const { adminNickname, sargento, tenente, major, coronel } = req.body;
 
         const valSarg = Math.max(1, parseInt(sargento, 10) || 10);
         const valTen = Math.max(1, parseInt(tenente, 10) || 30);
         const valMaj = Math.max(1, parseInt(major, 10) || 50);
+        const valCor = Math.max(1, parseInt(coronel, 10) || 100);
 
         if (adminNickname) {
             const adminUser = await User.findOne({ nickname: new RegExp('^' + adminNickname + '$', 'i') }, 'role cargo').lean();
@@ -2475,6 +2553,7 @@ app.post('/api/admin/config/provas-horas', async (req, res) => {
                     sargento: valSarg,
                     tenente: valTen,
                     major: valMaj,
+                    coronel: valCor,
                     atualizadoPor: adminNickname || 'Comando',
                     data: new Date()
                 }
@@ -2485,13 +2564,13 @@ app.post('/api/admin/config/provas-horas', async (req, res) => {
         await registarLogAdmin(
             adminNickname || 'Comando',
             'Configurou Horas de Exame',
-            `Horas exigidas: Sargento (${valSarg}h), Tenente (${valTen}h), Major (${valMaj}h)`
+            `Horas exigidas: Sargento (${valSarg}h), Tenente (${valTen}h), Major (${valMaj}h), Coronel (${valCor}h)`
         );
 
         res.json({
             success: true,
             message: 'Horas mínimas para exames salvas com sucesso!',
-            horas: { sargento: valSarg, tenente: valTen, major: valMaj }
+            horas: { sargento: valSarg, tenente: valTen, major: valMaj, coronel: valCor }
         });
     } catch (e) {
         console.error("Erro ao salvar horas das provas:", e);
@@ -3452,9 +3531,67 @@ app.put('/api/admin/ranking/resetar', async (req, res) => {
             { upsert: true }
         );
 
+        // Antes de resetar, identifica o Top 1, Top 2 e Top 3 e registra seus títulos no perfil
+        try {
+            const membrosTurnos = await User.find(
+                { 'historicoTurnos.0': { $exists: true } },
+                { nickname: 1, cargo: 1, 'historicoTurnos.duracao': 1, 'historicoTurnos.data': 1, 'historicoTurnos.manual': 1, 'historicoTurnos.segundosTotais': 1 }
+            ).lean();
+
+            const apuracao = [];
+            for (const m of membrosTurnos) {
+                let segs = 0;
+                const turnos = Array.isArray(m.historicoTurnos) ? m.historicoTurnos.slice(-40) : [];
+                for (const t of turnos) {
+                    if (t.manual || turnoEstaNoHorarioPermitido(t)) {
+                        segs += (t.segundosTotais || converterDuracaoParaSegundos(t.duracao));
+                    }
+                }
+                if (segs > 0) apuracao.push({ id: m._id, nickname: m.nickname, cargo: m.cargo, segundos: segs });
+            }
+
+            apuracao.sort((a, b) => b.segundos - a.segundos);
+
+            const top1 = apuracao[0];
+            const top2 = apuracao[1];
+            const top3 = apuracao[2];
+
+            const dataCorteFormat = dataAtualReset.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+            if (top1) {
+                await User.updateOne(
+                    { _id: top1.id },
+                    {
+                        $inc: { 'titulosRanking.top1': 1 },
+                        $push: { 'titulosRanking.conquistas': { titulo: '🥇 Campeão Semanal (Top 1)', data: dataAtualReset, ciclo: dataCorteFormat } }
+                    }
+                );
+            }
+            if (top2) {
+                await User.updateOne(
+                    { _id: top2.id },
+                    {
+                        $inc: { 'titulosRanking.top2': 1 },
+                        $push: { 'titulosRanking.conquistas': { titulo: '🥈 Vice-Campeão (Top 2)', data: dataAtualReset, ciclo: dataCorteFormat } }
+                    }
+                );
+            }
+            if (top3) {
+                await User.updateOne(
+                    { _id: top3.id },
+                    {
+                        $inc: { 'titulosRanking.top3': 1 },
+                        $push: { 'titulosRanking.conquistas': { titulo: '🥉 Bronze da Tropa (Top 3)', data: dataAtualReset, ciclo: dataCorteFormat } }
+                    }
+                );
+            }
+        } catch (errApuracao) {
+            console.warn("Aviso ao apurar títulos do ranking:", errApuracao.message);
+        }
+
         const notif = {
             titulo: '🔄 Ranking Semanal Resetado',
-            mensagem: 'O comando iniciou um novo ciclo semanal no ranking. O seu histórico pessoal de horas continua guardado no perfil!',
+            mensagem: 'O comando consolidou os títulos do pódio (Top 1, 2 e 3) e iniciou um novo ciclo semanal no ranking. O seu histórico pessoal de horas continua guardado no perfil!',
             data: dataAtualReset
         };
 
@@ -3551,12 +3688,14 @@ app.get('/api/membro/provas/status/:nickname', async (req, res) => {
         ).lean();
         if (!membro) return res.status(404).json({ success: false, message: 'Membro não encontrado.' });
 
+        let horasRestantesCooldown = 0;
+        let bloqueadoPorCooldown = false;
         if (membro.cooldownProvaAte) {
             const dataCooldown = new Date(membro.cooldownProvaAte);
             const agora = new Date();
             if (agora < dataCooldown) {
-                const horasRestantes = Math.ceil((dataCooldown - agora) / (1000 * 60 * 60));
-                return res.json({ success: true, bloqueadoPorCooldown: true, horasRestantes });
+                bloqueadoPorCooldown = true;
+                horasRestantesCooldown = Math.ceil((dataCooldown - agora) / (1000 * 60 * 60));
             }
         }
 
@@ -3566,22 +3705,68 @@ app.get('/api/membro/provas/status/:nickname', async (req, res) => {
 
         const configHoras = await obterConfigHorasProvas();
         const cargoAtual = membro.cargo || 'Privado';
+
+        // Lista completa de todas as provas para consulta transparente de metas por qualquer soldado
+        const catalogoProvas = [
+            {
+                cargoAlvo: 'Sargento',
+                horasExigidas: configHoras.sargento,
+                dificuldade: 'Nível 1 (Básico)',
+                descricao: 'Conduta disciplinar (Cap. 4), regras de formação militar em 5 minutos (Cap. 5) e Códigos Q fundamentais (QSL, QAP, QTH, QTA).',
+                liberada: totalHoras >= configHoras.sargento && (cargoAtual === 'Soldado' || cargoAtual === 'Privado')
+            },
+            {
+                cargoAlvo: 'Tenente',
+                horasExigidas: configHoras.tenente,
+                dificuldade: 'Nível 2 (Intermediário)',
+                descricao: 'Comando de patrulhas mistas, hierarquia e fonia de rádio (Cap. 6), cumprimento de 7h semanais e limite de 3 dias de ausência (Cap. 7) e regras de pacificação.',
+                liberada: totalHoras >= configHoras.tenente && cargoAtual === 'Sargento'
+            },
+            {
+                cargoAlvo: 'Major',
+                horasExigidas: configHoras.major,
+                dificuldade: 'Nível 3 (Avançado)',
+                descricao: 'Gestão tática do efetivo, coordenação de C4/COPOM, sanções por vazamento e conluio (Cap. 4), derrotas territoriais e Códigos Q de comando geral.',
+                liberada: totalHoras >= configHoras.major && cargoAtual === 'Tenente'
+            },
+            {
+                cargoAlvo: 'Coronel',
+                horasExigidas: configHoras.coronel || 100,
+                dificuldade: 'Nível Máximo (Exame Supremo - 100 Horas)',
+                descricao: 'A mais difícil e abrangente avaliação do Exército Brasileiro! Cobra todas as regras do regulamento, autoridade disciplinar autônoma, limite de 8 líderes (7 Coronéis + 1 General), as 3 vagas de plantão de 3h, elaboração rigorosa de relatório de recrutamento/farda e responsabilidade pelas missões do efetivo.',
+                liberada: totalHoras >= (configHoras.coronel || 100) && cargoAtual === 'Major'
+            }
+        ];
+
         let provaDisponivelPara = null;
-        let horasNecessarias = 0;
+        let horasNecessariasProxima = 0;
 
         if (cargoAtual === 'Soldado' || cargoAtual === 'Privado') {
-            horasNecessarias = configHoras.sargento;
+            horasNecessariasProxima = configHoras.sargento;
             if (totalHoras >= configHoras.sargento) provaDisponivelPara = 'Sargento';
         } else if (cargoAtual === 'Sargento') {
-            horasNecessarias = configHoras.tenente;
+            horasNecessariasProxima = configHoras.tenente;
             if (totalHoras >= configHoras.tenente) provaDisponivelPara = 'Tenente';
         } else if (cargoAtual === 'Tenente') {
-            horasNecessarias = configHoras.major;
+            horasNecessariasProxima = configHoras.major;
             if (totalHoras >= configHoras.major) provaDisponivelPara = 'Major';
+        } else if (cargoAtual === 'Major') {
+            horasNecessariasProxima = configHoras.coronel || 100;
+            if (totalHoras >= (configHoras.coronel || 100)) provaDisponivelPara = 'Coronel';
         }
 
-        const horasFaltando = Math.max(0, (horasNecessarias - totalHoras).toFixed(1));
-        res.json({ success: true, bloqueadoPorCooldown: false, totalHoras: totalHoras.toFixed(1), cargoAtual, provaDisponivelPara, horasFaltando });
+        const horasFaltando = Math.max(0, (horasNecessariasProxima - totalHoras).toFixed(1));
+
+        res.json({
+            success: true,
+            bloqueadoPorCooldown,
+            horasRestantes: horasRestantesCooldown,
+            totalHoras: totalHoras.toFixed(1),
+            cargoAtual,
+            provaDisponivelPara,
+            horasFaltando,
+            catalogoProvas
+        });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao verificar status de provas.' });
     }
@@ -3596,14 +3781,25 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
         // Gabaritos oficiais com dificuldade progressiva por cargo conforme Capítulos 4, 5, 6, 7 e Códigos Q
         let gabarito = {};
         if (cargoAlvo === 'Sargento') {
-            // Foco: Conduta essencial (Cap. 4), Formação (Cap. 5: 5.1 tempo 5m, 5.2 apenas levantar mão, 5.7 armas), Máscara (4.16), Saída de Base (4.17) e Códigos Q essenciais (QSL, QAP, QTH, QTA, QRX)
             gabarito = { q1: 'b', q2: 'b', q3: 'c', q4: 'a', q5: 'b', q6: 'b' };
         } else if (cargoAlvo === 'Tenente') {
-            // Foco: Comando de Patrulha, Subordinação (Cap. 6: 6.1 e 6.2), Horários semanais (Cap. 7: 7.1 7h semanais, 7.2 3 dias ausência), Códigos Q de tráfego (QSY, QSP, QTC, QTR, QRT) e Regras Operacionais 4.21/4.22
             gabarito = { q1: 'c', q2: 'b', q3: 'c', q4: 'a', q5: 'b', q6: 'b' };
         } else if (cargoAlvo === 'Major') {
-            // Foco: Gestão de Efetivo, Disciplina Superior, Sanções Severas (Cap. 4: 4.10 vazamento, 4.20 abuso autoridade, 4.21 INA, 4.23 conluio), Pacificações, C4/COPOM e Códigos Q avançados (QST, QSM, QTE, QSO)
             gabarito = { q1: 'a', q2: 'c', q3: 'b', q4: 'c', q5: 'b', q6: 'b' };
+        } else if (cargoAlvo === 'Coronel') {
+            // PROVA DE CORONEL SUPREMA (10 perguntas abrangentes cobrindo todo o regulamento e plantão de 3h)
+            gabarito = {
+                q1: 'c', // Horário regulamentar e dispensa
+                q2: 'b', // Limite máximo de líderes (7 Coronéis + 1 General = 8)
+                q3: 'a', // Autonomia disciplinar do Coronel e General
+                q4: 'c', // Plantão de Coronel (3h, até 3 vagas, aviso geral de liderança)
+                q5: 'b', // Relatório de recrutamento e fardamento com WhatsApp e level
+                q6: 'a', // Cap. 4.16 e 4.17 (Máscara e Saída de Base)
+                q7: 'c', // Cap. 5.1 e 5.2 (Formação 5 min e levantar mão)
+                q8: 'b', // Cap. 7.1 e 7.2 (7h semanais e 3 dias de ausência)
+                q9: 'b', // Códigos Q de tráfego e comando (QRL, QSL, QSY, QTR, QTC)
+                q10: 'a' // Sanções e proibição de teaser/cassetete em pacificação
+            };
         } else {
             gabarito = { q1: 'a', q2: 'b', q3: 'b' };
         }
@@ -3616,7 +3812,7 @@ app.post('/api/membro/provas/submeter', async (req, res) => {
             }
         }
 
-        const aprovado = (acertos / totalPerguntas) >= 0.75;
+        const aprovado = (acertos / totalPerguntas) >= 0.8;
 
         if (aprovado) {
             await User.updateOne(

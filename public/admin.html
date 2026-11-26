@@ -592,6 +592,10 @@
                 <span class="icon">⚡</span>
                 <span>Comandos & Ações</span>
             </button>
+            <button class="drawer-nav-item" data-tab="notif-sistema" onclick="mudarAba('notif-sistema')">
+                <span class="icon">📢</span>
+                <span>Avisos de Atualização</span>
+            </button>
             <button class="drawer-nav-item" data-tab="sorteios" onclick="mudarAba('sorteios')">
                 <span class="icon">🎁</span>
                 <span>Sorteios & Roleta</span>
@@ -791,7 +795,7 @@
                 <div class="card" style="border: 2px dashed #a855f7; background: linear-gradient(145deg, rgba(168, 85, 247, 0.05), rgba(15, 23, 42, 0.85));">
                     <h3 style="color: #c084fc; border-color: rgba(168, 85, 247, 0.3);">🎓 Horas Exigidas para Exames de Patente</h3>
                     <p style="color: #e2e8f0; margin-bottom: 12px; font-size: 13px;">Defina o total de horas de plantão necessárias para desbloquear os exames oficiais:</p>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 12px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 12px;">
                         <div>
                             <label style="font-size: 11px; color: #38bdf8; font-weight: bold; display: block; margin-bottom: 4px;">Sargento (Horas)</label>
                             <input type="number" id="inputHorasSargento" placeholder="10" min="1" class="search-input-box" style="margin-bottom: 0;">
@@ -801,8 +805,12 @@
                             <input type="number" id="inputHorasTenente" placeholder="30" min="1" class="search-input-box" style="margin-bottom: 0;">
                         </div>
                         <div>
-                            <label style="font-size: 11px; color: #ef4444; font-weight: bold; display: block; margin-bottom: 4px;">Major (Horas)</label>
+                            <label style="font-size: 11px; color: #f87171; font-weight: bold; display: block; margin-bottom: 4px;">Major (Horas)</label>
                             <input type="number" id="inputHorasMajor" placeholder="50" min="1" class="search-input-box" style="margin-bottom: 0;">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; color: #ef4444; font-weight: bold; display: block; margin-bottom: 4px;">👑 Coronel (Horas)</label>
+                            <input type="number" id="inputHorasCoronel" placeholder="100" min="1" class="search-input-box" style="margin-bottom: 0;">
                         </div>
                     </div>
                     <button class="btn-action" style="background: linear-gradient(135deg, #a855f7, #7e22ce); color: #fff; width: 100%; padding: 11px; font-weight: bold; border-radius: 10px;" onclick="salvarHorasProvasAdmin()">💾 Salvar Horas de Prova</button>
@@ -935,6 +943,32 @@
             </div>
 
             <div id="resultadoSorteio" style="margin-top: 14px; font-weight: bold; color: #eab308; font-size: 13px;"></div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ABA NOVA: DISPARO DE AVISO DE ATUALIZAÇÃO DO SISTEMA -->
+    <!-- ========================================== -->
+    <div id="aba-notif-sistema" class="tab-content">
+        <div class="card" style="max-width: 650px; margin: 0 auto; border: 2px solid #38bdf8; background: linear-gradient(145deg, rgba(56, 189, 248, 0.08), rgba(15, 23, 42, 0.95));">
+            <h3 style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.3);">📢 Transmitir Aviso de Atualização do Sistema</h3>
+            <p style="font-size: 13px; color: #cbd5e1; margin-bottom: 14px; line-height: 1.5;">
+                Transmita avisos oficiais de melhorias, correções ou novidades implementadas no sistema. Todos os operacionais receberão a notificação em tempo real via Socket.io, Push/PWA e no mural da caixa de entrada.
+            </p>
+
+            <div style="margin-bottom: 12px;">
+                <label style="font-size: 12px; color: #38bdf8; font-weight: 700; display: block; margin-bottom: 4px;">Título da Atualização:</label>
+                <input type="text" id="inputTituloUpdateSistema" placeholder="Ex: Novo Exame de Coronel (100h) e Títulos no Perfil" class="search-input-box" style="margin-bottom: 0;">
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="font-size: 12px; color: #38bdf8; font-weight: 700; display: block; margin-bottom: 4px;">Detalhes e Notas da Versão:</label>
+                <textarea id="inputDetalhesUpdateSistema" rows="4" placeholder="Descreva os pontos principais atualizados (ex: Catálogo de provas liberado para consulta, 10 perguntas na prova de Coronel, registro de Top 1/2/3 no perfil)..." style="width: 100%; padding: 12px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; color: white; resize: none; outline: none; font-size: 12px;"></textarea>
+            </div>
+
+            <button class="btn-action" style="background: linear-gradient(135deg, #0284c7, #0369a1); font-weight: 700; font-size: 13px; margin: 0;" onclick="dispararAvisoAtualizacaoSistema()">
+                🚀 Transmitir Atualização Para Todos os Jogadores
+            </button>
         </div>
     </div>
 
@@ -1179,6 +1213,7 @@
             'carteiras': 'Saldos & Carteiras',
             'inativos': 'Inativos (+3 dias)',
             'comandos': 'Comandos & Ações',
+            'notif-sistema': 'Avisos de Atualização',
             'sorteios': 'Sorteios & Roleta',
             'coroneis': 'Plantão de Coronéis (3h)',
             'justificativas': 'Justificativas de Membros',
@@ -1569,9 +1604,11 @@
                     const elS = document.getElementById('inputHorasSargento');
                     const elT = document.getElementById('inputHorasTenente');
                     const elM = document.getElementById('inputHorasMajor');
+                    const elC = document.getElementById('inputHorasCoronel');
                     if (elS) elS.value = data.sargento !== undefined ? data.sargento : 10;
                     if (elT) elT.value = data.tenente !== undefined ? data.tenente : 30;
                     if (elM) elM.value = data.major !== undefined ? data.major : 50;
+                    if (elC) elC.value = data.coronel !== undefined ? data.coronel : 100;
                 }
             } catch (e) {
                 console.error("Erro ao carregar horas de provas:", e);
@@ -1582,9 +1619,10 @@
             const sargento = document.getElementById('inputHorasSargento')?.value;
             const tenente = document.getElementById('inputHorasTenente')?.value;
             const major = document.getElementById('inputHorasMajor')?.value;
+            const coronel = document.getElementById('inputHorasCoronel')?.value;
 
-            if (!sargento || !tenente || !major) {
-                mostrarModalCustomizado('Atenção', 'Preencha as horas exigidas para todos os três exames.');
+            if (!sargento || !tenente || !major || !coronel) {
+                mostrarModalCustomizado('Atenção', 'Preencha as horas exigidas para todos os exames (inclusive Coronel).');
                 return;
             }
 
@@ -1596,7 +1634,8 @@
                         adminNickname: user.nickname,
                         sargento,
                         tenente,
-                        major
+                        major,
+                        coronel
                     })
                 });
                 const data = await res.json();
@@ -3230,6 +3269,46 @@
             } catch (e) {
                 container.innerHTML = '<p style="color: #ef4444; font-size: 12px; text-align: center;">Erro ao carregar relatórios.</p>';
             }
+        }
+
+        async function dispararAvisoAtualizacaoSistema() {
+            const titulo = document.getElementById('inputTituloUpdateSistema')?.value.trim();
+            const detalhes = document.getElementById('inputDetalhesUpdateSistema')?.value.trim();
+
+            if (!titulo || !detalhes) {
+                mostrarModalCustomizado('Atenção', 'Preencha o título e os detalhes da atualização do sistema.');
+                return;
+            }
+
+            mostrarModalCustomizado(
+                'Confirmar Transmissão',
+                `Deseja transmitir a atualização <b>"${escapeHTML(titulo)}"</b> para todos os operacionais?`,
+                'confirmacao',
+                async () => {
+                    try {
+                        const res = await fetch('/api/admin/sistema/notificar-atualizacao', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                adminNickname: user.nickname,
+                                titulo,
+                                detalhes
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            mostrarModalCustomizado('Atualização Transmitida!', data.message);
+                            document.getElementById('inputTituloUpdateSistema').value = '';
+                            document.getElementById('inputDetalhesUpdateSistema').value = '';
+                            carregarLogsAdmin();
+                        } else {
+                            mostrarModalCustomizado('Erro', data.message || 'Erro ao transmitir.');
+                        }
+                    } catch (e) {
+                        mostrarModalCustomizado('Erro', 'Falha na conexão ao emitir aviso de atualização.');
+                    }
+                }
+            );
         }
 
         carregarEfetivo();

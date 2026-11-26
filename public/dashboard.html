@@ -1315,6 +1315,10 @@
                 <span class="icon">🎙️</span>
                 <span>Central de Voz (Call)</span>
             </button>
+            <button class="drawer-nav-item" data-tab="provas" onclick="mudarAba('provas')">
+                <span class="icon">🎓</span>
+                <span>Testes & Exames de Cargo</span>
+            </button>
             <button class="drawer-nav-item" data-tab="ranking" onclick="mudarAba('ranking')">
                 <span class="icon">🏆</span>
                 <span>Ranking da Tropa</span>
@@ -1412,13 +1416,6 @@
                 <button class="btn-action" id="btnCheckout" style="background: linear-gradient(135deg, #16a34a, #15803d);" onclick="fazerCheckout()">Finalizar Turno (Check-out)</button>
             </div>
 
-            <!-- EXAME OFICIAL EXÉRCITO BRASILEIRO -->
-            <div class="card" id="cardModuloProvas" style="border: 2px dashed #38bdf8; display: none;">
-                <h3>🎓 Exame Oficial Exército Brasileiro</h3>
-                <p id="infoStatusProva" style="color: #e2e8f0; font-size: 13px; margin-bottom: 14px;">A verificar progresso...</p>
-                <button class="btn-action" id="btnIniciarProva" style="background: linear-gradient(135deg, #16a34a, #15803d); display: none; margin-top: 0;" onclick="abrirModalProva()">📝 Realizar Prova para <span id="spanCargoAlvo"></span></button>
-                <button class="btn-action" style="background: rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; color: #38bdf8; margin-top: 10px;" onclick="abrirGuiaRapidoEstudo()">📖 Guia Rápido de Estudo: Regras & Códigos Q</button>
-            </div>
         </div>
     </div>
 
@@ -2158,6 +2155,45 @@
     </div>
 
     <!-- ========================================== -->
+    <!-- CATEGORIA DEDICADA: TESTES & EXAMES DE CARGO -->
+    <!-- ========================================== -->
+    <div id="aba-provas" class="tab-content">
+        <div style="max-width: 720px; margin: 0 auto;">
+            <!-- CABEÇALHO DO MÓDULO DE TESTES -->
+            <div class="card" style="border: 2px solid #a855f7; background: linear-gradient(145deg, rgba(168, 85, 247, 0.12), rgba(15, 23, 42, 0.96));">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(168, 85, 247, 0.3); padding-bottom: 10px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 24px;">🎓</span>
+                        <h3 style="border: none; margin: 0; padding: 0; color: #c084fc;">Central Oficial de Testes & Promoções</h3>
+                    </div>
+                    <button class="btn-side-menu-trigger" onclick="alternarSideDrawer(true)" style="width: 36px; height: 36px; font-size: 16px;">☰</button>
+                </div>
+                <p style="font-size: 13px; color: #e2e8f0; line-height: 1.6; margin-bottom: 12px;">
+                    Todas as provas de subida de patente ficam <b>abertamente visíveis para toda a tropa</b> consultar seus objetivos e requisitos. O botão de realização de cada prova só é liberado ao atingir a quantidade de horas exigida no jogo!
+                </p>
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(7, 13, 22, 0.7); padding: 10px 14px; border-radius: 10px; border-left: 3px solid #38bdf8;">
+                    <span style="font-size: 12px; color: #cbd5e1;">Minhas Horas Ativas Homologadas:</span>
+                    <b id="displayMinhasHorasProvas" style="font-size: 15px; color: #22c55e;">0.0h</b>
+                </div>
+                <button class="btn-action" style="background: rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; color: #38bdf8; margin-top: 12px; padding: 10px; font-size: 12px; font-weight: 700;" onclick="abrirGuiaRapidoEstudo()">
+                    📖 Guia Rápido de Estudo: Regras & Códigos Q
+                </button>
+            </div>
+
+            <!-- CATÁLOGO COMPLETO DE PROVAS VISÍVEIS (SARGENTO, TENENTE, MAJOR E CORONEL 100H) -->
+            <div class="card" style="border: 1px solid rgba(56, 189, 248, 0.35);">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(56, 189, 248, 0.25); padding-bottom: 8px; margin-bottom: 14px;">
+                    <h4 style="color: #38bdf8; margin: 0; font-size: 14px;">📋 Catálogo de Exames & Requisitos de Carreira</h4>
+                    <button onclick="verificarProgressoProvas()" style="background: rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; color: #38bdf8; padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer;">🔄 Atualizar</button>
+                </div>
+                <div id="containerCatalogoProvasVisiveis" style="display: flex; flex-direction: column; gap: 14px;">
+                    <p style="color: #94a3b8; font-size: 12px; text-align: center; padding: 16px;">A carregar catálogo de exames...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
     <!-- CATEGORIA: PLANTÃO DE CORONEL (3 HORAS INDEPENDENTE) -->
     <!-- ========================================== -->
     <div id="aba-coronel-plantao" class="tab-content">
@@ -2454,6 +2490,31 @@
                 <span style="font-size: 11px; color: #94a3b8; display: block; margin-top: 3px;">Cadastre o seu número para aceder ao grupo da tropa.</span>
             </div>
 
+            <!-- TÍTULOS DE VITÓRIA NO RANKING (TOP 1, TOP 2 E TOP 3) -->
+            <div id="boxTitulosRankingPerfil" style="background: linear-gradient(145deg, rgba(234, 179, 8, 0.1), rgba(15, 23, 42, 0.9)); border: 1.5px solid rgba(234, 179, 8, 0.35); border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; text-align: left;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <b style="color: #facc15; font-size: 12px;">🏆 Títulos no Ranking da Tropa:</b>
+                    <span id="badgeTotalTitulosPerfil" style="font-size: 11px; background: rgba(234, 179, 8, 0.2); color: #fde047; padding: 2px 6px; border-radius: 6px; font-weight: 800;">0 Vitórias</span>
+                </div>
+                <div style="display: flex; gap: 8px; justify-content: space-around; text-align: center;">
+                    <div style="background: rgba(7, 13, 22, 0.6); padding: 4px 8px; border-radius: 8px; border: 1px solid #eab308; flex: 1;">
+                        <span style="font-size: 14px;">🥇</span>
+                        <div id="countTop1Perfil" style="font-size: 13px; font-weight: 800; color: #facc15;">0</div>
+                        <span style="font-size: 9.5px; color: #94a3b8;">Top 1</span>
+                    </div>
+                    <div style="background: rgba(7, 13, 22, 0.6); padding: 4px 8px; border-radius: 8px; border: 1px solid #94a3b8; flex: 1;">
+                        <span style="font-size: 14px;">🥈</span>
+                        <div id="countTop2Perfil" style="font-size: 13px; font-weight: 800; color: #e2e8f0;">0</div>
+                        <span style="font-size: 9.5px; color: #94a3b8;">Top 2</span>
+                    </div>
+                    <div style="background: rgba(7, 13, 22, 0.6); padding: 4px 8px; border-radius: 8px; border: 1px solid #d97706; flex: 1;">
+                        <span style="font-size: 14px;">🥉</span>
+                        <div id="countTop3Perfil" style="font-size: 13px; font-weight: 800; color: #fdba74;">0</div>
+                        <span style="font-size: 9.5px; color: #94a3b8;">Top 3</span>
+                    </div>
+                </div>
+            </div>
+
             <div style="background: rgba(7, 13, 22, 0.7); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 12px; padding: 12px 14px; text-align: left; font-size: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px;">
                 <div>
                     <span style="color: #94a3b8; display: block; font-size: 11px;">⏱️ Horas Acumuladas:</span>
@@ -2652,6 +2713,7 @@
             'tropa': 'Tropa & Rádio Tático',
             'voz': 'Central de Voz (Call)',
             'ranking': 'Ranking da Semana',
+            'provas': 'Testes & Exames de Cargo',
             'regras-cronograma': 'Regras & Cronograma',
             'coronel-plantao': 'Plantão de Coronel (3h)',
             'justificativas': 'Justificativas de Ausência'
@@ -2862,6 +2924,7 @@
 
             // Sincronização sob demanda dos dados da categoria ativa
             if (nomeAba === 'ranking') carregarRanking();
+            if (nomeAba === 'provas') verificarProgressoProvas();
             if (nomeAba === 'tropa') atualizarFiscalizacaoServidor();
             if (nomeAba === 'voz' && typeof consultarParticipantesVoz === 'function') {
                 consultarParticipantesVoz('sala_geral_salazar');
@@ -3531,6 +3594,22 @@
                     document.getElementById('perfilTotalHoras').innerText = p.totalHoras || '00:00:00';
                     document.getElementById('perfilTempoGestao').innerText = p.tempoGestao || '-';
                     document.getElementById('perfilUltimoPlantao').innerText = p.ultimoPlantao || 'Nenhum plantão';
+
+                    // Exibição dos títulos e vitórias de ranking no perfil
+                    const titulos = p.titulosRanking || { top1: 0, top2: 0, top3: 0 };
+                    const t1 = titulos.top1 || 0;
+                    const t2 = titulos.top2 || 0;
+                    const t3 = titulos.top3 || 0;
+                    const totalVitorias = t1 + t2 + t3;
+
+                    const elBadgeTotal = document.getElementById('badgeTotalTitulosPerfil');
+                    if (elBadgeTotal) elBadgeTotal.innerText = `${totalVitorias} Vitória(s)`;
+                    const elT1 = document.getElementById('countTop1Perfil');
+                    if (elT1) elT1.innerText = t1;
+                    const elT2 = document.getElementById('countTop2Perfil');
+                    if (elT2) elT2.innerText = t2;
+                    const elT3 = document.getElementById('countTop3Perfil');
+                    if (elT3) elT3.innerText = t3;
 
                     const avatarDiv = document.getElementById('imgAvatarVisualizar');
                     if (p.avatar) {
@@ -4391,27 +4470,83 @@
         let cargoDestinoAtual = '';
         async function verificarProgressoProvas() {
             try {
-                const res = await fetch(`/api/membro/provas/status/${encodeURIComponent(user.nickname)}`);
+                const res = await fetch(`/api/membro/provas/status/${encodeURIComponent(user.nickname)}?_=${Date.now()}`);
                 const data = await res.json();
-                if (data.success) {
-                    const card = document.getElementById('cardModuloProvas');
-                    const info = document.getElementById('infoStatusProva');
-                    const btn = document.getElementById('btnIniciarProva');
-                    card.style.display = 'block';
-                    if (data.bloqueadoPorCooldown) {
-                        info.innerHTML = `⏳ <span style="color: #ef4444; font-weight: bold;">${escapeHTML(data.message)}</span>`;
-                        btn.style.display = 'none';
-                    } else if (data.provaDisponivelPara) {
-                        cargoDestinoAtual = data.provaDisponivelPara;
-                        document.getElementById('spanCargoAlvo').innerText = cargoDestinoAtual;
-                        info.innerHTML = `✅ Exame oficial para <b>${escapeHTML(cargoDestinoAtual)}</b> liberado!`;
-                        btn.style.display = 'block';
+                if (!data.success) return;
+
+                const dispHoras = document.getElementById('displayMinhasHorasProvas');
+                if (dispHoras) dispHoras.innerText = `${data.totalHoras || 0}h`;
+
+                cargoDestinoAtual = data.provaDisponivelPara || '';
+                const catalogoContainer = document.getElementById('containerCatalogoProvasVisiveis');
+                if (!catalogoContainer) return;
+
+                catalogoContainer.innerHTML = '';
+                const listaProvas = Array.isArray(data.catalogoProvas) ? data.catalogoProvas : [];
+                const horasUsuario = parseFloat(data.totalHoras || 0);
+
+                listaProvas.forEach(prova => {
+                    const exigidas = parseFloat(prova.horasExigidas || 10);
+                    const atingiuHoras = horasUsuario >= exigidas;
+                    const ehProximaProva = prova.cargoAlvo === data.provaDisponivelPara;
+                    const liberadaExecutar = prova.liberada && !data.bloqueadoPorCooldown;
+
+                    const progressoPercent = Math.min(100, Math.round((horasUsuario / exigidas) * 100));
+
+                    const ehCoronel = prova.cargoAlvo === 'Coronel';
+                    const bordaEstilo = ehCoronel
+                        ? 'border: 2px solid #ef4444; background: linear-gradient(145deg, rgba(239, 68, 68, 0.12), rgba(15, 23, 42, 0.95));'
+                        : 'border: 1px solid rgba(56, 189, 248, 0.3); background: rgba(15, 23, 42, 0.85);';
+
+                    let botaoAcaoHtml = '';
+                    if (data.bloqueadoPorCooldown && ehProximaProva) {
+                        botaoAcaoHtml = `<button class="btn-action" disabled style="margin: 0; background: #64748b; font-size: 12px; opacity: 0.6;">⏳ Cooldown Ativo (${data.horasRestantes}h restantes)</button>`;
+                    } else if (liberadaExecutar) {
+                        botaoAcaoHtml = `<button class="btn-action" style="margin: 0; background: linear-gradient(135deg, #16a34a, #15803d); font-weight: 800; font-size: 12.5px;" onclick="iniciarExameCargo('${prova.cargoAlvo}')">📝 Realizar Exame para ${prova.cargoAlvo}</button>`;
+                    } else if (!atingiuHoras) {
+                        const faltam = Math.max(0, (exigidas - horasUsuario).toFixed(1));
+                        botaoAcaoHtml = `<button class="btn-action" disabled style="margin: 0; background: rgba(100, 116, 139, 0.25); border: 1px solid #64748b; color: #94a3b8; font-size: 12px; cursor: not-allowed;">🔒 Bloqueada (Faltam ${faltam}h no jogo)</button>`;
                     } else {
-                        info.innerHTML = `⏳ Tens <b>${escapeHTML(data.totalHoras)}h</b> acumuladas. Faltam <b>${escapeHTML(data.horasFaltando)}h</b> para a próxima prova.`;
-                        btn.style.display = 'none';
+                        botaoAcaoHtml = `<span style="font-size: 11px; color: #94a3b8; text-align: center;">Horas atingidas. Exige patente imediatamente anterior.</span>`;
                     }
-                }
+
+                    catalogoContainer.innerHTML += `
+                        <div style="${bordaEstilo} border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 18px;">${ehCoronel ? '👑' : '🎖️'}</span>
+                                    <b style="font-size: 15px; color: ${ehCoronel ? '#f87171' : '#38bdf8'};">Prova para ${prova.cargoAlvo}</b>
+                                </div>
+                                <span style="background: rgba(56, 189, 248, 0.15); color: ${ehCoronel ? '#fca5a5' : '#7dd3fc'}; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 6px; border: 1px solid ${ehCoronel ? '#ef4444' : '#38bdf8'};">
+                                    Requisito: ${exigidas}h de Turno
+                                </span>
+                            </div>
+
+                            <p style="font-size: 12px; color: #cbd5e1; line-height: 1.5; margin: 0;">
+                                ${escapeHTML(prova.descricao)}
+                            </p>
+
+                            <!-- BARRA DE PROGRESSO VISÍVEL PARA TODAS AS PROVAS -->
+                            <div>
+                                <div style="display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">
+                                    <span>Progresso: <b>${horasUsuario}h / ${exigidas}h</b></span>
+                                    <span style="color: ${atingiuHoras ? '#34d399' : '#38bdf8'}; font-weight: 700;">${progressoPercent}%</span>
+                                </div>
+                                <div style="width: 100%; height: 6px; background: rgba(30, 41, 59, 0.8); border-radius: 99px; overflow: hidden;">
+                                    <div style="width: ${progressoPercent}%; height: 100%; background: ${ehCoronel ? 'linear-gradient(90deg, #ef4444, #dc2626)' : 'linear-gradient(90deg, #0284c7, #38bdf8)'}; border-radius: 99px;"></div>
+                                </div>
+                            </div>
+
+                            ${botaoAcaoHtml}
+                        </div>
+                    `;
+                });
             } catch (e) {}
+        }
+
+        function iniciarExameCargo(cargo) {
+            cargoDestinoAtual = cargo;
+            abrirModalProva();
         }
         verificarProgressoProvas();
 
@@ -4565,6 +4700,89 @@
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q6" value="a" required> A) Ignorar ausências se o membro for conhecido.</label>
                         <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q6" value="b"> B) Auditar o relatório de plantões, cobrar justificativas formais antes de 3 dias e garantir a escala operacional.</label>
                         <label style="display: block;"><input type="radio" name="q6" value="c"> C) Excluir turnos antigos sem registrar em auditoria.</label>
+                    </div>
+                `;
+            } else if (cargoDestinoAtual === 'Coronel') {
+                // Nível Máximo Supremo: Exame de Coronel (100h) - O teste mais completo e difícil de todo o sistema
+                c.innerHTML = `
+                    <div style="background: linear-gradient(145deg, rgba(239, 68, 68, 0.2), rgba(15, 23, 42, 0.95)); border: 2px solid #ef4444; padding: 12px 16px; border-radius: 12px; margin-bottom: 18px;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                            <span style="font-size: 22px;">👑</span>
+                            <b style="color: #f87171; font-size: 14px;">EXAME SUPREMO DE CORONEL (100 HORAS ACUMULADAS)</b>
+                        </div>
+                        <p style="font-size: 12px; color: #fecaca; line-height: 1.5; margin: 0;">
+                            A mais rigorosa avaliação da organização! Cobra todo o regulamento (Cap. 1 ao 7), poderes disciplinares, limite da cúpula de líderes, as 3 vagas e regras do Plantão de Coronel de 3h com envio de relatórios. Exige 80% de acerto para aprovação.
+                        </p>
+                    </div>
+
+                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 700; display: block; margin-bottom: 6px;">1. Conforme os Capítulos 1.4 e o Regulamento de Serviço, qual é o horário de serviço obrigatório do EB e como funcionam pedidos de dispensa?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q1" value="a" required> A) Turno livre 24 horas; dispensa não precisa de autorização.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q1" value="b"> B) Das 18:00 às 23:00; dispensa homologada com qualquer Soldado.</label>
+                        <label style="display: block;"><input type="radio" name="q1" value="c"> C) Rigorosamente das 17:00 às 02:00 de Brasília; pedidos de folga ou afastamento devem ser submetidos exclusivamente ao General ou Coronéis.</label>
+                    </div>
+
+                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 700; display: block; margin-bottom: 6px;">2. Qual é a composição numérica máxima e intransponível da cúpula de liderança superior do Exército Brasileiro?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q2" value="a" required> A) Até 12 Coronéis e 2 Generais.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q2" value="b"> B) No máximo 7 Coronéis + 1 Líder (General), totalizando exatamente 8 líderes no comando superior.</label>
+                        <label style="display: block;"><input type="radio" name="q2" value="c"> C) Não há limite de coronéis, desde que façam provas.</label>
+                    </div>
+
+                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 700; display: block; margin-bottom: 6px;">3. Qual a autoridade disciplinar conferida expressamente ao General e aos Coronéis sobre o efetivo?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q3" value="a" required> A) Têm o direito e autoridade de relatar à administração e aplicar sanções disciplinares de forma independente e sumária caso detectem qualquer infrator na tropa.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q3" value="b"> B) Só podem agir se houver votação geral entre os soldados.</label>
+                        <label style="display: block;"><input type="radio" name="q3" value="c"> C) Devem aguardar 48 horas antes de tomar qualquer medida disciplinar.</label>
+                    </div>
+
+                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 700; display: block; margin-bottom: 6px;">4. Como funciona o Módulo Oficial de Plantão / Turno de Coronel?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q4" value="a" required> A) O plantão dura 1 hora e não emite avisos ao efetivo.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q4" value="b"> B) É misturado com o bater ponto comum de soldados e não possui vagas.</label>
+                        <label style="display: block;"><input type="radio" name="q4" value="c"> C) Possui duração fixa de 3 horas, limite de 1 turno ativo por coronel, até 3 vagas simultâneas por turno e dispara aviso geral a todos de que o recrutamento e missões estão sob sua responsabilidade.</label>
+                    </div>
+
+                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 700; display: block; margin-bottom: 6px;">5. O que deve conter o Relatório Obrigatório de Turno enviado pelo Coronel de Plantão?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q5" value="a" required> A) Apenas a lista de viaturas abastecidas na garagem.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q5" value="b"> B) Lista detalhada dos recrutados no turno, seus respectivos levels, números de WhatsApp (ou se não possui), status de entrega do fardamento militar padronizado e ocorrências.</label>
+                        <label style="display: block;"><input type="radio" name="q5" value="c"> C) Apenas print do placar geral de mortes no jogo.</label>
+                    </div>
+
+                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 700; display: block; margin-bottom: 6px;">6. Conforme os Capítulos 4.16 e 4.17, quais são as regras fundamentais de Máscara e Saída de Base?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q6" value="a" required> A) Máscara exige aviso prévio no rádio com motivo operacional e identificação do operador; saída de base exige comunicação prévia obrigatória de QTH e viatura.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q6" value="b"> B) Máscara é proibida para todos em qualquer hipótese e a saída de base é totalmente livre.</label>
+                        <label style="display: block;"><input type="radio" name="q6" value="c"> C) Ambos são liberados desde que o soldado esteja armado.</label>
+                    </div>
+
+                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 700; display: block; margin-bottom: 6px;">7. Conforme o Capítulo 5.1 e 5.2, qual é o tempo limite de formação e qual gesto é estritamente tolerado?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q7" value="a" required> A) 15 minutos de tolerância; qualquer animação de dança é permitida.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q7" value="b"> B) 10 minutos; proibido qualquer movimento exceto deitar.</label>
+                        <label style="display: block;"><input type="radio" name="q7" value="c"> C) Exatamente 5 minutos de prazo fatal; proibida qualquer animação ou gesto, sendo a ÚNICA exceção autorizada levantar a mão para solicitar a palavra ao Oficial.</label>
+                    </div>
+
+                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 700; display: block; margin-bottom: 6px;">8. Segundo o Capítulo 7.1 e 7.2, qual é a carga horária mínima semanal e o limite de dias sem comparecimento?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q8" value="a" required> A) 3 horas semanais e 10 dias de ausência.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q8" value="b"> B) Mínimo de 7 horas semanais ativas registradas e limite de 3 dias consecutivos de ausência sem justificativa sob pena de demissão/exoneração.</label>
+                        <label style="display: block;"><input type="radio" name="q8" value="c"> C) Não há carga horária obrigatória para cargos de liderança.</label>
+                    </div>
+
+                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 700; display: block; margin-bottom: 6px;">9. Na fonia militar avançada de rádio, qual é a correspondência correta dos códigos QRL, QSL, QSY, QTR e QTC?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q9" value="a" required> A) QRL: livre | QSL: não | QSY: parar | QTR: local | QTC: socorro.</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q9" value="b"> B) QRL: Frequência ocupada/silêncio | QSL: Entendido/Confirmado | QSY: Mudar canal/frequência | QTR: Hora exata oficial | QTC: Mensagem oficial a transmitir.</label>
+                        <label style="display: block;"><input type="radio" name="q9" value="c"> C) QRL: atacar | QSL: render | QSY: correr | QTR: tiro | QTC: fuga.</label>
+                    </div>
+
+                    <div style="margin-bottom: 16px; background: rgba(15, 23, 42, 0.75); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <label style="font-weight: 700; display: block; margin-bottom: 6px;">10. Em ações de Pacificação e Invasões, quais as regras cruciais de armamento e homologação (Cap. 4.21 e 4.22)?</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q10" value="a" required> A) Ação exige autorização do Administrador Líder/Comando prévia (INA - 4.21); uso de teaser/cassetete é terminantemente proibido sob pena de 60m prisão (FAIL - 4.22).</label>
+                        <label style="display: block; margin-bottom: 4px;"><input type="radio" name="q10" value="b"> B) É permitido teaser para imobilizar e a ação pode começar sem autorização.</label>
+                        <label style="display: block;"><input type="radio" name="q10" value="c"> C) Aliados podem entrar em qualquer confronto para equilibrar o número de combatentes.</label>
                     </div>
                 `;
             } else {
@@ -4779,6 +4997,24 @@
             });
 
             mostrarModalCustomizado(tituloAviso, dados.mensagem || corpoAviso);
+        });
+
+        socket.on('sistema:atualizacao_publicada', (dados) => {
+            if (!dados) return;
+            const titulo = `🚀 ATUALIZAÇÃO: ${dados.titulo || 'Nova Versão'}`;
+            const corpo = dados.detalhes || 'O sistema operacional foi atualizado com novas funções.';
+
+            dispararNotificacaoNativa(titulo, {
+                body: corpo,
+                tag: dados.id || ('update_' + Date.now()),
+                url: '/dashboard.html'
+            });
+
+            mostrarModalCustomizado(
+                titulo,
+                `<b>${escapeHTML(dados.titulo)}</b><br><br>${escapeHTML(corpo)}<br><br><small style="color: #94a3b8;">📅 Data: ${dados.dataFormatada || 'Hoje'} • Autor: ${escapeHTML(dados.autor || 'Comando')}</small>`
+            );
+            carregarCaixaEntrada();
         });
 
         socket.on('tocar_alarme_acao', (dados) => {
