@@ -1472,7 +1472,13 @@
             carregarLogsAdmin();
         });
 
-        socket.on('atualizar_logs_admin', () => { carregarLogsAdmin(); });
+        socket.on('atualizar_logs_admin', () => {
+            try {
+                carregarLogsAdmin();
+            } catch (e) {
+                console.warn('[Socket: atualizar_logs_admin] Aviso tratado:', e);
+            }
+        });
 
         async function atualizarFiscalizacaoServidor() {
             try {
@@ -1483,12 +1489,11 @@
                     // Atualiza contador de membros em plantão se presente
                     const elPlantao = document.getElementById('counterPlantao');
                     if (elPlantao) elPlantao.innerText = data.emPlantao.length;
+
                     // Atualiza lista em tela caso exista container de fiscalização
                     const container = document.getElementById('listaFiscalizacaoPlantao');
-                    if (container) {
-                        if (typeof filtrarFiscalizacaoPlantao === 'function') {
-                            filtrarFiscalizacaoPlantao();
-                        }
+                    if (container && typeof filtrarFiscalizacaoPlantao === 'function') {
+                        filtrarFiscalizacaoPlantao();
                     }
                 }
             } catch (e) {
@@ -1497,37 +1502,41 @@
         }
 
         function aplicarAtualizacaoCadastralUsuario(dados) {
-            if (!dados) return;
-            const meuNickAtual = (user.nickname || '').toLowerCase().trim();
-            const nickEvento = String(dados.nickname || '').toLowerCase().trim();
+            try {
+                if (!dados) return;
+                const meuNickAtual = (user.nickname || '').toLowerCase().trim();
+                const nickEvento = String(dados.nickname || '').toLowerCase().trim();
 
-            if (meuNickAtual && nickEvento === meuNickAtual) {
-                let alterou = false;
+                if (meuNickAtual && nickEvento === meuNickAtual) {
+                    let alterou = false;
 
-                if (dados.novoCargo && dados.novoCargo !== user.cargo) {
-                    user.cargo = dados.novoCargo;
-                    alterou = true;
-                } else if (dados.cargo && dados.cargo !== user.cargo) {
-                    user.cargo = dados.cargo;
-                    alterou = true;
+                    if (dados.novoCargo && dados.novoCargo !== user.cargo) {
+                        user.cargo = dados.novoCargo;
+                        alterou = true;
+                    } else if (dados.cargo && dados.cargo !== user.cargo) {
+                        user.cargo = dados.cargo;
+                        alterou = true;
+                    }
+
+                    if (dados.status && dados.status !== user.status) {
+                        user.status = dados.status;
+                        alterou = true;
+                    }
+
+                    if (dados.role && dados.role !== user.role) {
+                        user.role = dados.role;
+                        alterou = true;
+                    }
+
+                    if (alterou) {
+                        localStorage.setItem('user', JSON.stringify(user));
+                        if (typeof atualizarBadgeUsuarioUI === 'function') atualizarBadgeUsuarioUI();
+                        if (typeof sincronizarCarteiraEMissoes === 'function') sincronizarCarteiraEMissoes();
+                        if (typeof verificarProgressoProvas === 'function') verificarProgressoProvas();
+                    }
                 }
-
-                if (dados.status && dados.status !== user.status) {
-                    user.status = dados.status;
-                    alterou = true;
-                }
-
-                if (dados.role && dados.role !== user.role) {
-                    user.role = dados.role;
-                    alterou = true;
-                }
-
-                if (alterou) {
-                    localStorage.setItem('user', JSON.stringify(user));
-                    if (typeof atualizarBadgeUsuarioUI === 'function') atualizarBadgeUsuarioUI();
-                    if (typeof sincronizarCarteiraEMissoes === 'function') sincronizarCarteiraEMissoes();
-                    if (typeof verificarProgressoProvas === 'function') verificarProgressoProvas();
-                }
+            } catch (err) {
+                console.warn('[Cadastral] Aviso tratado:', err);
             }
         }
 
@@ -1545,6 +1554,9 @@
         socket.on('membro:promovido', (dados) => {
             try {
                 aplicarAtualizacaoCadastralUsuario(dados);
+                if (typeof carregarEfetivo === 'function') {
+                    carregarEfetivo();
+                }
             } catch (err) {
                 console.warn('[Socket: membro:promovido] Aviso tratado:', err);
             }
@@ -1555,8 +1567,8 @@
                 if (typeof atualizarFiscalizacaoServidor === 'function') {
                     atualizarFiscalizacaoServidor();
                 }
-                if (typeof carregarRanking === 'function') {
-                    carregarRanking();
+                if (typeof carregarEstatisticasMembros === 'function') {
+                    carregarEstatisticasMembros();
                 }
             } catch (err) {
                 console.warn('[Socket: operacional:turno_atualizado] Aviso tratado:', err);

@@ -2260,11 +2260,13 @@ app.put('/api/membro/status-plantao', async (req, res) => {
             nickname: String(nickname).toLowerCase().trim(),
             estadoTurno: estadoTurnoDestino,
             emPlantao: updateData.emPlantao,
+            inicioPlantao: updateData.inicioPlantao ? new Date(updateData.inicioPlantao).getTime() : null,
             segundosAcumulados: updateData.segundosAcumulados
         };
 
         io.emit('operacional:turno_atualizado', payloadTurnoStatus);
         io.emit('atualizar_estado_turno_usuario', payloadTurnoStatus);
+        io.emit('ranking:atualizado');
         io.emit('atualizar_status_geral_tropa');
 
         res.json({
@@ -2558,7 +2560,8 @@ app.post('/api/membro/turno', async (req, res) => {
             duracao: duracaoFormatada,
             segundosTotais: segundosFinais
         });
-        io.emit('atualizar_estado_turno_usuario', { nickname: String(nickname).toLowerCase().trim() });
+        io.emit('atualizar_estado_turno_usuario', { nickname: String(nickname).toLowerCase().trim(), estadoTurno: 'parado', emPlantao: false });
+        io.emit('ranking:atualizado');
         io.emit('atualizar_status_geral_tropa');
         await registarLogAdmin(
             membroDoc.nickname,
@@ -3593,12 +3596,16 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
             console.warn("Aviso ao buscar data de reset do ranking:", eConfig.message);
         }
 
-        // Projeção ultra-leve defensiva para manter consumo mínimo de memória RAM (< 512MB)
+        // Projeção dos membros com histórico de turnos ou em plantão ativo no momento
         const membros = await User.find(
-            { 'historicoTurnos.0': { $exists: true } },
+            { $or: [{ 'historicoTurnos.0': { $exists: true } }, { emPlantao: true }, { estadoTurno: { $in: ['ativo', 'pausado'] } }] },
             {
                 nickname: 1,
                 cargo: 1,
+                emPlantao: 1,
+                estadoTurno: 1,
+                inicioPlantao: 1,
+                segundosAcumulados: 1,
                 'historicoTurnos._id': 1,
                 'historicoTurnos.duracao': 1,
                 'historicoTurnos.data': 1,
@@ -3669,6 +3676,22 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
                     if (segTurno > 0) {
                         totalSegundos += segTurno;
                     }
+                }
+            }
+
+            // Incorpora o turno ativo atual caso esteja em plantão dentro da janela regulamentar de Brasília
+            if (m.estadoTurno === 'ativo' && m.inicioPlantao) {
+                const agoraMs = Date.now();
+                if (horaBrasiliaEstaNaJanelaTurno(new Date())) {
+                    let segundosTurnoAtivo = Number(m.segundosAcumulados || 0);
+                    const decorridoAtivo = calcularSegundosValidosNoHorario(m.inicioPlantao, agoraMs);
+                    if (decorridoAtivo > 0) segundosTurnoAtivo += decorridoAtivo;
+                    if (segundosTurnoAtivo > 9 * 3600) segundosTurnoAtivo = 9 * 3600;
+                    totalSegundos += segundosTurnoAtivo;
+                }
+            } else if (m.estadoTurno === 'pausado' && m.segundosAcumulados > 0) {
+                if (horaBrasiliaEstaNaJanelaTurno(new Date())) {
+                    totalSegundos += Math.min(Number(m.segundosAcumulados || 0), 9 * 3600);
                 }
             }
 
