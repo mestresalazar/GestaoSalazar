@@ -1230,11 +1230,18 @@ app.post('/api/coronel/avaliar', async (req, res) => {
 
         await registarLogAdmin(
             nickname,
-            'Avaliação de Coronel',
+            'Avaliação de Coronel Enviada',
             `${nickname} avaliou o plantão de ${turno.coronelNickname} (Vaga ${turno.vaga}) com ${notaEstrelas}/5 estrelas.${obsFinal ? ` Obs: "${obsFinal}"` : ''}`
         );
 
         io.emit('atualizar_turno_coronel');
+        io.emit('atualizar_avaliacoes_coronel', {
+            turnoId: turno._id,
+            coronelNickname: turno.coronelNickname,
+            avaliacao: novaAvaliacao,
+            mediaEstrelas: turno.mediaEstrelas,
+            totalAvaliacoes: turno.totalAvaliacoes
+        });
         io.emit('atualizar_status_geral_tropa');
 
         res.json({
@@ -1292,12 +1299,51 @@ app.get('/api/coronel/relatorios-historico', async (req, res) => {
     try {
         const relatorios = await TurnoCoronel.find({ relatorioEnviado: true })
             .sort({ 'relatorio.enviadoEm': -1, dataCriacao: -1 })
-            .limit(50)
+            .limit(60)
             .lean();
 
         res.json({ success: true, relatorios });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Erro ao listar histórico de relatórios.' });
+    }
+});
+
+// 8. Rota exclusiva para o Mestre (General) apagar relatório de plantão de Coronel
+app.delete('/api/coronel/relatorio/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const adminNickname = String(req.query.adminNickname || req.body.adminNickname || '').toLowerCase().trim();
+
+        if (adminNickname !== 'mestre') {
+            return res.status(403).json({
+                success: false,
+                message: 'Acesso negado: Apenas a conta Mestre (General) tem autorização para excluir relatórios.'
+            });
+        }
+
+        const turno = await TurnoCoronel.findById(id);
+        if (!turno) {
+            return res.status(404).json({ success: false, message: 'Relatório/plantão não encontrado.' });
+        }
+
+        const coronelNick = turno.coronelNickname;
+        const vagaNum = turno.vaga;
+
+        await TurnoCoronel.findByIdAndDelete(id);
+
+        await registarLogAdmin(
+            'Mestre',
+            'Exclusão de Relatório de Coronel',
+            `O relatório do plantão da Vaga ${vagaNum} (${coronelNick}) foi excluído definitivamente pelo Mestre.`
+        );
+
+        io.emit('atualizar_turno_coronel');
+        io.emit('atualizar_status_geral_tropa');
+
+        res.json({ success: true, message: 'Relatório de plantão excluído com sucesso pelo Mestre!' });
+    } catch (e) {
+        console.error("Erro ao excluir relatório de coronel:", e);
+        res.status(500).json({ success: false, message: 'Erro interno ao excluir relatório.' });
     }
 });
 
@@ -2087,19 +2133,41 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
 
         const resumoRank = await obterPosicaoEResumoRanking(membro.nickname);
 
-        let somaProgressiva = 0;
+        let dataCorteSemana = null;
+        try {
+            const configRanking = await ConfigSorteio.collection.findOne({ chave: 'config_ranking_semanal' });
+            if (configRanking && configRanking.dataUltimoReset) {
+                const ts = new Date(configRanking.dataUltimoReset).getTime();
+                if (!isNaN(ts)) dataCorteSemana = ts;
+            }
+        } catch (eConf) {}
+
+        let somaSemanaProgressiva = 0;
         const turnosProcessados = (membro.historicoTurnos || []).map(t => {
             const segs = (typeof t.segundosTotais === 'number' && !isNaN(t.segundosTotais) && t.segundosTotais > 0)
                 ? t.segundosTotais
                 : (t.duracao ? converterDuracaoParaSegundos(t.duracao) : 0);
-            somaProgressiva += segs;
+
+            const tsTurno = t.data ? new Date(t.data).getTime() : 0;
+            const pertenceSemana = !dataCorteSemana || (tsTurno > dataCorteSemana);
+            const ehValidoRanking = t.manual === true ||
+                String(t.motivoEncerramento || '').toLowerCase().includes('mestre') ||
+                turnoEstaNoHorarioPermitido(t);
+
+            const anteriorSemanaSegs = somaSemanaProgressiva;
+            if (pertenceSemana && ehValidoRanking && segs > 0) {
+                somaSemanaProgressiva += segs;
+            }
+            const resultanteSemanaSegs = somaSemanaProgressiva;
 
             return {
                 ...t,
                 segundosTotais: segs,
                 duracao: t.duracao || converterSegundosParaDuracao(segs),
                 posicaoRanking: t.posicaoRanking || resumoRank.posicao,
-                totalAcumuladoFormatado: t.totalAcumuladoFormatado || converterSegundosParaDuracao(somaProgressiva)
+                horasSemanaAnterioresFormatado: converterSegundosParaDuracao(anteriorSemanaSegs),
+                horasSemanaResultanteFormatado: converterSegundosParaDuracao(resultanteSemanaSegs),
+                totalAcumuladoFormatado: converterSegundosParaDuracao(resultanteSemanaSegs)
             };
         });
 
@@ -3394,14 +3462,37 @@ app.get('/api/admin/membro/historico-completo/:id', async (req, res) => {
 
         const resumoRank = await obterPosicaoEResumoRanking(membro.nickname);
 
-        let somaSegsProgressiva = 0;
+        let dataCorteSemanaAdm = null;
+        try {
+            const configRanking = await ConfigSorteio.collection.findOne({ chave: 'config_ranking_semanal' });
+            if (configRanking && configRanking.dataUltimoReset) {
+                const ts = new Date(configRanking.dataUltimoReset).getTime();
+                if (!isNaN(ts)) dataCorteSemanaAdm = ts;
+            }
+        } catch (eConf) {}
+
+        let somaSegsSemanaAdm = 0;
         const turnosSanitizados = (membro.historicoTurnos || []).map((t, idx) => {
             const fimTurno = t.fimEm ? new Date(t.fimEm) : (t.data ? new Date(t.data) : new Date());
             const duracaoSegundos = (typeof t.segundosTotais === 'number' && !isNaN(t.segundosTotais) && t.segundosTotais > 0)
                 ? t.segundosTotais
                 : converterDuracaoParaSegundos(t.duracao);
 
-            somaSegsProgressiva += duracaoSegundos;
+            const tsTurno = (t.data ? new Date(t.data).getTime() : fimTurno.getTime());
+            const pertenceSemana = !dataCorteSemanaAdm || (tsTurno > dataCorteSemanaAdm);
+            const motivoStr = String(t.motivoEncerramento || '');
+            const fotoStr = String(t.fotoComprovante || '');
+            const ehManual = !!t.manual ||
+                motivoStr.toLowerCase().includes('injeção') || motivoStr.toLowerCase().includes('injecao') || motivoStr.toLowerCase().includes('mestre') ||
+                fotoStr.toLowerCase().includes('injeção') || fotoStr.toLowerCase().includes('injecao') || fotoStr.toLowerCase().includes('mestre');
+
+            const ehValidoRanking = ehManual || turnoEstaNoHorarioPermitido(t);
+
+            const anteriorSemanaSegs = somaSegsSemanaAdm;
+            if (pertenceSemana && ehValidoRanking && duracaoSegundos > 0) {
+                somaSegsSemanaAdm += duracaoSegundos;
+            }
+            const resultanteSemanaSegs = somaSegsSemanaAdm;
 
             let inicioTurno = null;
             if (t.inicioEm && !isNaN(new Date(t.inicioEm).getTime())) {
@@ -3416,12 +3507,6 @@ app.get('/api/admin/membro/historico-completo/:id', async (req, res) => {
             const intervaloSegs = Math.floor(intervaloMs / 1000);
             const pausaSegs = Math.max(0, intervaloSegs - duracaoSegundos);
 
-            const motivoStr = String(t.motivoEncerramento || '');
-            const fotoStr = String(t.fotoComprovante || '');
-            const ehManual = !!t.manual ||
-                motivoStr.toLowerCase().includes('injeção') || motivoStr.toLowerCase().includes('injecao') || motivoStr.toLowerCase().includes('mestre') ||
-                fotoStr.toLowerCase().includes('injeção') || fotoStr.toLowerCase().includes('injecao') || fotoStr.toLowerCase().includes('mestre');
-
             return {
                 _id: t._id ? String(t._id) : `t_${idx}_${Date.now()}`,
                 data: t.data || fimTurno,
@@ -3429,7 +3514,9 @@ app.get('/api/admin/membro/historico-completo/:id', async (req, res) => {
                 fimEm: fimTurno,
                 duracao: t.duracao || converterSegundosParaDuracao(duracaoSegundos),
                 segundosTotais: duracaoSegundos,
-                totalAcumuladoFormatado: t.totalAcumuladoFormatado || converterSegundosParaDuracao(somaSegsProgressiva),
+                horasSemanaAnterioresFormatado: converterSegundosParaDuracao(anteriorSemanaSegs),
+                horasSemanaResultanteFormatado: converterSegundosParaDuracao(resultanteSemanaSegs),
+                totalAcumuladoFormatado: converterSegundosParaDuracao(resultanteSemanaSegs),
                 posicaoRanking: t.posicaoRanking || resumoRank.posicao,
                 ajustePausaFormatado: t.ajustePausaFormatado || (pausaSegs > 30 ? converterSegundosParaDuracao(pausaSegs) : '00:00:00'),
                 motivoEncerramento: t.motivoEncerramento || (ehManual ? 'Injeção Manual' : 'Concluído'),

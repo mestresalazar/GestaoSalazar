@@ -5428,6 +5428,12 @@
         socket.on('atualizar_turno_coronel', () => {
             carregarStatusPlantaoCoronel();
             carregarHistoricoRelatoriosCoronel();
+            verificarAvaliacoesCoronelPendentes();
+        });
+
+        socket.on('atualizar_avaliacoes_coronel', () => {
+            carregarHistoricoRelatoriosCoronel();
+            verificarAvaliacoesCoronelPendentes();
         });
 
         socket.on('coronel_aguardando_relatorio', (dados) => {
@@ -6577,11 +6583,11 @@
                     c.innerHTML = `
                         <div style="background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                             <div>
-                                <span style="font-size: 11px; color: #94a3b8; display: block;">🏆 Posição no Ranking Oficial:</span>
+                                <span style="font-size: 11px; color: #94a3b8; display: block;">🏆 Posição Atual no Ranking:</span>
                                 <b style="font-size: 16px; color: #facc15;">${escapeHTML(posicaoGeral)}</b>
                             </div>
                             <div style="text-align: right;">
-                                <span style="font-size: 11px; color: #94a3b8; display: block;">⏱️ Total Acumulado Homologado:</span>
+                                <span style="font-size: 11px; color: #94a3b8; display: block;">⏱️ Total Acumulado na Semana:</span>
                                 <b style="font-size: 16px; color: #34d399;">${escapeHTML(totalGeral)}</b>
                             </div>
                         </div>
@@ -6620,8 +6626,9 @@
                                 const motivo = t.motivoEncerramento || (ehManual ? 'Injeção / Ajuste Manual do Mestre' : 'Turno Regular');
                                 const intervaloObj = calcularIntervaloTurnoMembro(dataInicio, dataFim);
                                 const intervaloFormatado = intervaloObj ? intervaloObj.formatado : duracaoStr;
-                                const totalAcumuladoFormat = t.totalAcumuladoFormatado || duracaoStr;
                                 const rankPos = t.posicaoRanking || posicaoGeral;
+                                const anteriorSemana = t.horasSemanaAnterioresFormatado || '00:00:00';
+                                const resultanteSemana = t.horasSemanaResultanteFormatado || t.totalAcumuladoFormatado || duracaoStr;
                                 const pausaFormat = t.ajustePausaFormatado || (intervaloObj && intervaloObj.segundos > converterDuracaoParaSegundos(duracaoStr) + 30 ? converterSegundosParaDuracao(intervaloObj.segundos - converterDuracaoParaSegundos(duracaoStr)) : null);
 
                                 return `
@@ -6637,7 +6644,9 @@
 
                                         <div style="background: rgba(7, 13, 22, 0.55); border-radius: 8px; padding: 8px 10px; font-size: 12px; color: #cbd5e1; display: flex; flex-direction: column; gap: 4px; border-left: 3px solid ${ehManual ? '#eab308' : '#38bdf8'};">
                                             <div>🟢 <b>Início:</b> ${inicioFormatado} &nbsp;|&nbsp; 🔴 <b>Fim:</b> ${fimFormatado} <span style="color: #94a3b8; font-size: 10px;">(Brasília)</span></div>
-                                            <div>📊 <b>Total acumulado resultante:</b> <b style="color: #34d399;">${escapeHTML(totalAcumuladoFormat)}</b></div>
+                                            <div style="background: rgba(15, 23, 42, 0.7); padding: 5px 8px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2);">
+                                                📈 <b>Semana no Ranking:</b> <span style="color: #94a3b8;">${escapeHTML(anteriorSemana)}</span> + <span style="color: #38bdf8; font-weight: 700;">${escapeHTML(duracaoStr)}</span> = <b style="color: #34d399;">${escapeHTML(resultanteSemana)}</b>
+                                            </div>
                                             <div>⏳ <b>Intervalo decorrido:</b> <span style="color: #a7f3d0; font-weight: 600;">${escapeHTML(intervaloFormatado)}</span> ${pausaFormat ? `(⏸️ Pausa/Ajuste: <b style="color:#facc15;">${escapeHTML(pausaFormat)}</b>)` : ''}</div>
                                             <div>📌 <b>Motivo/Registro:</b> <span style="color: #eab308;">${escapeHTML(motivo)}</span></div>
                                         </div>
