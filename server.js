@@ -1079,14 +1079,30 @@ app.post('/api/coronel/assumir', async (req, res) => {
 // 3. Submeter Relatório de Recrutamento e Fardamento do Plantão
 app.post('/api/coronel/relatorio', async (req, res) => {
     try {
-        const { turnoId, nickname, recrutamentos, missoesSupervisionadas, resumoGeral, fardamentoStatus } = req.body;
-        if (!turnoId) {
-            return res.status(400).json({ success: false, message: 'Identificador do turno de coronel não fornecido.' });
+        const { turnoId, id, vaga, slot, nickname, recrutamentos, missoesSupervisionadas, resumoGeral, fardamentoStatus } = req.body;
+        const idFinal = turnoId || id;
+
+        let turno = null;
+        if (idFinal && String(idFinal).match(/^[0-9a-fA-F]{24}$/)) {
+            turno = await TurnoCoronel.findById(idFinal);
         }
 
-        const turno = await TurnoCoronel.findById(turnoId);
+        if (!turno && (vaga || slot)) {
+            const numVaga = parseInt(vaga || slot, 10);
+            if ([1, 2, 3].includes(numVaga)) {
+                turno = await TurnoCoronel.findOne({ vaga: numVaga, status: { $in: ['ativo', 'aguardando_relatorio'] } }).sort({ dataCriacao: -1 });
+            }
+        }
+
+        if (!turno && nickname) {
+            turno = await TurnoCoronel.findOne({
+                coronelNickname: new RegExp('^' + escaparRegex(String(nickname).trim()) + '$', 'i'),
+                status: { $in: ['ativo', 'aguardando_relatorio'] }
+            }).sort({ dataCriacao: -1 });
+        }
+
         if (!turno) {
-            return res.status(404).json({ success: false, message: 'Plantão de coronel não encontrado.' });
+            return res.status(404).json({ success: false, message: 'Plantão de coronel ativo ou aguardando relatório não encontrado.' });
         }
 
         const listaRecrutados = Array.isArray(recrutamentos) ? recrutamentos.map(r => ({
@@ -1097,18 +1113,18 @@ app.post('/api/coronel/relatorio', async (req, res) => {
             observacoes: String(r.observacoes || '').trim()
         })).filter(r => r.nome !== '') : [];
 
+        const agoraConclusao = new Date();
         turno.relatorioEnviado = true;
         turno.relatorio = {
             recrutamentos: listaRecrutados,
             totalRecrutados: listaRecrutados.length,
             missoesSupervisionadas: String(missoesSupervisionadas || '').trim(),
             resumoGeral: String(resumoGeral || '').trim(),
-            fardamentoStatus: String(fardamentoStatus || 'Entregue e Padronizado').trim(),
-            enviadoEm: new Date()
+            fardamentoStatus: String(fardamentoStatus || 'Farda padrão entregue e orientada a todos').trim(),
+            enviadoEm: agoraConclusao
         };
 
-        // O envio do relatório conclui o plantão de forma definitiva e segura
-        const agoraConclusao = new Date();
+        // O envio do relatório conclui o plantão de forma definitiva e libera a vaga imediatamente
         turno.status = 'concluido';
         turno.fimRealEm = agoraConclusao;
 
@@ -1116,8 +1132,8 @@ app.post('/api/coronel/relatorio', async (req, res) => {
 
         await registarLogAdmin(
             turno.coronelNickname,
-            'Relatório de Coronel Enviado e Turno Concluído',
-            `Turno Vaga ${turno.vaga} concluído com sucesso: ${listaRecrutados.length} recrutado(s), fardamento: ${turno.relatorio.fardamentoStatus}.`
+            'Relatório de Coronel Enviado e Vaga Liberada',
+            `Turno Vaga ${turno.vaga} finalizado com sucesso por ${turno.coronelNickname}: ${listaRecrutados.length} recrutado(s), fardamento: ${turno.relatorio.fardamentoStatus}. Vaga ${turno.vaga} desocupada.`
         );
 
         // Notifica e convida operacionais para avaliarem o plantão
@@ -1140,12 +1156,14 @@ app.post('/api/coronel/relatorio', async (req, res) => {
             { $push: { caixaEntrada: { $each: [notifAvaliacao], $slice: -30 } } }
         );
 
+        // Emite atualização imediata para que tanto o ADM quanto a tropa vejam a vaga livre e o relatório no mural sem F5
         io.emit('atualizar_turno_coronel');
         io.emit('atualizar_status_geral_tropa');
 
         res.json({
             success: true,
-            message: 'Relatório enviado com sucesso e plantão de Coronel homologado!',
+            message: 'Relatório enviado com sucesso, turno concluído e vaga liberada!',
+            vagaLiberada: turno.vaga,
             relatorio: turno.relatorio
         });
     } catch (e) {
@@ -1154,17 +1172,53 @@ app.post('/api/coronel/relatorio', async (req, res) => {
     }
 });
 
-// 4. Finalizar plantão de Coronel (obrigatório envio prévio de relatório)
+// 4. Finalizar plantão de Coronel (com suporte a finalização forçada pelo ADM/General sem erro 400)
 app.post('/api/coronel/finalizar', async (req, res) => {
     try {
-        const { turnoId, nickname } = req.body;
-        const turno = await TurnoCoronel.findById(turnoId);
-        if (!turno) {
-            return res.status(404).json({ success: false, message: 'Plantão não encontrado.' });
+        const { turnoId, id, vaga, slot, nickname, adminNickname, autor, forcado } = req.body;
+        const idFinal = turnoId || id;
+
+        let turno = null;
+        if (idFinal && String(idFinal).match(/^[0-9a-fA-F]{24}$/)) {
+            turno = await TurnoCoronel.findById(idFinal);
         }
 
-        // Regra estrita: não finalizar sem relatório de recrutamento e fardamento
-        if (!turno.relatorioEnviado) {
+        if (!turno && (vaga || slot)) {
+            const numVaga = parseInt(vaga || slot, 10);
+            if ([1, 2, 3].includes(numVaga)) {
+                turno = await TurnoCoronel.findOne({ vaga: numVaga, status: { $in: ['ativo', 'aguardando_relatorio'] } }).sort({ dataCriacao: -1 });
+            }
+        }
+
+        if (!turno && nickname) {
+            turno = await TurnoCoronel.findOne({
+                coronelNickname: new RegExp('^' + escaparRegex(String(nickname).trim()) + '$', 'i'),
+                status: { $in: ['ativo', 'aguardando_relatorio'] }
+            }).sort({ dataCriacao: -1 });
+        }
+
+        if (!turno) {
+            return res.status(404).json({ success: false, message: 'Plantão de coronel não encontrado.' });
+        }
+
+        const solicitante = adminNickname || autor || nickname || turno.coronelNickname;
+        let ehComandoAdmin = false;
+        if (solicitante) {
+            const nickSol = String(solicitante).toLowerCase().trim();
+            if (nickSol === 'mestre') {
+                ehComandoAdmin = true;
+            } else {
+                const usuarioSol = await User.findOne({ nickname: new RegExp('^' + escaparRegex(nickSol) + '$', 'i') }, 'role cargo').lean();
+                if (usuarioSol && (usuarioSol.role === 'admin' || ehCargoCoronelOuSuperior(usuarioSol.cargo))) {
+                    ehComandoAdmin = true;
+                }
+            }
+        }
+
+        const ehEncerramentoForcado = forcado === true || ehComandoAdmin;
+
+        // Se NÃO for encerramento forçado do comando, exige envio prévio do relatório
+        if (!ehEncerramentoForcado && !turno.relatorioEnviado) {
             return res.status(400).json({
                 success: false,
                 exigeRelatorio: true,
@@ -1172,14 +1226,29 @@ app.post('/api/coronel/finalizar', async (req, res) => {
             });
         }
 
+        const agoraFinalizacao = new Date();
         turno.status = 'concluido';
-        turno.fimRealEm = new Date();
+        turno.fimRealEm = agoraFinalizacao;
+
+        // Se encerrado pelo comando sem relatório, define relatório sumário para fins de histórico e auditoria
+        if (!turno.relatorioEnviado) {
+            turno.relatorioEnviado = true;
+            turno.relatorio = {
+                recrutamentos: [],
+                totalRecrutados: 0,
+                missoesSupervisionadas: 'Encerramento administrativo forçado pelo Comando',
+                resumoGeral: `Turno finalizado diretamente pelo Comando (${solicitante}).`,
+                fardamentoStatus: 'Encerramento Administrativo',
+                enviadoEm: agoraFinalizacao
+            };
+        }
+
         await turno.save();
 
         await registarLogAdmin(
-            nickname || turno.coronelNickname,
-            'Finalizou Plantão de Coronel',
-            `Plantão da Vaga ${turno.vaga} concluído por ${turno.coronelNickname} com relatório homologado.`
+            solicitante,
+            ehEncerramentoForcado ? 'Finalizou Turno de Coronel (Forçado)' : 'Finalizou Plantão de Coronel',
+            `Plantão da Vaga ${turno.vaga} concluído por ${solicitante} referente ao Coronel ${turno.coronelNickname}. Vaga liberada com sucesso.`
         );
 
         // Notifica e convida todos os membros a avaliarem o desempenho do Coronel no plantão
@@ -1205,9 +1274,14 @@ app.post('/api/coronel/finalizar', async (req, res) => {
         io.emit('atualizar_turno_coronel');
         io.emit('atualizar_status_geral_tropa');
 
-        res.json({ success: true, message: 'Plantão de Coronel finalizado com sucesso!' });
+        res.json({
+            success: true,
+            message: `Plantão de Coronel da Vaga ${turno.vaga} finalizado com sucesso e vaga liberada!`,
+            vagaLiberada: turno.vaga
+        });
     } catch (e) {
-        res.status(500).json({ success: false, message: 'Erro ao finalizar plantão.' });
+        console.error("Erro ao finalizar plantão de coronel:", e);
+        res.status(500).json({ success: false, message: 'Erro ao finalizar plantão: ' + e.message });
     }
 });
 

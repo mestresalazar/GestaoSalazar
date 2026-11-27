@@ -3301,7 +3301,7 @@
                                 ⏰ ${inicioFormat} às ${fimFormat} (Brasília)
                                 ${ehAguardandoRel ? '<div style="color: #fbbf24; font-weight: 800; margin-top: 3px;">📝 Tempo Esgotado — Aguardando Relatório</div>' : ''}
                             </div>
-                            <button class="btn-action btn-demitir" style="width: 100%; margin: 0; padding: 7px; font-size: 11px;" onclick="forcarFinalizarTurnoCoronel('${plantao._id}', '${escapeHTML(plantao.coronelNickname)}')">
+                            <button class="btn-action btn-demitir" style="width: 100%; margin: 0; padding: 7px; font-size: 11px;" onclick="forcarFinalizarTurnoCoronel('${plantao._id}', '${escapeHTML(plantao.coronelNickname)}', ${v})">
                                 ⏹️ Finalizar Turno de Coronel (Forçado)
                             </button>
                         `;
@@ -3343,23 +3343,34 @@
             );
         }
 
-        async function forcarFinalizarTurnoCoronel(turnoId, nickname) {
+        async function forcarFinalizarTurnoCoronel(turnoId, nickname, vagaNum) {
             mostrarModalCustomizado(
                 'Finalizar Turno de Coronel',
-                `Deseja forçar o encerramento do plantão de Coronel de <b>${nickname}</b>?`,
+                `Deseja forçar o encerramento do plantão de Coronel de <b>${escapeHTML(nickname)}</b>? A vaga será liberada imediatamente.`,
                 'confirmacao',
                 async () => {
                     try {
                         const res = await fetch('/api/coronel/finalizar', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ turnoId, nickname: user.nickname })
+                            body: JSON.stringify({
+                                turnoId,
+                                id: turnoId,
+                                vaga: vagaNum,
+                                coronelNickname: nickname,
+                                nickname: user.nickname,
+                                adminNickname: user.nickname,
+                                forcado: true
+                            })
                         });
                         const data = await res.json();
                         if (data.success) {
-                            mostrarModalCustomizado('Sucesso', 'Plantão de coronel finalizado!');
+                            mostrarModalCustomizado('Sucesso', data.message || 'Plantão de coronel finalizado e vaga liberada!');
                             carregarStatusCoroneisAdm();
                             carregarRelatoriosCoroneisAdm();
+                            carregarLogsAdmin();
+                        } else {
+                            mostrarModalCustomizado('Erro', data.message || 'Erro ao finalizar turno de coronel.');
                         }
                     } catch (e) {
                         mostrarModalCustomizado('Erro', 'Erro ao finalizar turno.');

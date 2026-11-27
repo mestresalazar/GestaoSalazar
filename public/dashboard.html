@@ -3289,6 +3289,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         turnoId: turnoCoronelAtivoCache._id,
+                        id: turnoCoronelAtivoCache._id,
+                        vaga: turnoCoronelAtivoCache.vaga,
                         nickname: user.nickname,
                         recrutamentos,
                         missoesSupervisionadas,
@@ -3299,7 +3301,12 @@
                 const data = await res.json();
                 if (data.success) {
                     fecharModalRelatorioCoronel();
-                    mostrarModalCustomizado('Relatório Registado', data.message || 'Relatório de recrutamento salvo com sucesso!');
+                    turnoCoronelAtivoCache = null;
+                    if (timerIntervalCoronel) clearInterval(timerIntervalCoronel);
+                    atualizarBoxMeuTurnoCoronelUI();
+
+                    mostrarModalCustomizado('Relatório Registado', data.message || 'Relatório de recrutamento salvo com sucesso e plantão finalizado!');
+                    carregarStatusPlantaoCoronel();
                     carregarHistoricoRelatoriosCoronel();
                 } else {
                     mostrarModalCustomizado('Erro', data.message || 'Erro ao registrar relatório.');
@@ -3338,12 +3345,18 @@
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 turnoId: turnoCoronelAtivoCache._id,
+                                id: turnoCoronelAtivoCache._id,
+                                vaga: turnoCoronelAtivoCache.vaga,
                                 nickname: user.nickname
                             })
                         });
                         const data = await res.json();
                         if (data.success) {
-                            mostrarModalCustomizado('Plantão Concluído', data.message || 'Turno finalizado com sucesso!');
+                            turnoCoronelAtivoCache = null;
+                            if (timerIntervalCoronel) clearInterval(timerIntervalCoronel);
+                            atualizarBoxMeuTurnoCoronelUI();
+
+                            mostrarModalCustomizado('Plantão Concluído', data.message || 'Turno finalizado com sucesso e vaga liberada!');
                             carregarStatusPlantaoCoronel();
                             carregarHistoricoRelatoriosCoronel();
                         } else if (data.exigeRelatorio) {
