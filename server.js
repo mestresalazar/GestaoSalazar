@@ -932,13 +932,6 @@ app.post('/api/coronel/assumir', async (req, res) => {
             return res.status(404).json({ success: false, message: 'Operacional não encontrado.' });
         }
 
-        if (!ehCargoCoronelOuSuperior(membro.cargo) && membro.role !== 'admin') {
-            return res.status(403).json({
-                success: false,
-                message: 'Acesso restrito: Apenas Coronel, Coronel All ou General podem assumir a vaga de Coronel do Turno.'
-            });
-        }
-
         const agora = new Date();
 
         // Limite de 1 turno por coronel (seja ativo ou aguardando envio do relatório)

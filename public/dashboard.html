@@ -1331,7 +1331,7 @@
                 <span class="icon">📖</span>
                 <span>Regras & Cronograma</span>
             </button>
-            <button class="drawer-nav-item" data-tab="coronel-plantao" id="navItemCoronelPlantao" style="display: none; color: #facc15;" onclick="mudarAba('coronel-plantao')">
+            <button class="drawer-nav-item" data-tab="coronel-plantao" id="navItemCoronelPlantao" style="color: #facc15;" onclick="mudarAba('coronel-plantao')">
                 <span class="icon">👑</span>
                 <span>Plantão de Coronel (3h)</span>
             </button>
@@ -1376,6 +1376,23 @@
     <!-- ========================================== -->
     <div id="aba-turnos" class="tab-content active">
         <div style="max-width: 650px; margin: 0 auto;">
+            <!-- BANNER DE AVALIAÇÃO DE CORONEL PENDENTE NA PÁGINA DO CRONÔMETRO -->
+            <div id="bannerAvaliacaoPendenteCronometro" style="display: none; background: linear-gradient(145deg, rgba(234, 179, 8, 0.2), rgba(15, 23, 42, 0.95)); border: 1.5px solid #eab308; border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; box-shadow: 0 4px 16px rgba(234, 179, 8, 0.25);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 20px;">⭐</span>
+                        <b style="color: #facc15; font-size: 13px;">Avaliação de Coronel Pendente</b>
+                    </div>
+                    <span id="badgeQtdAvaliacoesCronometro" style="background: rgba(234, 179, 8, 0.3); color: #fde047; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">1 Pendente</span>
+                </div>
+                <p id="textoBannerAvaliacaoCronometro" style="font-size: 12px; color: #cbd5e1; margin-bottom: 10px; line-height: 1.5;">
+                    Você tem plantão de Coronel aguardando sua avaliação de 1 a 5 estrelas. Avalie a condução das missões e a disciplina!
+                </p>
+                <button onclick="abrirPrimeiraAvaliacaoPendente()" class="btn-action" style="margin: 0; padding: 10px; font-size: 12px; font-weight: 800; background: linear-gradient(135deg, #eab308, #ca8a04); color: #000;">
+                    ⭐ Avaliar Agora o Plantão
+                </button>
+            </div>
+
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(239, 68, 68, 0.2); padding-bottom: 10px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
                     <h3 style="border: none; margin: 0; padding: 0;">🪖 Módulo Bate-Ponto & Turnos</h3>
@@ -3152,12 +3169,6 @@
         }
 
         async function assumirVagaCoronel(numVaga) {
-            const ehCoronel = ehCoronelOuGeneral(user.cargo) || user.role === 'admin';
-            if (!ehCoronel) {
-                mostrarModalCustomizado('Acesso Restrito', 'Apenas Coronel, Coronel All ou General podem assumir as vagas de Coronel de Turno.');
-                return;
-            }
-
             mostrarModalCustomizado(
                 `Assumir Plantão - Vaga ${numVaga}`,
                 `Deseja assumir a <b>Vaga ${numVaga}</b> do Plantão de Coronel por <b>3 horas</b>?<br><br>Um aviso geral será emitido para toda a tropa informando que o recrutamento e as missões do efetivo estão sob sua responsabilidade neste turno.`,
@@ -3343,22 +3354,34 @@
                 const badge = document.getElementById('badgeQtdAvaliacoesPendentes');
                 const texto = document.getElementById('textoBannerAvaliacaoPendente');
 
-                if (listaAvaliacoesPendentesCache.length > 0) {
-                    if (banner) banner.style.display = 'block';
-                    if (badge) badge.innerText = `${listaAvaliacoesPendentesCache.length} Pendente(s)`;
+                const bannerCronometro = document.getElementById('bannerAvaliacaoPendenteCronometro');
+                const badgeCronometro = document.getElementById('badgeQtdAvaliacoesCronometro');
+                const textoCronometro = document.getElementById('textoBannerAvaliacaoCronometro');
 
+                if (listaAvaliacoesPendentesCache.length > 0) {
                     const primeiro = listaAvaliacoesPendentesCache[0];
-                    if (texto) {
-                        texto.innerHTML = `O <b>${escapeHTML(primeiro.coronelCargo || 'Coronel')} ${escapeHTML(primeiro.coronelNickname)}</b> encerrou o plantão (Vaga ${primeiro.vaga}). Deixe sua avaliação de 1 a 5 estrelas sobre a condução das missões!`;
+                    const msgTexto = `O <b>${escapeHTML(primeiro.coronelCargo || 'Coronel')} ${escapeHTML(primeiro.coronelNickname)}</b> encerrou o plantão (Vaga ${primeiro.vaga}). Deixe sua avaliação de 1 a 5 estrelas sobre a condução das missões!`;
+
+                    if (banner) {
+                        banner.style.display = 'block';
+                        if (badge) badge.innerText = `${listaAvaliacoesPendentesCache.length} Pendente(s)`;
+                        if (texto) texto.innerHTML = msgTexto;
                     }
 
-                    // Se não estiver em plantão e o modal não estiver aberto, abre para o membro
+                    if (bannerCronometro) {
+                        bannerCronometro.style.display = 'block';
+                        if (badgeCronometro) badgeCronometro.innerText = `${listaAvaliacoesPendentesCache.length} Pendente(s)`;
+                        if (textoCronometro) textoCronometro.innerHTML = msgTexto;
+                    }
+
+                    // Se não estiver em plantão e o modal não estiver aberto, abre para o membro que ainda não avaliou
                     const modalEl = document.getElementById('modalAvaliarCoronel');
                     if (modalEl && modalEl.style.display !== 'flex' && sessionStorage.getItem('pular_aviso_av_temporario') !== 'true') {
                         abrirPrimeiraAvaliacaoPendente();
                     }
-                } else if (banner) {
-                    banner.style.display = 'none';
+                } else {
+                    if (banner) banner.style.display = 'none';
+                    if (bannerCronometro) bannerCronometro.style.display = 'none';
                 }
             } catch (e) {
                 console.warn("Aviso ao verificar avaliações pendentes:", e);
@@ -3667,10 +3690,9 @@
         function atualizarBadgeUsuarioUI() {
             const cargosAdminPermitidos = ['General', 'Coronel All'];
             const temPermissaoAdmin = user.role === 'admin' || cargosAdminPermitidos.includes(user.cargo);
-            const ehCoronel = ehCoronelOuGeneral(user.cargo) || temPermissaoAdmin;
 
             const navCoronel = document.getElementById('navItemCoronelPlantao');
-            if (navCoronel) navCoronel.style.display = ehCoronel ? 'flex' : 'none';
+            if (navCoronel) navCoronel.style.display = 'flex';
 
             const nickEl = document.getElementById('headerUserNicknameShort');
             if (nickEl) nickEl.innerText = user.nickname;
@@ -5462,12 +5484,12 @@
             carregarHistoricoRelatoriosCoronel();
             if (!dados || !dados.turnoId) return;
 
-            // Se o próprio usuário for o coronel que finalizou, não exibe autoavaliação
+            // Se o próprio usuário for o coronel que finalizou, ignora autoavaliação
             const meuNick = (user && user.nickname ? user.nickname : '').toLowerCase().trim();
             if ((dados.coronelNickname || '').toLowerCase().trim() === meuNick) return;
 
-            // Convida os operacionais a avaliarem
-            abrirModalAvaliacaoCoronelTurno(dados.turnoId, dados.coronelNickname, dados.coronelCargo);
+            // Consulta no servidor se o membro atual já avaliou ou se está pendente antes de abrir
+            verificarAvaliacoesCoronelPendentes();
         });
 
         socket.on('coronel_assumiu_plantao', (dados) => {
