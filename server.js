@@ -640,16 +640,7 @@ function calcularSegundosValidosNoHorario(inicioTimestamp, fimTimestamp = Date.n
     const fimMs = typeof fimTimestamp === 'number' ? fimTimestamp : new Date(fimTimestamp).getTime();
     if (isNaN(inicioMs) || isNaN(fimMs) || fimMs <= inicioMs) return 0;
 
-    const limite02hMs = obterTimestampLimite02hBrasilia(inicioMs);
-    // Trava estrita: nenhum segundo após as 02:00:00 do fuso de Brasília é contabilizado
-    const fimValidoMs = Math.min(fimMs, limite02hMs);
-
-    if (fimValidoMs <= inicioMs) return 0;
-    const segundosCalculados = Math.floor((fimValidoMs - inicioMs) / 1000);
-
-    // Teto absoluto: a janela completa das 17:00 às 02:00 tem no máximo 9 horas (32.400 segundos)
-    const TETO_JANELA_9H = 9 * 3600;
-    return Math.min(segundosCalculados, TETO_JANELA_9H);
+    return Math.floor((fimMs - inicioMs) / 1000);
 }
 
 function turnoEstaNoHorarioPermitido(t) {
@@ -1416,9 +1407,6 @@ async function verificarFechamentoAutomaticoTurnos() {
                 const dataCiclo = obterDataCicloBrasil(limite02hMs - 1000);
 
                 if (segundosTotais >= 5) {
-                    // Aplica teto de segurança de 9 horas
-                    if (segundosTotais > 9 * 3600) segundosTotais = 9 * 3600;
-
                     const duracaoFormatada = converterSegundosParaDuracao(segundosTotais);
                     const comprovanteFinal = membro.fotoComprovanteAtiva || 'Fechamento Automático (Limite 02:00)';
                     const comprovantesLista = Array.isArray(membro.comprovantesTurnoAtivo) ? membro.comprovantesTurnoAtivo : [];
@@ -2451,7 +2439,7 @@ app.post('/api/membro/turno', async (req, res) => {
             // Permite no máximo pequena oscilação de 15 segundos decorrente de latência de rede
             segundosFinais = Math.min(segundosCliente, segundosValidosServidor + 15);
         } else if (segundosValidosServidor <= 0 && segundosCliente > 0) {
-            segundosFinais = Math.min(segundosCliente, 9 * 3600);
+            segundosFinais = segundosCliente;
         }
 
         // REGRA DE CONGELAMENTO EM 3 HORAS (10.800 SEGUNDOS) ATÉ CONFIRMAÇÃO:
@@ -3713,10 +3701,6 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
                         segTurno = converterDuracaoParaSegundos(t.duracao);
                     }
 
-                    // Trava de integridade no ranking: no máximo 9 horas (32.400s) por turno individual
-                    if (segTurno > 9 * 3600) {
-                        segTurno = 9 * 3600;
-                    }
                     if (segTurno > 0) {
                         totalSegundos += segTurno;
                     }
@@ -3730,12 +3714,11 @@ app.get('/api/admin/ranking/turnos', async (req, res) => {
                     let segundosTurnoAtivo = Number(m.segundosAcumulados || 0);
                     const decorridoAtivo = calcularSegundosValidosNoHorario(m.inicioPlantao, agoraMs);
                     if (decorridoAtivo > 0) segundosTurnoAtivo += decorridoAtivo;
-                    if (segundosTurnoAtivo > 9 * 3600) segundosTurnoAtivo = 9 * 3600;
                     totalSegundos += segundosTurnoAtivo;
                 }
             } else if (m.estadoTurno === 'pausado' && m.segundosAcumulados > 0) {
                 if (horaBrasiliaEstaNaJanelaTurno(new Date())) {
-                    totalSegundos += Math.min(Number(m.segundosAcumulados || 0), 9 * 3600);
+                    totalSegundos += Number(m.segundosAcumulados || 0);
                 }
             }
 
@@ -3915,6 +3898,7 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
 
         io.emit('operacional:turno_atualizado', { nickname: targetNickname.toLowerCase() });
         io.emit('recarregar_perfil_membro', { nickname: targetNickname });
+        io.emit('ranking:atualizado');
         io.emit('atualizar_status_geral_tropa');
         await registarLogAdmin(adminNickname, 'Injeção Manual de Tempo', `Adicionado ${duracaoFormatada} para ${targetNickname} por Mestre. Motivo: ${motivo}`);
         res.json({ success: true, message: `Adicionado com sucesso ${duracaoFormatada} para ${targetNickname}!` });
