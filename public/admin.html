@@ -2715,9 +2715,15 @@
 
                 const listaTurnos = Array.isArray(data.historicoTurnos) ? data.historicoTurnos : [];
 
+                const posicaoRank = data.posicaoRanking || '#1';
+                const totalHorasGeral = data.totalHorasRanking || '00:00:00';
+
                 container.innerHTML = `
                     <div style="background: rgba(7, 13, 22, 0.7); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                        <div><p><b>Operacional:</b> ${escapeHTML(data.nickname)} | <b>Cargo:</b> ${escapeHTML(data.cargo)}</p></div>
+                        <div>
+                            <p><b>Operacional:</b> ${escapeHTML(data.nickname)} | <b>Cargo:</b> ${escapeHTML(data.cargo)}</p>
+                            <p style="font-size: 12px; margin-top: 4px;">🏆 <b>Posição no Ranking:</b> <span style="color: #facc15; font-weight: bold;">${escapeHTML(posicaoRank)}</span> | ⏱️ <b>Total Acumulado:</b> <span style="color: #34d399; font-weight: bold;">${escapeHTML(totalHorasGeral)}</span></p>
+                        </div>
                         <button class="btn-action btn-demitir" onclick="resetarTurnosMembro('${membroIdAtualModal}')">🗑️ Resetar TODOS os Turnos</button>
                     </div>
                     <div style="background: rgba(7, 13, 22, 0.7); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2);">
@@ -2726,7 +2732,6 @@
                             let dataFim = t.fimEm ? new Date(t.fimEm) : (t.data ? new Date(t.data) : null);
                             let dataInicio = t.inicioEm ? new Date(t.inicioEm) : null;
 
-                            // Fallback caso o registro antigo não tenha inicioEm distinto de fimEm
                             if ((!dataInicio || isNaN(dataInicio.getTime()) || (dataFim && dataInicio.getTime() === dataFim.getTime())) && t.duracao) {
                                 const partesD = String(t.duracao).split(':');
                                 if (partesD.length === 3 && dataFim) {
@@ -2760,20 +2765,26 @@
                             const segundosIntervalo = intervaloObj ? intervaloObj.segundos : segundosDuracao;
                             const diffAbs = Math.abs(segundosIntervalo - segundosDuracao);
                             const temDivergencia = (diffAbs > 60 && !ehManual);
+                            const totalAcumuladoTurno = t.totalAcumuladoFormatado || duracaoStr;
+                            const rankItem = t.posicaoRanking || posicaoRank;
+                            const pausaTxt = t.ajustePausaFormatado || (diffAbs > 30 ? converterSegundosParaDuracao(diffAbs) : null);
 
                             return `
                             <div style="background: rgba(30, 41, 59, 0.6); padding: 12px; border-radius: 10px; margin-bottom: 12px; border: 1px solid ${temDivergencia ? 'rgba(239, 68, 68, 0.5)' : (ehManual ? 'rgba(234, 179, 8, 0.4)' : 'rgba(56, 189, 248, 0.25)')};">
                                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
                                     <div style="flex: 1; min-width: 240px;">
                                         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
-                                            <span style="font-size: 14px; font-weight: 800; color: #38bdf8;">⏱️ Duração Homologada: ${escapeHTML(duracaoStr)}</span>
-                                            <span style="font-size: 12px; color: #a7f3d0; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); padding: 2px 8px; border-radius: 6px; font-weight: 600;">Intervalo Início ➔ Fim: ${escapeHTML(intervaloFormatado)}</span>
+                                            <span style="font-size: 14px; font-weight: 800; color: #38bdf8;">⏱️ +${escapeHTML(duracaoStr)}</span>
+                                            <span style="font-size: 12px; background: rgba(250, 204, 21, 0.15); border: 1px solid rgba(250, 204, 21, 0.35); color: #fde047; padding: 2px 8px; border-radius: 6px; font-weight: 700;">🏆 Rank: ${escapeHTML(rankItem)}</span>
+                                            <span style="font-size: 12px; color: #a7f3d0; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); padding: 2px 8px; border-radius: 6px; font-weight: 600;">Intervalo: ${escapeHTML(intervaloFormatado)}</span>
                                             ${badgeOrigem}
                                             ${temDivergencia ? `<span style="font-size: 11px; background: rgba(239, 68, 68, 0.25); color: #fca5a5; border: 1px solid #ef4444; padding: 2px 6px; border-radius: 6px; font-weight: bold;">⚠️ Ajuste/Pausa (+${Math.round(diffAbs / 60)}m)</span>` : ''}
                                         </div>
                                         <div style="font-size: 12px; color: #cbd5e1; display: flex; flex-direction: column; gap: 3px; margin-top: 4px; background: rgba(7, 13, 22, 0.5); padding: 8px 10px; border-radius: 8px;">
                                             <span>📅 <b>Data:</b> ${escapeHTML(dataDia)}</span>
-                                            <span>🟢 <b>Início:</b> ${inicioFormatado} &nbsp;|&nbsp; 🔴 <b>Fim:</b> ${fimFormatado} <span style="color: #94a3b8; font-size: 11px;">(Brasília / America/Sao_Paulo)</span></span>
+                                            <span>🟢 <b>Início:</b> ${inicioFormatado} &nbsp;|&nbsp; 🔴 <b>Fim:</b> ${fimFormatado} <span style="color: #94a3b8; font-size: 11px;">(Brasília)</span></span>
+                                            <span>📊 <b>Total acumulado resultante:</b> <b style="color: #34d399;">${escapeHTML(totalAcumuladoTurno)}</b></span>
+                                            ${pausaTxt ? `<span>⏸️ <b>Pausa/Ajuste:</b> <b style="color: #facc15;">${escapeHTML(pausaTxt)}</b></span>` : ''}
                                             <span>🏛️ <b>Origem:</b> <span style="color: ${ehManual ? '#fde047' : '#38bdf8'}; font-weight: 700;">${escapeHTML(origemTexto)}</span></span>
                                             <span>📌 <b>Motivo:</b> <span style="color: #eab308; font-weight: 600;">${escapeHTML(motivo)}</span></span>
                                             ${Array.isArray(t.comprovantesVerificacao) && t.comprovantesVerificacao.length > 0 ? `<span>⚡ <b>Verificações:</b> <b style="color: #34d399;">${t.comprovantesVerificacao.length} (Continuidade de 3h confirmada)</b></span>` : ''}
