@@ -805,26 +805,33 @@ function ehCargoCoronelOuSuperior(cargo) {
 app.get('/api/coronel/status', async (req, res) => {
     try {
         const agora = new Date();
-        // Finaliza automaticamente plantões ativos que ultrapassaram as 3 horas
-        const expirados = await TurnoCoronel.find({ status: 'ativo', fimPrevistoEm: { $lte: agora } });
-        for (const exp of expirados) {
-            exp.status = 'concluido';
-            exp.fimRealEm = exp.fimPrevistoEm;
-            await exp.save();
+        // NÃO finaliza mais automaticamente ao esgotar o tempo.
+        // Se ultrapassou o fim previsto e o relatório ainda não foi concluído, marca como 'aguardando_relatorio'.
+        const plantoesEsgotados = await TurnoCoronel.find({ status: 'ativo', fimPrevistoEm: { $lte: agora } });
+        for (const p of plantoesEsgotados) {
+            if (p.status !== 'aguardando_relatorio') {
+                p.status = 'aguardando_relatorio';
+                await p.save();
+                io.emit('coronel_aguardando_relatorio', {
+                    turnoId: p._id,
+                    coronelNickname: p.coronelNickname,
+                    vaga: p.vaga
+                });
+            }
         }
 
-        const plantoesAtivos = await TurnoCoronel.find({ status: 'ativo' }).sort({ vaga: 1 }).lean();
+        const plantoesOcupados = await TurnoCoronel.find({ status: { $in: ['ativo', 'aguardando_relatorio'] } }).sort({ vaga: 1 }).lean();
 
         const vagas = {
-            1: plantoesAtivos.find(p => p.vaga === 1) || null,
-            2: plantoesAtivos.find(p => p.vaga === 2) || null,
-            3: plantoesAtivos.find(p => p.vaga === 3) || null
+            1: plantoesOcupados.find(p => p.vaga === 1) || null,
+            2: plantoesOcupados.find(p => p.vaga === 2) || null,
+            3: plantoesOcupados.find(p => p.vaga === 3) || null
         };
 
         res.json({
             success: true,
             vagas,
-            totalAtivos: plantoesAtivos.length
+            totalAtivos: plantoesOcupados.length
         });
     } catch (e) {
         console.error("Erro ao buscar status do plantão de Coronel:", e);
@@ -859,27 +866,30 @@ app.post('/api/coronel/assumir', async (req, res) => {
 
         const agora = new Date();
 
-        // Limpa plantões anteriores expirados deste usuário se existirem
-        await TurnoCoronel.updateMany(
-            { coronelId: membro._id, status: 'ativo', fimPrevistoEm: { $lte: agora } },
-            { $set: { status: 'concluido', fimRealEm: agora } }
-        );
-
-        // Limite de 1 turno ativo por coronel
-        const turnoExistente = await TurnoCoronel.findOne({ coronelId: membro._id, status: 'ativo' });
+        // Limite de 1 turno por coronel (seja ativo ou aguardando envio do relatório)
+        const turnoExistente = await TurnoCoronel.findOne({
+            coronelId: membro._id,
+            status: { $in: ['ativo', 'aguardando_relatorio'] }
+        });
         if (turnoExistente) {
+            const motivoStatus = turnoExistente.status === 'aguardando_relatorio'
+                ? `Você possui um plantão na Vaga ${turnoExistente.vaga} aguardando o envio do relatório.`
+                : `Você já está com um plantão de Coronel ativo na Vaga ${turnoExistente.vaga}.`;
             return res.status(400).json({
                 success: false,
-                message: `Você já está com um plantão de Coronel ativo na Vaga ${turnoExistente.vaga}. Finalize-o antes de assumir outro.`
+                message: `${motivoStatus} Conclua-o com o relatório antes de assumir outro.`
             });
         }
 
-        // Verifica se a vaga específica já está ocupada
-        const vagaOcupada = await TurnoCoronel.findOne({ vaga: vagaNum, status: 'ativo', fimPrevistoEm: { $gt: agora } });
+        // Verifica se a vaga específica já está ocupada (ativo ou aguardando relatório)
+        const vagaOcupada = await TurnoCoronel.findOne({
+            vaga: vagaNum,
+            status: { $in: ['ativo', 'aguardando_relatorio'] }
+        });
         if (vagaOcupada) {
             return res.status(400).json({
                 success: false,
-                message: `A Vaga ${vagaNum} já está ocupada por ${vagaOcupada.coronelNickname}. Escolha outra vaga disponível.`
+                message: `A Vaga ${vagaNum} está ocupada por ${vagaOcupada.coronelNickname} (${vagaOcupada.status === 'aguardando_relatorio' ? 'aguardando relatório' : 'em andamento'}). Escolha outra vaga.`
             });
         }
 
@@ -997,12 +1007,37 @@ app.post('/api/coronel/relatorio', async (req, res) => {
             enviadoEm: new Date()
         };
 
+        // O envio do relatório conclui o plantão de forma definitiva e segura
+        const agoraConclusao = new Date();
+        turno.status = 'concluido';
+        turno.fimRealEm = agoraConclusao;
+
         await turno.save();
 
         await registarLogAdmin(
             turno.coronelNickname,
-            'Relatório de Coronel Enviado',
-            `Turno Vaga ${turno.vaga}: ${listaRecrutados.length} recrutado(s), fardamento: ${turno.relatorio.fardamentoStatus}.`
+            'Relatório de Coronel Enviado e Turno Concluído',
+            `Turno Vaga ${turno.vaga} concluído com sucesso: ${listaRecrutados.length} recrutado(s), fardamento: ${turno.relatorio.fardamentoStatus}.`
+        );
+
+        // Notifica e convida operacionais para avaliarem o plantão
+        io.emit('coronel_turno_finalizado', {
+            turnoId: turno._id,
+            coronelNickname: turno.coronelNickname,
+            coronelCargo: turno.coronelCargo,
+            vaga: turno.vaga,
+            fimRealEm: turno.fimRealEm
+        });
+
+        // Persiste convite de avaliação na caixa de entrada dos demais operacionais
+        const notifAvaliacao = {
+            titulo: `⭐ Avalie o Coronel ${turno.coronelNickname}`,
+            mensagem: `O plantão de 3 horas do <b>${turno.coronelCargo} ${turno.coronelNickname}</b> (Vaga ${turno.vaga}) foi concluído com envio de relatório. Abra o painel para registrar sua avaliação de 1 a 5 estrelas!`,
+            data: new Date()
+        };
+        await User.updateMany(
+            { nickname: { $ne: turno.coronelNickname } },
+            { $push: { caixaEntrada: { $each: [notifAvaliacao], $slice: -30 } } }
         );
 
         io.emit('atualizar_turno_coronel');
@@ -1010,7 +1045,7 @@ app.post('/api/coronel/relatorio', async (req, res) => {
 
         res.json({
             success: true,
-            message: 'Relatório de recrutamento e fardamento do plantão salvo com sucesso!',
+            message: 'Relatório enviado com sucesso e plantão de Coronel homologado!',
             relatorio: turno.relatorio
         });
     } catch (e) {
@@ -1019,13 +1054,22 @@ app.post('/api/coronel/relatorio', async (req, res) => {
     }
 });
 
-// 4. Finalizar plantão de Coronel
+// 4. Finalizar plantão de Coronel (obrigatório envio prévio de relatório)
 app.post('/api/coronel/finalizar', async (req, res) => {
     try {
         const { turnoId, nickname } = req.body;
         const turno = await TurnoCoronel.findById(turnoId);
         if (!turno) {
             return res.status(404).json({ success: false, message: 'Plantão não encontrado.' });
+        }
+
+        // Regra estrita: não finalizar sem relatório de recrutamento e fardamento
+        if (!turno.relatorioEnviado) {
+            return res.status(400).json({
+                success: false,
+                exigeRelatorio: true,
+                message: 'É obrigatório preencher e enviar o relatório de recrutamento e fardamento antes de concluir o plantão.'
+            });
         }
 
         turno.status = 'concluido';
@@ -1035,7 +1079,7 @@ app.post('/api/coronel/finalizar', async (req, res) => {
         await registarLogAdmin(
             nickname || turno.coronelNickname,
             'Finalizou Plantão de Coronel',
-            `Plantão da Vaga ${turno.vaga} concluído por ${turno.coronelNickname}. Relatório: ${turno.relatorioEnviado ? 'Enviado' : 'Sem relatório'}.`
+            `Plantão da Vaga ${turno.vaga} concluído por ${turno.coronelNickname} com relatório homologado.`
         );
 
         // Notifica e convida todos os membros a avaliarem o desempenho do Coronel no plantão

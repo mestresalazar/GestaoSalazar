@@ -2254,19 +2254,22 @@
             <!-- PAINEL DO MEU TURNO ATIVO (QUANDO EM PLANTÃO) -->
             <div id="boxMeuTurnoCoronelAtivo" class="card" style="display: none; border: 2px solid #22c55e; background: linear-gradient(145deg, rgba(34, 197, 94, 0.1), rgba(15, 23, 42, 0.95));">
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(34, 197, 94, 0.3); padding-bottom: 8px; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-                    <h3 style="color: #34d399; border: none; margin: 0; padding: 0;">⏱️ Meu Plantão Ativo de Coronel</h3>
+                    <h3 id="tituloMeuPlantaoCoronel" style="color: #34d399; border: none; margin: 0; padding: 0;">⏱️ Meu Plantão Ativo de Coronel</h3>
                     <span id="badgeMinhaVagaCoronel" style="background: rgba(34, 197, 94, 0.25); color: #86efac; border: 1px solid #22c55e; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 800;">Vaga 1</span>
                 </div>
                 <div style="text-align: center; margin-bottom: 16px;">
                     <div id="timerRegressivoCoronel" style="font-size: 34px; font-weight: 800; color: #facc15; letter-spacing: 2px; text-shadow: 0 0 16px rgba(250, 204, 21, 0.5);">03:00:00</div>
-                    <span style="font-size: 11px; color: #94a3b8;">TEMPO RESTANTE DO PLANTÃO</span>
+                    <span id="labelStatusTempoCoronel" style="font-size: 11px; color: #94a3b8;">TEMPO RESTANTE DO PLANTÃO</span>
+                </div>
+                <div id="alertaRelatorioPendenteCoronel" style="display: none; background: rgba(234, 179, 8, 0.15); border: 1px solid #eab308; border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; font-size: 12px; color: #fde047; text-align: left;">
+                    ⏱️ <b>Tempo regulamentar esgotado!</b> O plantão <b>NÃO</b> finaliza sozinho. Para homologar o turno, preencha e envie o relatório de recrutamento e farda abaixo.
                 </div>
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button class="btn-action" style="flex: 1; margin: 0; background: linear-gradient(135deg, #0284c7, #0369a1); font-weight: 700;" onclick="abrirModalRelatorioCoronel()">
+                    <button class="btn-action" id="btnAbrirRelatorioCoronel" style="flex: 1; margin: 0; background: linear-gradient(135deg, #0284c7, #0369a1); font-weight: 700;" onclick="abrirModalRelatorioCoronel()">
                         📝 Preencher Relatório de Recrutamento & Farda
                     </button>
-                    <button class="btn-action" style="background: linear-gradient(135deg, #16a34a, #15803d); margin: 0; font-weight: 700;" onclick="finalizarMeuPlantaoCoronel()">
-                        ✅ Concluir Plantão
+                    <button class="btn-action" id="btnFinalizarPlantaoCoronel" style="background: linear-gradient(135deg, #16a34a, #15803d); margin: 0; font-weight: 700;" onclick="finalizarMeuPlantaoCoronel()">
+                        ✅ Enviar Relatório & Concluir
                     </button>
                 </div>
             </div>
@@ -3044,19 +3047,21 @@
                     if (estaOcupada) {
                         const inicioFormat = new Date(plantaoVaga.inicioEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
                         const fimFormat = new Date(plantaoVaga.fimPrevistoEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+                        const ehAguardandoRelatorio = plantaoVaga.status === 'aguardando_relatorio' || Date.now() >= new Date(plantaoVaga.fimPrevistoEm).getTime();
 
                         cardHtml += `
-                            <div style="background: rgba(7, 13, 22, 0.6); padding: 8px 10px; border-radius: 8px; font-size: 12px; color: #cbd5e1; border-left: 3px solid #eab308;">
+                            <div style="background: rgba(7, 13, 22, 0.6); padding: 8px 10px; border-radius: 8px; font-size: 12px; color: #cbd5e1; border-left: 3px solid ${ehAguardandoRelatorio ? '#f59e0b' : '#eab308'};">
                                 <div>👑 <b>${escapeHTML(plantaoVaga.coronelNickname)}</b></div>
                                 <div style="font-size: 11px; color: #94a3b8;">${escapeHTML(plantaoVaga.coronelCargo)}</div>
-                                <div style="font-size: 11px; color: #facc15; margin-top: 4px;">⏰ ${inicioFormat} às ${fimFormat}</div>
+                                <div style="font-size: 11px; color: ${ehAguardandoRelatorio ? '#f59e0b' : '#facc15'}; margin-top: 4px;">⏰ ${inicioFormat} às ${fimFormat}</div>
+                                ${ehAguardandoRelatorio ? `<div style="font-size: 11px; color: #fbbf24; font-weight: 700; margin-top: 2px;">📝 Aguardando relatório do plantão</div>` : ''}
                             </div>
                         `;
 
                         if (ehMeuTurno) {
-                            cardHtml += `<span style="text-align: center; font-size: 11px; color: #34d399; font-weight: 700;">✅ Seu plantão atual</span>`;
+                            cardHtml += `<span style="text-align: center; font-size: 11px; color: ${ehAguardandoRelatorio ? '#f59e0b' : '#34d399'}; font-weight: 700;">${ehAguardandoRelatorio ? '⚠️ Envie o relatório para concluir' : '✅ Seu plantão atual'}</span>`;
                         } else {
-                            cardHtml += `<span style="text-align: center; font-size: 11px; color: #94a3b8;">Plantão em andamento</span>`;
+                            cardHtml += `<span style="text-align: center; font-size: 11px; color: #94a3b8;">${ehAguardandoRelatorio ? 'Aguardando relatório' : 'Plantão em andamento'}</span>`;
                         }
                     } else {
                         cardHtml += `
@@ -3101,19 +3106,44 @@
 
             function atualizarDisplay() {
                 const display = document.getElementById('timerRegressivoCoronel');
+                const alertaRelatorio = document.getElementById('alertaRelatorioPendenteCoronel');
+                const labelStatus = document.getElementById('labelStatusTempoCoronel');
+                const btnAbrirRel = document.getElementById('btnAbrirRelatorioCoronel');
+                const boxAtivo = document.getElementById('boxMeuTurnoCoronelAtivo');
+
                 if (!display) return;
                 const agora = Date.now();
-                const diffSegs = Math.max(0, Math.floor((fimMs - agora) / 1000));
+                const diffSegs = Math.floor((fimMs - agora) / 1000);
 
-                const h = String(Math.floor(diffSegs / 3600)).padStart(2, '0');
-                const m = String(Math.floor((diffSegs % 3600) / 60)).padStart(2, '0');
-                const s = String(diffSegs % 60).padStart(2, '0');
-                display.innerText = `${h}:${m}:${s}`;
+                if (diffSegs > 0) {
+                    const h = String(Math.floor(diffSegs / 3600)).padStart(2, '0');
+                    const m = String(Math.floor((diffSegs % 3600) / 60)).padStart(2, '0');
+                    const s = String(diffSegs % 60).padStart(2, '0');
+                    display.innerText = `${h}:${m}:${s}`;
+                    display.style.color = '#facc15';
 
-                if (diffSegs <= 0) {
-                    clearInterval(timerIntervalCoronel);
-                    display.innerText = "00:00:00 (Encerrado)";
-                    carregarStatusPlantaoCoronel();
+                    if (alertaRelatorio) alertaRelatorio.style.display = 'none';
+                    if (labelStatus) labelStatus.innerText = 'TEMPO RESTANTE DO PLANTÃO';
+                    if (boxAtivo) {
+                        boxAtivo.style.borderColor = '#22c55e';
+                    }
+                } else {
+                    // REGRA CRÍTICA: Ao esgotar o tempo, NÃO finaliza sozinho!
+                    // Congela em 00:00:00 e aguarda expressamente o envio do relatório.
+                    display.innerText = '00:00:00';
+                    display.style.color = '#f59e0b';
+
+                    if (labelStatus) {
+                        labelStatus.innerHTML = '<b style="color: #f59e0b;">TEMPO ESGOTADO — AGUARDANDO RELATÓRIO DO PLANTÃO 📝</b>';
+                    }
+                    if (alertaRelatorio) alertaRelatorio.style.display = 'block';
+                    if (boxAtivo) {
+                        boxAtivo.style.borderColor = '#f59e0b';
+                    }
+                    if (btnAbrirRel) {
+                        btnAbrirRel.style.background = 'linear-gradient(135deg, #eab308, #ca8a04)';
+                        btnAbrirRel.style.color = '#000';
+                    }
                 }
             }
 
@@ -3252,9 +3282,22 @@
         async function finalizarMeuPlantaoCoronel() {
             if (!turnoCoronelAtivoCache) return;
 
+            // Se o relatório ainda não foi enviado, abre diretamente o modal para preenchimento
+            if (!turnoCoronelAtivoCache.relatorioEnviado) {
+                mostrarModalCustomizado(
+                    'Relatório Obrigatório',
+                    'O plantão de Coronel <b>não finaliza sem o envio do relatório</b>.<br><br>Preencha os recrutamentos realizados e o status de fardamento militar para homologar o turno.',
+                    'confirmacao',
+                    () => {
+                        abrirModalRelatorioCoronel();
+                    }
+                );
+                return;
+            }
+
             mostrarModalCustomizado(
                 'Concluir Plantão de Coronel',
-                'Deseja concluir o seu plantão de 3 horas agora? Certifique-se de preencher o relatório de recrutamento e farda antes ou após.',
+                'O seu relatório já está preenchido. Deseja homologar e concluir definitivamente o plantão de Coronel?',
                 'confirmacao',
                 async () => {
                     try {
@@ -3271,6 +3314,8 @@
                             mostrarModalCustomizado('Plantão Concluído', data.message || 'Turno finalizado com sucesso!');
                             carregarStatusPlantaoCoronel();
                             carregarHistoricoRelatoriosCoronel();
+                        } else if (data.exigeRelatorio) {
+                            abrirModalRelatorioCoronel();
                         } else {
                             mostrarModalCustomizado('Erro', data.message || 'Erro ao finalizar.');
                         }
@@ -5372,6 +5417,14 @@
         socket.on('atualizar_turno_coronel', () => {
             carregarStatusPlantaoCoronel();
             carregarHistoricoRelatoriosCoronel();
+        });
+
+        socket.on('coronel_aguardando_relatorio', (dados) => {
+            carregarStatusPlantaoCoronel();
+            if (dados && dados.coronelNickname && dados.coronelNickname.toLowerCase() === (user.nickname || '').toLowerCase()) {
+                const boxAviso = document.getElementById('alertaRelatorioPendenteCoronel');
+                if (boxAviso) boxAviso.style.display = 'block';
+            }
         });
 
         socket.on('coronel_turno_finalizado', (dados) => {

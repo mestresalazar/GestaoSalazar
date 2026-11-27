@@ -1466,6 +1466,10 @@
             carregarRelatoriosCoroneisAdm();
         });
 
+        socket.on('coronel_aguardando_relatorio', () => {
+            carregarStatusCoroneisAdm();
+        });
+
         socket.on('coronel_assumiu_plantao', (dados) => {
             carregarStatusCoroneisAdm();
             carregarRelatoriosCoroneisAdm();
@@ -3265,15 +3269,17 @@
                     if (estaOcupada) {
                         const inicioFormat = new Date(plantao.inicioEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
                         const fimFormat = new Date(plantao.fimPrevistoEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+                        const ehAguardandoRel = plantao.status === 'aguardando_relatorio' || Date.now() >= new Date(plantao.fimPrevistoEm).getTime();
 
                         cardHtml += `
                             <div style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 2px;">👑 ${escapeHTML(plantao.coronelNickname)}</div>
                             <div style="font-size: 11px; color: #94a3b8; margin-bottom: 8px;">${escapeHTML(plantao.coronelCargo)}</div>
-                            <div style="background: rgba(7, 13, 22, 0.6); padding: 6px 10px; border-radius: 6px; font-size: 11px; color: #facc15; margin-bottom: 10px;">
+                            <div style="background: rgba(7, 13, 22, 0.6); padding: 6px 10px; border-radius: 6px; font-size: 11px; color: ${ehAguardandoRel ? '#f59e0b' : '#facc15'}; margin-bottom: 10px;">
                                 ⏰ ${inicioFormat} às ${fimFormat} (Brasília)
+                                ${ehAguardandoRel ? '<div style="color: #fbbf24; font-weight: 800; margin-top: 3px;">📝 Tempo Esgotado — Aguardando Relatório</div>' : ''}
                             </div>
                             <button class="btn-action btn-demitir" style="width: 100%; margin: 0; padding: 7px; font-size: 11px;" onclick="forcarFinalizarTurnoCoronel('${plantao._id}', '${escapeHTML(plantao.coronelNickname)}')">
-                                ⏹️ Finalizar Turno de Coronel
+                                ⏹️ Finalizar Turno de Coronel (Forçado)
                             </button>
                         `;
                     } else {
