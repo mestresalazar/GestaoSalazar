@@ -932,6 +932,13 @@ app.post('/api/coronel/assumir', async (req, res) => {
             return res.status(404).json({ success: false, message: 'Operacional não encontrado.' });
         }
 
+        if (!ehCargoCoronelOuSuperior(membro.cargo) && membro.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Acesso restrito: Apenas Coronel, Coronel-AL ou General podem assumir as vagas de Coronel de Turno.'
+            });
+        }
+
         const agora = new Date();
 
         // Limite de 1 turno por coronel (seja ativo ou aguardando envio do relatório)
@@ -1179,31 +1186,21 @@ app.post('/api/coronel/finalizar', async (req, res) => {
     }
 });
 
-// 5. Avaliação do Coronel após encerramento do turno (1 a 5 estrelas + observação)
+// 5. Avaliação unificada do plantão de Coronel (1ª, 2ª e 3ª vaga)
 app.post('/api/coronel/avaliar', async (req, res) => {
     try {
-        const { turnoId, nickname, estrelas, observacao } = req.body;
-        if (!turnoId || !nickname) {
+        const { turnoId, turnoIds, nickname, estrelas, observacao } = req.body;
+        if (!nickname || (!turnoId && (!Array.isArray(turnoIds) || turnoIds.length === 0))) {
             return res.status(400).json({ success: false, message: 'Identificadores obrigatórios ausentes.' });
         }
 
+        const idsParaAtualizar = Array.isArray(turnoIds) && turnoIds.length > 0
+            ? turnoIds
+            : [turnoId];
+
         const notaEstrelas = Math.min(5, Math.max(1, parseInt(estrelas, 10) || 5));
         const obsFinal = observacao ? String(observacao).trim() : '';
-
-        const turno = await TurnoCoronel.findById(turnoId);
-        if (!turno) {
-            return res.status(404).json({ success: false, message: 'Plantão de coronel não encontrado.' });
-        }
-
-        if (turno.coronelNickname.toLowerCase().trim() === String(nickname).toLowerCase().trim()) {
-            return res.status(400).json({ success: false, message: 'Você não pode avaliar o seu próprio plantão.' });
-        }
-
-        // Verifica se o usuário já avaliou este turno
-        const jaAvaliou = (turno.avaliacoes || []).some(a => (a.nickname || '').toLowerCase().trim() === String(nickname).toLowerCase().trim());
-        if (jaAvaliou) {
-            return res.status(400).json({ success: false, message: 'Você já enviou uma avaliação para este plantão de Coronel.' });
-        }
+        const nickLimpo = String(nickname).trim().toLowerCase();
 
         const novaAvaliacao = {
             nickname: String(nickname).trim(),
@@ -1212,77 +1209,125 @@ app.post('/api/coronel/avaliar', async (req, res) => {
             data: new Date()
         };
 
-        turno.avaliacoes = turno.avaliacoes || [];
-        turno.avaliacoes.push(novaAvaliacao);
-        turno.totalAvaliacoes = turno.avaliacoes.length;
+        const turnosAfetados = await TurnoCoronel.find({ _id: { $in: idsParaAtualizar } });
+        if (turnosAfetados.length === 0) {
+            return res.status(404).json({ success: false, message: 'Plantão de coronel não encontrado.' });
+        }
 
-        const somaEstrelas = turno.avaliacoes.reduce((acc, a) => acc + a.estrelas, 0);
-        turno.mediaEstrelas = parseFloat((somaEstrelas / turno.totalAvaliacoes).toFixed(1));
+        const ehCoronelDoTurno = turnosAfetados.some(t => (t.coronelNickname || '').toLowerCase().trim() === nickLimpo);
+        if (ehCoronelDoTurno) {
+            return res.status(400).json({ success: false, message: 'Você não pode avaliar o seu próprio plantão.' });
+        }
 
-        await turno.save();
+        const nomesCoroneis = [];
+        for (const turno of turnosAfetados) {
+            turno.avaliacoes = turno.avaliacoes || [];
+            // Remove eventual avaliação duplicada do mesmo membro no mesmo turno
+            turno.avaliacoes = turno.avaliacoes.filter(a => (a.nickname || '').toLowerCase().trim() !== nickLimpo);
+            turno.avaliacoes.push(novaAvaliacao);
+            turno.totalAvaliacoes = turno.avaliacoes.length;
+
+            const somaEstrelas = turno.avaliacoes.reduce((acc, a) => acc + a.estrelas, 0);
+            turno.mediaEstrelas = parseFloat((somaEstrelas / turno.totalAvaliacoes).toFixed(1));
+            await turno.save();
+
+            nomesCoroneis.push(`${turno.coronelNickname} (Vaga ${turno.vaga})`);
+        }
 
         await registarLogAdmin(
             nickname,
-            'Avaliação de Coronel Enviada',
-            `${nickname} avaliou o plantão de ${turno.coronelNickname} (Vaga ${turno.vaga}) com ${notaEstrelas}/5 estrelas.${obsFinal ? ` Obs: "${obsFinal}"` : ''}`
+            'Avaliação Unificada de Turno de Coronel',
+            `${nickname} avaliou o turno de ${nomesCoroneis.join(', ')} com ${notaEstrelas}/5 estrelas.${obsFinal ? ` Obs: "${obsFinal}"` : ''}`
         );
 
         io.emit('atualizar_turno_coronel');
         io.emit('atualizar_avaliacoes_coronel', {
-            turnoId: turno._id,
-            coronelNickname: turno.coronelNickname,
-            avaliacao: novaAvaliacao,
-            mediaEstrelas: turno.mediaEstrelas,
-            totalAvaliacoes: turno.totalAvaliacoes
+            turnoIds: idsParaAtualizar,
+            nickname,
+            estrelas: notaEstrelas
         });
         io.emit('atualizar_status_geral_tropa');
 
         res.json({
             success: true,
-            message: `Avaliação de ${notaEstrelas} estrelas enviada com sucesso!`,
-            mediaEstrelas: turno.mediaEstrelas,
-            totalAvaliacoes: turno.totalAvaliacoes
+            message: `Avaliação do turno de ${notaEstrelas} estrelas registrada com sucesso!`
         });
     } catch (e) {
-        console.error("Erro ao avaliar plantão de coronel:", e);
+        console.error("Erro ao avaliar plantão unificado de coronel:", e);
         res.status(500).json({ success: false, message: 'Erro ao registrar avaliação.' });
     }
 });
 
-// 6. Consultar avaliações de Coronel pendentes para um membro ao logar ou abrir o painel
+// 6. Consultar a ÚLTIMA rodada de plantão de Coronel finalizada para avaliação unificada
 app.get('/api/coronel/avaliacoes-pendentes/:nickname', async (req, res) => {
     try {
         const { nickname } = req.params;
         if (!nickname) {
-            return res.json({ success: true, pendentes: [] });
+            return res.json({ success: true, pendentes: [], pendenteUnificado: null });
         }
 
         const nickLimpo = String(nickname).trim().toLowerCase();
-        const doisDiasAtras = new Date(Date.now() - 48 * 3600 * 1000);
 
-        // Busca plantões concluídos recentemente onde o membro não é o próprio coronel
-        const turnosRecentes = await TurnoCoronel.find({
+        // Obtém rigorosamente o ÚLTIMO plantão de Coronel concluído
+        const ultimoTurno = await TurnoCoronel.findOne({ status: 'concluido' })
+            .sort({ fimRealEm: -1, dataCriacao: -1 })
+            .lean();
+
+        if (!ultimoTurno || !ultimoTurno.fimRealEm) {
+            return res.json({ success: true, pendentes: [], pendenteUnificado: null });
+        }
+
+        // Agrupa os turnos concluídos na mesma rodada/janela de 3 horas em torno do fim deste último turno
+        const tempoFimMs = new Date(ultimoTurno.fimRealEm).getTime();
+        const janelaInicioMs = tempoFimMs - (3 * 3600 * 1000);
+        const janelaFimMs = tempoFimMs + (30 * 60 * 1000);
+
+        const turnosRodada = await TurnoCoronel.find({
             status: 'concluido',
-            fimRealEm: { $gte: doisDiasAtras }
-        }).sort({ fimRealEm: -1 }).limit(10).lean();
+            fimRealEm: { $gte: new Date(janelaInicioMs), $lte: new Date(janelaFimMs) }
+        }).sort({ vaga: 1 }).lean();
 
-        const pendentes = turnosRecentes.filter(t => {
-            const ehOCoronel = (t.coronelNickname || '').toLowerCase().trim() === nickLimpo;
-            if (ehOCoronel) return false;
+        // Se o usuário logado for um dos Coronéis avaliados nessa rodada, oculta
+        const souUmDosCoroneis = turnosRodada.some(t => (t.coronelNickname || '').toLowerCase().trim() === nickLimpo);
+        if (souUmDosCoroneis) {
+            return res.json({ success: true, pendentes: [], pendenteUnificado: null });
+        }
 
-            const jaAvaliou = Array.isArray(t.avaliacoes) && t.avaliacoes.some(a => (a.nickname || '').toLowerCase().trim() === nickLimpo);
-            return !jaAvaliou;
-        }).map(t => ({
+        // Verifica se o usuário já avaliou esta última rodada
+        const jaAvaliouRodada = turnosRodada.some(t =>
+            Array.isArray(t.avaliacoes) && t.avaliacoes.some(a => (a.nickname || '').toLowerCase().trim() === nickLimpo)
+        );
+
+        if (jaAvaliouRodada) {
+            return res.json({ success: true, pendentes: [], pendenteUnificado: null });
+        }
+
+        // Monta o objeto de avaliação unificada com as vagas que participaram
+        const coroneisVagas = turnosRodada.map(t => ({
             turnoId: t._id,
+            vaga: t.vaga,
             coronelNickname: t.coronelNickname,
             coronelCargo: t.coronelCargo,
-            vaga: t.vaga,
-            fimRealEm: t.fimRealEm
+            recrutadosCount: (t.relatorio && Array.isArray(t.relatorio.recrutamentos)) ? t.relatorio.recrutamentos.length : 0
         }));
 
-        res.json({ success: true, pendentes });
+        const turnoIds = turnosRodada.map(t => t._id);
+
+        const pendenteUnificado = {
+            turnoId: ultimoTurno._id,
+            turnoIds,
+            fimRealEm: ultimoTurno.fimRealEm,
+            coroneis: coroneisVagas
+        };
+
+        // Mantém pendentes em array com 1 item para compatibilidade com listeners existentes
+        res.json({
+            success: true,
+            pendentes: [pendenteUnificado],
+            pendenteUnificado
+        });
     } catch (e) {
-        console.error("Erro ao verificar avaliações pendentes:", e);
+        console.error("Erro ao verificar avaliações pendentes unificadas:", e);
         res.status(500).json({ success: false, message: 'Erro ao buscar avaliações pendentes.' });
     }
 });

@@ -3081,14 +3081,26 @@
                             cardHtml += `<span style="text-align: center; font-size: 11px; color: #94a3b8;">${ehAguardandoRelatorio ? 'Aguardando relatório' : 'Plantão em andamento'}</span>`;
                         }
                     } else {
-                        cardHtml += `
-                            <p style="font-size: 12px; color: #94a3b8; line-height: 1.4;">
-                                Vaga livre para assumir turno de 3 horas com aviso à tropa e comando de recrutamento.
-                            </p>
-                            <button class="btn-action" style="margin: 0; padding: 9px; font-size: 12px; font-weight: 700; background: linear-gradient(135deg, #eab308, #ca8a04); color: #000;" onclick="assumirVagaCoronel(${v})">
-                                👑 Assumir Vaga ${v}
-                            </button>
-                        `;
+                        const podeAssumir = ehCoronelOuGeneral(user.cargo) || user.role === 'admin';
+                        if (podeAssumir) {
+                            cardHtml += `
+                                <p style="font-size: 12px; color: #94a3b8; line-height: 1.4;">
+                                    Vaga livre para assumir turno de 3 horas com aviso à tropa e comando de recrutamento.
+                                </p>
+                                <button class="btn-action" style="margin: 0; padding: 9px; font-size: 12px; font-weight: 700; background: linear-gradient(135deg, #eab308, #ca8a04); color: #000;" onclick="assumirVagaCoronel(${v})">
+                                    👑 Assumir Vaga ${v}
+                                </button>
+                            `;
+                        } else {
+                            cardHtml += `
+                                <p style="font-size: 12px; color: #94a3b8; line-height: 1.4;">
+                                    Vaga disponível. Exclusivo para patentes <b>Coronel, Coronel-AL e General</b>.
+                                </p>
+                                <button class="btn-action" style="margin: 0; padding: 9px; font-size: 12px; font-weight: 700; background: rgba(100, 116, 139, 0.25); border: 1px solid #64748b; color: #94a3b8; cursor: not-allowed;" disabled>
+                                    🔒 Apenas Coronel ou General
+                                </button>
+                            `;
+                        }
                     }
 
                     cardHtml += `</div>`;
@@ -3169,6 +3181,12 @@
         }
 
         async function assumirVagaCoronel(numVaga) {
+            const podeAssumir = ehCoronelOuGeneral(user.cargo) || user.role === 'admin';
+            if (!podeAssumir) {
+                mostrarModalCustomizado('Acesso Restrito', 'Apenas as patentes <b>Coronel, Coronel-AL e General</b> podem assumir as vagas do Plantão de Coronel.');
+                return;
+            }
+
             mostrarModalCustomizado(
                 `Assumir Plantão - Vaga ${numVaga}`,
                 `Deseja assumir a <b>Vaga ${numVaga}</b> do Plantão de Coronel por <b>3 horas</b>?<br><br>Um aviso geral será emitido para toda a tropa informando que o recrutamento e as missões do efetivo estão sob sua responsabilidade neste turno.`,
@@ -3337,10 +3355,9 @@
             );
         }
 
-        /* --- AVALIAÇÃO DE CORONÉIS DA TROPA (1 A 5 ESTRELAS) --- */
-        let turnoIdParaAvaliarAtual = null;
+        /* --- AVALIAÇÃO UNIFICADA DO PLANTÃO DE CORONÉIS (1ª, 2ª E 3ª VAGA) --- */
+        let avaliacaoUnificadaPendenteCache = null;
         let estrelasSelecionadasAvaliacao = 5;
-        let listaAvaliacoesPendentesCache = [];
 
         async function verificarAvaliacoesCoronelPendentes() {
             if (!user || !user.nickname) return;
@@ -3349,7 +3366,8 @@
                 const data = await res.json();
                 if (!data.success) return;
 
-                listaAvaliacoesPendentesCache = Array.isArray(data.pendentes) ? data.pendentes : [];
+                avaliacaoUnificadaPendenteCache = data.pendenteUnificado || (Array.isArray(data.pendentes) && data.pendentes.length > 0 ? data.pendentes[0] : null);
+
                 const banner = document.getElementById('bannerAvaliacaoPendenteCoronel');
                 const badge = document.getElementById('badgeQtdAvaliacoesPendentes');
                 const texto = document.getElementById('textoBannerAvaliacaoPendente');
@@ -3358,23 +3376,23 @@
                 const badgeCronometro = document.getElementById('badgeQtdAvaliacoesCronometro');
                 const textoCronometro = document.getElementById('textoBannerAvaliacaoCronometro');
 
-                if (listaAvaliacoesPendentesCache.length > 0) {
-                    const primeiro = listaAvaliacoesPendentesCache[0];
-                    const msgTexto = `O <b>${escapeHTML(primeiro.coronelCargo || 'Coronel')} ${escapeHTML(primeiro.coronelNickname)}</b> encerrou o plantão (Vaga ${primeiro.vaga}). Deixe sua avaliação de 1 a 5 estrelas sobre a condução das missões!`;
+                if (avaliacaoUnificadaPendenteCache && Array.isArray(avaliacaoUnificadaPendenteCache.coroneis) && avaliacaoUnificadaPendenteCache.coroneis.length > 0) {
+                    const listaNomes = avaliacaoUnificadaPendenteCache.coroneis.map(c => `<b>${escapeHTML(c.coronelNickname)}</b> (Vaga ${c.vaga})`).join(', ');
+                    const msgTexto = `O último plantão de Coronel foi finalizado com: ${listaNomes}. Deixe a sua avaliação de 1 a 5 estrelas sobre a condução das missões e disciplina da tropa!`;
 
                     if (banner) {
                         banner.style.display = 'block';
-                        if (badge) badge.innerText = `${listaAvaliacoesPendentesCache.length} Pendente(s)`;
+                        if (badge) badge.innerText = `Último Turno`;
                         if (texto) texto.innerHTML = msgTexto;
                     }
 
                     if (bannerCronometro) {
                         bannerCronometro.style.display = 'block';
-                        if (badgeCronometro) badgeCronometro.innerText = `${listaAvaliacoesPendentesCache.length} Pendente(s)`;
+                        if (badgeCronometro) badgeCronometro.innerText = `Último Turno`;
                         if (textoCronometro) textoCronometro.innerHTML = msgTexto;
                     }
 
-                    // Se não estiver em plantão e o modal não estiver aberto, abre para o membro que ainda não avaliou
+                    // Se não estiver em plantão e modal não estiver aberto, abre para o membro avaliar o turno recente
                     const modalEl = document.getElementById('modalAvaliarCoronel');
                     if (modalEl && modalEl.style.display !== 'flex' && sessionStorage.getItem('pular_aviso_av_temporario') !== 'true') {
                         abrirPrimeiraAvaliacaoPendente();
@@ -3384,14 +3402,13 @@
                     if (bannerCronometro) bannerCronometro.style.display = 'none';
                 }
             } catch (e) {
-                console.warn("Aviso ao verificar avaliações pendentes:", e);
+                console.warn("Aviso ao verificar avaliações pendentes unificadas:", e);
             }
         }
 
         function abrirPrimeiraAvaliacaoPendente() {
-            if (listaAvaliacoesPendentesCache.length === 0) return;
-            const p = listaAvaliacoesPendentesCache[0];
-            abrirModalAvaliacaoCoronelTurno(p.turnoId, p.coronelNickname, p.coronelCargo);
+            if (!avaliacaoUnificadaPendenteCache) return;
+            abrirModalAvaliacaoCoronelTurno();
         }
 
         const textosEscalaEstrelas = {
@@ -3402,12 +3419,23 @@
             5: '5 Estrelas — Perfeito (Excelente Liderança)'
         };
 
-        function abrirModalAvaliacaoCoronelTurno(turnoId, coronelNickname, coronelCargo) {
-            turnoIdParaAvaliarAtual = turnoId;
+        function abrirModalAvaliacaoCoronelTurno() {
+            if (!avaliacaoUnificadaPendenteCache) return;
             const sub = document.getElementById('subAvaliacaoCoronelInfo');
+            const coroneis = Array.isArray(avaliacaoUnificadaPendenteCache.coroneis) ? avaliacaoUnificadaPendenteCache.coroneis : [];
+
+            let listaHtml = '<div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px;">';
+            coroneis.forEach(c => {
+                listaHtml += `<div style="background: rgba(7, 13, 22, 0.7); padding: 5px 8px; border-radius: 6px; border-left: 3px solid #eab308; font-size: 11.5px; text-align: left;">
+                    👑 <b>Vaga ${c.vaga}:</b> ${escapeHTML(c.coronelNickname)} <span style="color:#94a3b8;">(${escapeHTML(c.coronelCargo)})</span>
+                </div>`;
+            });
+            listaHtml += '</div>';
+
             if (sub) {
-                sub.innerHTML = `O <b>${escapeHTML(coronelCargo || 'Coronel')} ${escapeHTML(coronelNickname)}</b> finalizou o plantão de 3 horas. Avalie a condução do turno:`;
+                sub.innerHTML = `O último plantão de 3 horas foi finalizado. Avalie a condução das missões e a liderança dos Coronéis deste turno:${listaHtml}`;
             }
+
             selecionarEstrelasCoronel(5);
             const obsEl = document.getElementById('inputObsAvaliacaoCoronel');
             if (obsEl) obsEl.value = '';
@@ -3438,7 +3466,7 @@
         }
 
         async function submeterAvaliacaoCoronel() {
-            if (!turnoIdParaAvaliarAtual) return;
+            if (!avaliacaoUnificadaPendenteCache) return;
             const observacao = document.getElementById('inputObsAvaliacaoCoronel')?.value;
 
             try {
@@ -3446,7 +3474,8 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        turnoId: turnoIdParaAvaliarAtual,
+                        turnoId: avaliacaoUnificadaPendenteCache.turnoId,
+                        turnoIds: avaliacaoUnificadaPendenteCache.turnoIds || [avaliacaoUnificadaPendenteCache.turnoId],
                         nickname: user.nickname,
                         estrelas: estrelasSelecionadasAvaliacao,
                         observacao
