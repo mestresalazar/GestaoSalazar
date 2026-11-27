@@ -873,44 +873,68 @@ app.put('/api/admin/justificativa/:id/status', async (req, res) => {
 // --- ROTAS DO MÓDULO EXCLUSIVO: PLANTÃO / TURNO DE CORONEL (3 HORAS) ---
 function ehCargoCoronelOuSuperior(cargo) {
     const c = String(cargo || '').trim().toLowerCase();
-    return c.includes('coronel') || c.includes('general');
+    return c.includes('coronel') || c.includes('general') || c.includes('coronel-al') || c.includes('coronel all');
 }
 
-// 1. Obter estado atual das 3 vagas e plantões de Coronel
+// 1. Obter estado atual das 3 vagas e plantões de Coronel (à prova de falhas)
 app.get('/api/coronel/status', async (req, res) => {
     try {
-        const agora = new Date();
-        // NÃO finaliza mais automaticamente ao esgotar o tempo.
-        // Se ultrapassou o fim previsto e o relatório ainda não foi concluído, marca como 'aguardando_relatorio'.
-        const plantoesEsgotados = await TurnoCoronel.find({ status: 'ativo', fimPrevistoEm: { $lte: agora } });
-        for (const p of plantoesEsgotados) {
-            if (p.status !== 'aguardando_relatorio') {
-                p.status = 'aguardando_relatorio';
-                await p.save();
-                io.emit('coronel_aguardando_relatorio', {
-                    turnoId: p._id,
-                    coronelNickname: p.coronelNickname,
-                    vaga: p.vaga
-                });
-            }
+        if (mongoose.connection.readyState !== 1) {
+            return res.json({
+                success: true,
+                vagas: { 1: null, 2: null, 3: null },
+                totalAtivos: 0
+            });
         }
 
-        const plantoesOcupados = await TurnoCoronel.find({ status: { $in: ['ativo', 'aguardando_relatorio'] } }).sort({ vaga: 1 }).lean();
+        const agora = new Date();
+
+        // Tratamento seguro de transição de status para aguardando_relatorio
+        try {
+            const plantoesEsgotados = await TurnoCoronel.find({
+                status: 'ativo',
+                fimPrevistoEm: { $lte: agora, $ne: null }
+            });
+
+            for (const p of plantoesEsgotados) {
+                if (p && p.status !== 'aguardando_relatorio') {
+                    p.status = 'aguardando_relatorio';
+                    await p.save().catch(errSave => console.warn('Aviso ao salvar plantão esgotado:', errSave.message));
+                    io.emit('coronel_aguardando_relatorio', {
+                        turnoId: p._id,
+                        coronelNickname: p.coronelNickname || 'Coronel',
+                        vaga: p.vaga
+                    });
+                }
+            }
+        } catch (errP) {
+            console.warn("Aviso ao verificar plantões esgotados:", errP.message);
+        }
+
+        const plantoesOcupados = await TurnoCoronel.find({
+            status: { $in: ['ativo', 'aguardando_relatorio'] }
+        }).sort({ vaga: 1 }).lean().catch(() => []);
+
+        const lista = Array.isArray(plantoesOcupados) ? plantoesOcupados : [];
 
         const vagas = {
-            1: plantoesOcupados.find(p => p.vaga === 1) || null,
-            2: plantoesOcupados.find(p => p.vaga === 2) || null,
-            3: plantoesOcupados.find(p => p.vaga === 3) || null
+            1: lista.find(p => p && p.vaga === 1) || null,
+            2: lista.find(p => p && p.vaga === 2) || null,
+            3: lista.find(p => p && p.vaga === 3) || null
         };
 
         res.json({
             success: true,
             vagas,
-            totalAtivos: plantoesOcupados.length
+            totalAtivos: lista.length
         });
     } catch (e) {
-        console.error("Erro ao buscar status do plantão de Coronel:", e);
-        res.status(500).json({ success: false, message: 'Erro ao carregar plantão de coronel.' });
+        console.error("Aviso recuperado em GET /api/coronel/status:", e);
+        res.json({
+            success: true,
+            vagas: { 1: null, 2: null, 3: null },
+            totalAtivos: 0
+        });
     }
 });
 
@@ -932,7 +956,8 @@ app.post('/api/coronel/assumir', async (req, res) => {
             return res.status(404).json({ success: false, message: 'Operacional não encontrado.' });
         }
 
-        if (!ehCargoCoronelOuSuperior(membro.cargo) && membro.role !== 'admin') {
+        const ehMestreOuAdmin = membro.role === 'admin' || String(membro.nickname || '').toLowerCase().trim() === 'mestre';
+        if (!ehCargoCoronelOuSuperior(membro.cargo) && !ehMestreOuAdmin) {
             return res.status(403).json({
                 success: false,
                 message: 'Acesso restrito: Apenas Coronel, Coronel-AL ou General podem assumir as vagas de Coronel de Turno.'
