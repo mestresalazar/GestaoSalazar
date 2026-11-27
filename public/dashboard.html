@@ -3498,6 +3498,19 @@
                                     `).join('')}
                                 </div>
                             ` : '<span style="font-size: 11px; color: #94a3b8;">Sem novos recrutamentos registrados neste turno.</span>'}
+
+                            ${Array.isArray(t.avaliacoes) && t.avaliacoes.length > 0 ? `
+                                <div style="background: rgba(7, 13, 22, 0.7); border-radius: 8px; padding: 8px 10px; margin-top: 8px; border-left: 3px solid #eab308;">
+                                    <b style="color: #facc15; font-size: 11.5px; display: block; margin-bottom: 4px;">⭐ Avaliações Recebidas da Tropa (${t.avaliacoes.length}):</b>
+                                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                                        ${t.avaliacoes.map(av => `
+                                            <div style="font-size: 11px; color: #cbd5e1; padding: 2px 0; border-bottom: 1px dashed rgba(234, 179, 8, 0.2);">
+                                                <span>⭐ <b>${av.estrelas}/5</b> por <b>${escapeHTML(av.nickname)}</b>${av.observacao ? `: <i>"${escapeHTML(av.observacao)}"</i>` : ''}</span>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
                         </div>
                     `;
                 });
