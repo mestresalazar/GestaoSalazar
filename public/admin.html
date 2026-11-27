@@ -1451,6 +1451,10 @@
         socket.on('ranking:atualizado', () => {
             carregarEfetivo();
             carregarLogsAdmin();
+            const modalHist = document.getElementById('modalAdminHistorico');
+            if (modalHist && modalHist.style.display === 'flex' && membroIdAtualModal) {
+                verHistoricoMembro('', membroIdAtualModal);
+            }
         });
 
         socket.on('atualizar_status_geral_tropa', () => {

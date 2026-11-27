@@ -5376,6 +5376,17 @@
         socket.on('ranking:atualizado', () => {
             carregarRanking();
             carregarFotoPerfilMenuImediata();
+            const modalHist = document.getElementById('modalHistorico');
+            if (modalHist && modalHist.style.display === 'flex') {
+                abrirHistorico();
+            }
+        });
+
+        socket.on('operacional:turno_atualizado', (dados) => {
+            const modalHist = document.getElementById('modalHistorico');
+            if (modalHist && modalHist.style.display === 'flex') {
+                abrirHistorico();
+            }
         });
 
         socket.on('atualizar_config_provas', () => {
@@ -6560,8 +6571,22 @@
                         return;
                     }
 
+                    const posicaoGeral = data.membro && data.membro.posicaoRanking ? data.membro.posicaoRanking : '#1';
+                    const totalGeral = data.membro && data.membro.totalHorasRanking ? data.membro.totalHorasRanking : '00:00:00';
+
                     c.innerHTML = `
-                        <div style="font-size: 12px; color: #94a3b8; margin-bottom: 6px;">Total de turnos homologados: <b style="color: #38bdf8;">${turnos.length}</b></div>
+                        <div style="background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <div>
+                                <span style="font-size: 11px; color: #94a3b8; display: block;">🏆 Posição no Ranking Oficial:</span>
+                                <b style="font-size: 16px; color: #facc15;">${escapeHTML(posicaoGeral)}</b>
+                            </div>
+                            <div style="text-align: right;">
+                                <span style="font-size: 11px; color: #94a3b8; display: block;">⏱️ Total Acumulado Homologado:</span>
+                                <b style="font-size: 16px; color: #34d399;">${escapeHTML(totalGeral)}</b>
+                            </div>
+                        </div>
+
+                        <div style="font-size: 12px; color: #94a3b8; margin-bottom: 8px;">Total de turnos homologados: <b style="color: #38bdf8;">${turnos.length}</b></div>
                         <div style="display: flex; flex-direction: column; gap: 12px;">
                             ${turnos.slice().reverse().map(t => {
                                 let dataFim = t.fimEm ? new Date(t.fimEm) : (t.data ? new Date(t.data) : null);
@@ -6595,12 +6620,16 @@
                                 const motivo = t.motivoEncerramento || (ehManual ? 'Injeção / Ajuste Manual do Mestre' : 'Turno Regular');
                                 const intervaloObj = calcularIntervaloTurnoMembro(dataInicio, dataFim);
                                 const intervaloFormatado = intervaloObj ? intervaloObj.formatado : duracaoStr;
+                                const totalAcumuladoFormat = t.totalAcumuladoFormatado || duracaoStr;
+                                const rankPos = t.posicaoRanking || posicaoGeral;
+                                const pausaFormat = t.ajustePausaFormatado || (intervaloObj && intervaloObj.segundos > converterDuracaoParaSegundos(duracaoStr) + 30 ? converterSegundosParaDuracao(intervaloObj.segundos - converterDuracaoParaSegundos(duracaoStr)) : null);
 
                                 return `
                                     <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid ${ehManual ? 'rgba(234, 179, 8, 0.4)' : 'rgba(56, 189, 248, 0.25)'}; border-radius: 12px; padding: 12px 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
                                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
                                             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                                                <span style="font-size: 14px; font-weight: 800; color: #34d399;">⏱️ ${escapeHTML(duracaoStr)}</span>
+                                                <span style="font-size: 14px; font-weight: 800; color: #34d399;">⏱️ +${escapeHTML(duracaoStr)}</span>
+                                                <span style="font-size: 12px; background: rgba(250, 204, 21, 0.15); border: 1px solid rgba(250, 204, 21, 0.35); color: #fde047; padding: 2px 8px; border-radius: 6px; font-weight: 700;">🏆 Rank: ${escapeHTML(rankPos)}</span>
                                                 ${badgeOrigem}
                                             </div>
                                             <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">📅 ${escapeHTML(dataDia)}</span>
@@ -6608,7 +6637,8 @@
 
                                         <div style="background: rgba(7, 13, 22, 0.55); border-radius: 8px; padding: 8px 10px; font-size: 12px; color: #cbd5e1; display: flex; flex-direction: column; gap: 4px; border-left: 3px solid ${ehManual ? '#eab308' : '#38bdf8'};">
                                             <div>🟢 <b>Início:</b> ${inicioFormatado} &nbsp;|&nbsp; 🔴 <b>Fim:</b> ${fimFormatado} <span style="color: #94a3b8; font-size: 10px;">(Brasília)</span></div>
-                                            <div>⏳ <b>Intervalo decorrido:</b> <span style="color: #a7f3d0; font-weight: 600;">${escapeHTML(intervaloFormatado)}</span></div>
+                                            <div>📊 <b>Total acumulado resultante:</b> <b style="color: #34d399;">${escapeHTML(totalAcumuladoFormat)}</b></div>
+                                            <div>⏳ <b>Intervalo decorrido:</b> <span style="color: #a7f3d0; font-weight: 600;">${escapeHTML(intervaloFormatado)}</span> ${pausaFormat ? `(⏸️ Pausa/Ajuste: <b style="color:#facc15;">${escapeHTML(pausaFormat)}</b>)` : ''}</div>
                                             <div>📌 <b>Motivo/Registro:</b> <span style="color: #eab308;">${escapeHTML(motivo)}</span></div>
                                         </div>
 

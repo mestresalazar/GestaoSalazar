@@ -668,6 +668,90 @@ function turnoPertenceAoCicloAtual(t) {
     return cicloTurno === cicloAtual;
 }
 
+// Apura de forma rápida a posição no ranking e o total de segundos de um membro
+async function obterPosicaoEResumoRanking(nicknameAlvo) {
+    try {
+        let dataCorte = null;
+        try {
+            const configRanking = await ConfigSorteio.collection.findOne({ chave: 'config_ranking_semanal' });
+            if (configRanking && configRanking.dataUltimoReset) {
+                const ts = new Date(configRanking.dataUltimoReset).getTime();
+                if (!isNaN(ts)) dataCorte = ts;
+            }
+        } catch (eConfig) {}
+
+        const membros = await User.find(
+            { $or: [{ 'historicoTurnos.0': { $exists: true } }, { emPlantao: true }] },
+            {
+                nickname: 1,
+                emPlantao: 1,
+                estadoTurno: 1,
+                inicioPlantao: 1,
+                segundosAcumulados: 1,
+                'historicoTurnos._id': 1,
+                'historicoTurnos.duracao': 1,
+                'historicoTurnos.data': 1,
+                'historicoTurnos.manual': 1,
+                'historicoTurnos.motivoEncerramento': 1,
+                'historicoTurnos.segundosTotais': 1
+            }
+        ).lean();
+
+        const listaRanking = [];
+        for (const m of membros) {
+            let segs = 0;
+            const turnosRaw = Array.isArray(m.historicoTurnos) ? m.historicoTurnos.slice(-40) : [];
+            const turnosProcessadosIds = new Set();
+
+            for (const t of turnosRaw) {
+                const idTurno = t._id ? String(t._id) : `${t.data}_${t.duracao}`;
+                if (turnosProcessadosIds.has(idTurno)) continue;
+                turnosProcessadosIds.add(idTurno);
+
+                const dataTurnoMs = t.data ? new Date(t.data).getTime() : 0;
+                if (dataCorte && dataTurnoMs > 0 && dataTurnoMs <= dataCorte) continue;
+
+                const ehManualInjetado = t.manual === true ||
+                    String(t.motivoEncerramento || '').toLowerCase().includes('mestre');
+
+                if (ehManualInjetado || turnoEstaNoHorarioPermitido(t)) {
+                    let segTurno = (typeof t.segundosTotais === 'number' && !isNaN(t.segundosTotais) && t.segundosTotais > 0)
+                        ? Math.floor(t.segundosTotais)
+                        : (t.duracao ? converterDuracaoParaSegundos(t.duracao) : 0);
+                    if (segTurno > 0) segs += segTurno;
+                }
+            }
+
+            if (m.estadoTurno === 'ativo' && m.inicioPlantao && horaBrasiliaEstaNaJanelaTurno(new Date())) {
+                const decorrido = calcularSegundosValidosNoHorario(m.inicioPlantao, Date.now());
+                segs += Number(m.segundosAcumulados || 0) + (decorrido > 0 ? decorrido : 0);
+            } else if (m.estadoTurno === 'pausado' && m.segundosAcumulados > 0 && horaBrasiliaEstaNaJanelaTurno(new Date())) {
+                segs += Number(m.segundosAcumulados || 0);
+            }
+
+            if (segs > 0) {
+                listaRanking.push({ nickname: String(m.nickname).toLowerCase().trim(), segundos: segs });
+            }
+        }
+
+        listaRanking.sort((a, b) => b.segundos - a.segundos);
+        const nickBusca = String(nicknameAlvo || '').toLowerCase().trim();
+        const index = listaRanking.findIndex(r => r.nickname === nickBusca);
+
+        const posicao = index >= 0 ? (index + 1) : (listaRanking.length + 1);
+        const totalSegs = index >= 0 ? listaRanking[index].segundos : 0;
+
+        return {
+            posicao: `#${posicao}`,
+            posicaoNumero: posicao,
+            totalSegundos: totalSegs,
+            totalFormatado: converterSegundosParaDuracao(totalSegs)
+        };
+    } catch (e) {
+        return { posicao: '#1', posicaoNumero: 1, totalSegundos: 0, totalFormatado: '00:00:00' };
+    }
+}
+
 // --- ROTAS DE JUSTIFICATIVAS DE MEMBROS ---
 app.get('/api/membro/justificativas/:nickname', async (req, res) => {
     try {
@@ -1411,12 +1495,16 @@ async function verificarFechamentoAutomaticoTurnos() {
                     const comprovanteFinal = membro.fotoComprovanteAtiva || 'Fechamento Automático (Limite 02:00)';
                     const comprovantesLista = Array.isArray(membro.comprovantesTurnoAtivo) ? membro.comprovantesTurnoAtivo : [];
 
+                    const resumoRank = await obterPosicaoEResumoRanking(membro.nickname);
+
                     const novoTurno = {
                         data: new Date(limite02hMs),
                         inicioEm: membro.inicioPlantao || new Date(limite02hMs - (segundosTotais * 1000)),
                         fimEm: new Date(limite02hMs),
                         duracao: duracaoFormatada,
                         segundosTotais: segundosTotais,
+                        posicaoRanking: resumoRank.posicao,
+                        totalAcumuladoFormatado: resumoRank.totalFormatado,
                         motivoEncerramento: 'Fechamento Automático às 02:05 (Limite 02:00 Brasília)',
                         fotoComprovante: comprovanteFinal,
                         comprovantesVerificacao: comprovantesLista
@@ -1997,6 +2085,24 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
             ? membro.historicoTurnos[membro.historicoTurnos.length - 1]
             : null;
 
+        const resumoRank = await obterPosicaoEResumoRanking(membro.nickname);
+
+        let somaProgressiva = 0;
+        const turnosProcessados = (membro.historicoTurnos || []).map(t => {
+            const segs = (typeof t.segundosTotais === 'number' && !isNaN(t.segundosTotais) && t.segundosTotais > 0)
+                ? t.segundosTotais
+                : (t.duracao ? converterDuracaoParaSegundos(t.duracao) : 0);
+            somaProgressiva += segs;
+
+            return {
+                ...t,
+                segundosTotais: segs,
+                duracao: t.duracao || converterSegundosParaDuracao(segs),
+                posicaoRanking: t.posicaoRanking || resumoRank.posicao,
+                totalAcumuladoFormatado: t.totalAcumuladoFormatado || converterSegundosParaDuracao(somaProgressiva)
+            };
+        });
+
         res.json({
             success: true,
             membro: {
@@ -2009,9 +2115,11 @@ app.get('/api/membro/historico/:nickname', async (req, res) => {
                 segundosAcumulados: membro.segundosAcumulados || 0,
                 fotoComprovanteAtiva: membro.fotoComprovanteAtiva || '',
                 comprovantesTurnoAtivo: membro.comprovantesTurnoAtivo || [],
+                posicaoRanking: resumoRank.posicao,
+                totalHorasRanking: resumoRank.totalFormatado,
                 ultimoPlantao: ultimoTurno ? `Duração: ${ultimoTurno.duracao} em ${new Date(ultimoTurno.data).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` : 'Nenhum plantão registado'
             },
-            historicoTurnos: membro.historicoTurnos || [],
+            historicoTurnos: turnosProcessados,
             historicoPromocoes: membro.historicoPromocoes || [],
             historicoSorteios: membro.historicoSorteios || [],
             caixaEntrada: membro.caixaEntrada || []
@@ -2473,12 +2581,21 @@ app.post('/api/membro/turno', async (req, res) => {
             ? comprovantesVerificacao
             : (Array.isArray(membroDoc.comprovantesTurnoAtivo) ? membroDoc.comprovantesTurnoAtivo : []);
 
+        // Calcula a posição no ranking e o total resultante após a homologação
+        const resumoRank = await obterPosicaoEResumoRanking(nickname);
+
+        const diferencaPausaSegundos = Math.max(0, intervaloSegs - segundosFinais);
+        const pausaTexto = diferencaPausaSegundos > 30 ? converterSegundosParaDuracao(diferencaPausaSegundos) : '00:00:00';
+
         const novoTurno = {
             data: agoraServidor,
             inicioEm: dataInicioReal,
             fimEm: agoraServidor,
             duracao: duracaoFormatada,
             segundosTotais: segundosFinais,
+            posicaoRanking: resumoRank.posicao,
+            totalAcumuladoFormatado: resumoRank.totalFormatado,
+            ajustePausaFormatado: pausaTexto,
             motivoEncerramento: 'Check-out pelo Operacional',
             fotoComprovante: comprovanteFinal,
             comprovantesVerificacao: listaComprovantes
@@ -3275,22 +3392,29 @@ app.get('/api/admin/membro/historico-completo/:id', async (req, res) => {
             return res.status(404).json({ success: false, message: 'Membro não encontrado na base de dados.' });
         }
 
-        // Sanitização resiliente contra registros antigos ou campos ausentes
+        const resumoRank = await obterPosicaoEResumoRanking(membro.nickname);
+
+        let somaSegsProgressiva = 0;
         const turnosSanitizados = (membro.historicoTurnos || []).map((t, idx) => {
             const fimTurno = t.fimEm ? new Date(t.fimEm) : (t.data ? new Date(t.data) : new Date());
             const duracaoSegundos = (typeof t.segundosTotais === 'number' && !isNaN(t.segundosTotais) && t.segundosTotais > 0)
                 ? t.segundosTotais
                 : converterDuracaoParaSegundos(t.duracao);
 
+            somaSegsProgressiva += duracaoSegundos;
+
             let inicioTurno = null;
             if (t.inicioEm && !isNaN(new Date(t.inicioEm).getTime())) {
                 inicioTurno = new Date(t.inicioEm);
             } else if (duracaoSegundos > 0 && !isNaN(fimTurno.getTime())) {
-                // Dedução matemática retroativa segura para registros antigos sem inicioEm
                 inicioTurno = new Date(fimTurno.getTime() - (duracaoSegundos * 1000));
             } else {
                 inicioTurno = fimTurno;
             }
+
+            const intervaloMs = Math.max(0, fimTurno.getTime() - inicioTurno.getTime());
+            const intervaloSegs = Math.floor(intervaloMs / 1000);
+            const pausaSegs = Math.max(0, intervaloSegs - duracaoSegundos);
 
             const motivoStr = String(t.motivoEncerramento || '');
             const fotoStr = String(t.fotoComprovante || '');
@@ -3305,6 +3429,9 @@ app.get('/api/admin/membro/historico-completo/:id', async (req, res) => {
                 fimEm: fimTurno,
                 duracao: t.duracao || converterSegundosParaDuracao(duracaoSegundos),
                 segundosTotais: duracaoSegundos,
+                totalAcumuladoFormatado: t.totalAcumuladoFormatado || converterSegundosParaDuracao(somaSegsProgressiva),
+                posicaoRanking: t.posicaoRanking || resumoRank.posicao,
+                ajustePausaFormatado: t.ajustePausaFormatado || (pausaSegs > 30 ? converterSegundosParaDuracao(pausaSegs) : '00:00:00'),
                 motivoEncerramento: t.motivoEncerramento || (ehManual ? 'Injeção Manual' : 'Concluído'),
                 fotoComprovante: t.fotoComprovante || '',
                 comprovantesVerificacao: Array.isArray(t.comprovantesVerificacao) ? t.comprovantesVerificacao : [],
@@ -3317,6 +3444,8 @@ app.get('/api/admin/membro/historico-completo/:id', async (req, res) => {
             nickname: membro.nickname || 'Operacional',
             cargo: membro.cargo || 'Privado',
             status: membro.status || 'Ativo',
+            posicaoRanking: resumoRank.posicao,
+            totalHorasRanking: resumoRank.totalFormatado,
             historicoTurnos: turnosSanitizados
         });
     } catch (e) {
@@ -3870,6 +3999,8 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
         const dataInicioEstimada = new Date(agoraInjecao.getTime() - (totalSegundos * 1000));
         const motivoDescricao = motivo ? String(motivo).trim() : 'Injeção Manual por Mestre';
 
+        const resumoRank = await obterPosicaoEResumoRanking(targetNickname);
+
         const novoTurnoManual = {
             data: agoraInjecao,
             inicioEm: dataInicioEstimada,
@@ -3877,6 +4008,8 @@ app.post('/api/admin/mestre/adicionar-tempo', async (req, res) => {
             duracao: duracaoFormatada,
             segundosTotais: totalSegundos,
             manual: true,
+            posicaoRanking: resumoRank.posicao,
+            totalAcumuladoFormatado: resumoRank.totalFormatado,
             motivoEncerramento: `Injeção Manual por Mestre: ${motivoDescricao}`,
             fotoComprovante: motivo ? `Injeção Manual por Mestre: ${motivoDescricao}` : 'Injeção Manual por Mestre',
             comprovantesVerificacao: []
