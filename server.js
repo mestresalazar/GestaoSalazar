@@ -2789,6 +2789,9 @@ app.post('/api/membro/turno', async (req, res) => {
         // Calcula a posição no ranking e o total resultante após a homologação
         const resumoRank = await obterPosicaoEResumoRanking(nickname);
 
+        const intervaloSegs = Math.max(0, Math.floor((agoraServidor.getTime() - dataInicioReal.getTime()) / 1000));
+        const intervaloFormatado = converterSegundosParaDuracao(intervaloSegs);
+
         const diferencaPausaSegundos = Math.max(0, intervaloSegs - segundosFinais);
         const pausaTexto = diferencaPausaSegundos > 30 ? converterSegundosParaDuracao(diferencaPausaSegundos) : '00:00:00';
 
@@ -2903,9 +2906,6 @@ app.post('/api/membro/turno', async (req, res) => {
 
         const inicioBrtStr = dataInicioReal.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const fimBrtStr = agoraServidor.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-        const intervaloSegs = Math.max(0, Math.floor((agoraServidor.getTime() - dataInicioReal.getTime()) / 1000));
-        const intervaloFormatado = converterSegundosParaDuracao(intervaloSegs);
 
         io.emit('operacional:turno_atualizado', {
             nickname: String(nickname).toLowerCase().trim(),
